@@ -1,0 +1,70 @@
+
+lerobot-train \
+  --policy.path=lerobot/smolvla_base \
+  --policy.repo_id=MasterProject2026/pick-orange-mimic \
+  --dataset.repo_id=LightwheelAI/leisaac-pick-orange-mimic-v0 \
+  --batch_size=32 \
+  --steps=40000 \
+  --save_freq=5000 \
+  --output_dir=outputs/train/pick-orange-mimic \
+  --job_name=pick-orange-mimic \
+  --policy.device=cuda \
+  --wandb.enable=true
+
+lerobot-train \
+  --policy.type=act  \
+  --policy.repo_id=MasterProject2026/ACT-pick-orange \
+  --dataset.repo_id=MasterProject2026/leisaac-pick-orange-v3 \
+  --batch_size=8 \
+  --steps=100000 \
+  --save_freq=20000 \
+  --output_dir=outputs/train/ACT-pick-orange \
+  --job_name=pick-orange-ACT \
+  --policy.device=cuda \
+  --wandb.enable=true
+
+
+##################
+INFERENCE FROM SERVER
+
+
+python -m lerobot.async_inference.policy_server \
+  --host=127.0.0.1 \
+  --port=8080
+
+
+
+
+./remote.sh policy_inference.py \
+  --task=LeIsaac-SO101-PickOrange-v0 \
+  --eval_rounds=10 \
+  --policy_type=lerobot-smolvla \
+  --policy_host=localhost \
+  --policy_port=8080 \
+  --policy_timeout_ms=5000 \
+  --policy_action_horizon=50 \
+  --policy_language_instruction="Pick up the orange and place it on the plate" \
+  --device=cuda \
+  --enable_cameras \
+  --policy_checkpoint_path=outputs/train/pick-orange-mimic/checkpoints/040000/pretrained_model
+
+  ./remote.sh policy_inference.py \
+  --task=LeIsaac-SO101-PickOrange-v0 \
+  --eval_rounds=10 \
+  --policy_type=lerobot-act \
+  --policy_host=localhost \
+  --policy_port=8080 \
+  --policy_timeout_ms=5000 \
+  --policy_action_horizon=50 \
+  --device=cuda \
+  --enable_cameras \
+  --policy_checkpoint_path=MasterProject2026/ACT-pick-orange
+
+
+
+  ##############
+  TO RESUME FROM CHECKPOINT
+
+  lerobot-train \
+  --config_path=outputs/train/pick-orange-mimic/checkpoints/010000/pretrained_model/train_config.json \
+  --resume=true \
