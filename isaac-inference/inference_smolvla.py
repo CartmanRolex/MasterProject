@@ -26,7 +26,7 @@ from eval_utils import (
 # 1. Configuration & Setup
 # ==========================================
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model_id = "outputs/train/pick-orange-mimic/checkpoints/040000/pretrained_model"
+model_id = "../trained-models/train/pick-orange-mimic/checkpoints/040000/pretrained_model"
 n_episodes = 100
 instruction = "Grab orange and place into plate"
 
