@@ -229,6 +229,7 @@ class SubtaskTracker:
 
     def __init__(
         self,
+        block = False,              # if True, skip all checks and print a single message at init
         patience_frames=5,        # frames required to confirm hover or lift
         xy_threshold=0.04,        # max EE–orange XY distance to count as hovering (m)
         z_offset_min=0.0,         # min EE Z above orange to count as hovering (m)
@@ -249,7 +250,7 @@ class SubtaskTracker:
         self.total_oranges         = len(orange_names)
         self.stability_frames      = stability_frames
         self.stability_tolerance   = stability_tolerance
-
+        self.block = block
         self.reset()
 
     def reset(self):
@@ -278,7 +279,8 @@ class SubtaskTracker:
         return ee_pos, gripper_pos, plate_pos, orange_positions
 
     def _pause(self):
-        input("  ⏸  Press Enter to continue...")
+        if(self.block):
+            input("  ⏸  Press Enter to continue...")
 
     # ----------------------------------------------------------
     # Main entry point — call every step

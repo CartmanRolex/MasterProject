@@ -1,4 +1,5 @@
 import time
+import threading
 import torch
 import numpy as np
 from transformers import AutoProcessor
@@ -6,7 +7,7 @@ from lerobot.envs.factory import make_env
 from lerobot.policies.factory import make_pre_post_processors
 from lerobot.policies.smolvla.modeling_smolvla import SmolVLAPolicy
 from lerobot.policies.utils import build_inference_frame
-
+from lerobot.utils.constants import OBS_LANGUAGE_TOKENS
 
 from robot_utils import (
     convert_leisaac_action_to_lerobot,
@@ -15,21 +16,94 @@ from robot_utils import (
 
 # Shared Evaluation Utilities
 from eval_utils import (
-    save_positions, 
-    count_oranges_in_plate, 
-    save_camera_snapshots, 
+    save_positions,
+    count_oranges_in_plate,
+    save_camera_snapshots,
     EvaluationTracker,
-    SubtaskTracker
 )
 
 # ==========================================
 # 1. Configuration & Setup
 # ==========================================
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model_id = "../trained-models/train/pick-orange-mimic/checkpoints/040000/pretrained_model"
+model_id = "MasterProject2026/pick-orange-mimic-subepisoded"
 n_episodes = 100
-instruction = "Grab orange and place into plate"
-block_subtask = False 
+
+AVAILABLE_PROMPTS = [
+    "Go over an orange",
+    "Pick up the orange",
+    "Place the orange into plate",
+    "Go back to start position",
+]
+
+# ==========================================
+# 2. Live Prompt Controller
+# ==========================================
+class PromptController:
+    """
+    Runs a background thread that listens for terminal input.
+    Type a number to switch prompts, or type any custom string directly.
+
+    Usage during simulation:
+      Press Enter alone  -> print current prompt and available options
+      Type a number      -> switch to that numbered prompt
+      Type any text      -> set that text as the custom prompt
+    """
+    def __init__(self, initial_prompt: str, prompts: list[str]):
+        self._lock = threading.Lock()
+        self._prompt = initial_prompt
+        self._prompts = prompts
+        self._thread = threading.Thread(target=self._listen, daemon=True)
+
+    def start(self):
+        self._thread.start()
+        self._print_menu()
+
+    def get(self) -> str:
+        with self._lock:
+            return self._prompt
+
+    def _set(self, new_prompt: str):
+        with self._lock:
+            self._prompt = new_prompt
+
+    def _print_menu(self):
+        print("\n" + "=" * 55)
+        print("  LIVE PROMPT SWITCHER")
+        print("=" * 55)
+        for i, p in enumerate(self._prompts):
+            marker = "▶" if p == self._prompt else " "
+            print(f"  {marker} [{i}] {p}")
+        print("  Enter a number to switch, or type a custom prompt.")
+        print(f"  Current: \"{self._prompt}\"")
+        print("=" * 55 + "\n")
+
+    def _listen(self):
+        while True:
+            try:
+                raw = input()
+            except EOFError:
+                break
+
+            raw = raw.strip()
+
+            if not raw:
+                self._print_menu()
+                continue
+
+            if raw.isdigit():
+                idx = int(raw)
+                if 0 <= idx < len(self._prompts):
+                    new_prompt = self._prompts[idx]
+                    self._set(new_prompt)
+                    print(f"\n✅ Prompt switched to: \"{new_prompt}\"\n")
+                else:
+                    print(f"\n⚠️  Index out of range. Choose 0–{len(self._prompts) - 1}.\n")
+            else:
+                self._set(raw)
+                print(f"\n✅ Custom prompt set: \"{raw}\"\n")
+
+
 dataset_features = {
     "observation.images.front": {"dtype": "video", "shape": (3, 480, 640), "names": ["front"]},
     "observation.images.wrist": {"dtype": "video", "shape": (3, 480, 640), "names": ["wrist"]},
@@ -38,7 +112,7 @@ dataset_features = {
 }
 
 # ==========================================
-# 2. Environment & Policy Initialization
+# 3. Environment & Policy Initialization
 # ==========================================
 print("Loading LeIsaac Environment...")
 envs_dict = make_env("LightwheelAI/leisaac_env:envs/so101_pick_orange.py", n_envs=1, trust_remote_code=True)
@@ -49,29 +123,39 @@ print(f"Loading trained policy: {model_id}...")
 policy = SmolVLAPolicy.from_pretrained(model_id).to(device).eval()
 
 preprocess, postprocess = make_pre_post_processors(
-    policy.config, 
+    policy.config,
     model_id,
     preprocessor_overrides={"device_processor": {"device": str(device)}},
 )
 
 # ==========================================
-# 3. Evaluation Loop
+# 4. Start Prompt Controller
+# ==========================================
+prompt_controller = PromptController(
+    initial_prompt=AVAILABLE_PROMPTS[0],
+    prompts=AVAILABLE_PROMPTS,
+)
+prompt_controller.start()
+
+# ==========================================
+# 5. Evaluation Loop
 # ==========================================
 tracker = EvaluationTracker(n_episodes)
-sub_tracker = SubtaskTracker(block=block_subtask)
 print(f"\n--- STARTING EVALUATION: {n_episodes} EPISODES ---")
 
 try:
     for episode in range(n_episodes):
         obs, _ = env.reset()
-        policy.reset() 
-        
+        policy.reset()
+
         done = False
         step_count = 0
         tracker.start_episode(episode)
-        sub_tracker.reset()
 
         while not done:
+            # Fetch the current prompt (may have changed between steps)
+            instruction = prompt_controller.get()
+
             policy_obs = obs['policy']
 
             raw_front = policy_obs['front'][0].cpu().numpy()
@@ -88,14 +172,16 @@ try:
             }
 
             obs_frame = build_inference_frame(
-                observation=raw_observations, 
+                observation=raw_observations,
                 ds_features=dataset_features,
-                device=device, 
-                task=instruction
+                device=device,
+                task=instruction  # live prompt injected here
             )
 
             # --- Inference ---
             batch = preprocess(obs_frame)
+
+
             t_infer_start = time.perf_counter()
             with torch.inference_mode():
                 action_output = policy.select_action(batch)
@@ -117,18 +203,17 @@ try:
             t_step_start = time.perf_counter()
             obs, reward, terminated, truncated, info = env.step(step_action[0].unsqueeze(0))
             t_step_end = time.perf_counter()
-            sub_tracker.check_status(env, step_count)
             step_time_ms = (t_step_end - t_step_start) * 1000
 
             # --- Update Tracker ---
             tracker.record_timing(infer_time_ms, step_time_ms)
             step_count += 1
             tracker.update_step(step_count)
-            
+
             is_terminated = bool(terminated.item() if isinstance(terminated, torch.Tensor) else terminated)
             is_truncated = bool(truncated.item() if isinstance(truncated, torch.Tensor) else truncated)
             done = is_terminated or is_truncated
-            
+
             if done:
                 oranges_in_plate = count_oranges_in_plate(last_positions)
                 tracker.end_episode(episode, step_count, is_terminated, oranges_in_plate)
