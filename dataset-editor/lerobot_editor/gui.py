@@ -142,7 +142,7 @@ class EditorApp:
         self.mark_end_btn.pack(side="left", padx=4)
 
         ttk.Button(edit_frame, text="Undo (u)", command=self._on_undo).pack(side="left", padx=4)
-
+        ttk.Button(edit_frame, text="Split Episode", command=self._on_split_episode).pack(side="left", padx=4)
         self.mark_label = ttk.Label(edit_frame, text="No mark set", style="TLabel")
         self.mark_label.pack(side="left", padx=12)
 
@@ -156,7 +156,7 @@ class EditorApp:
             font=("Consolas", 9), selectbackground="#444444", borderwidth=0,
         )
         self.edits_list.pack(fill="x", pady=2)
-
+        self.edits_list.bind("<Double-1>", self._on_edit_task_double_click)
         # ── BOTTOM: Export + status ──
         bottom = ttk.Frame(self.root)
         bottom.pack(fill="x", padx=8, pady=(2, 8))
@@ -183,6 +183,26 @@ class EditorApp:
         total = len(self.episodes)
         self.progress_label.config(text=f"Progress: {n_done}/{total}")
 
+    def _on_edit_task_double_click(self, event):
+        """Double-click an edit to rename its task string."""
+        sel = self.edits_list.curselection()
+        if not sel or self.state is None:
+            return
+        idx = sel[0]
+        if idx >= len(self.state.edits):
+            return
+        edit = self.state.edits[idx]
+        new_task = simpledialog.askstring(
+            "Edit Task",
+            f"Change task for frames {edit.start}–{edit.end}:",
+            initialvalue=edit.task,
+            parent=self.root,
+        )
+        if new_task and new_task.strip():
+            edit.task = new_task.strip()
+            self._refresh_edits_list()
+            self._set_status(f"Edit [{idx}] task changed to '{edit.task}'")
+            self._request_redraw()
     # ── EPISODE LOADING ──────────────────────────
 
     def _close_readers(self):
@@ -407,6 +427,64 @@ class EditorApp:
         self._load_episode(self.episodes[self.ep_pos])
 
     # ── EDITING ──────────────────────────────────
+    def _on_split_episode(self):
+        """Split ALL edited episodes into sub-episodes, saving to a new folder."""
+        # Save current edits first
+        episode_idx = self.episodes[self.ep_pos]
+        if self.state and self.state.edits:
+            self.progress.save_episode_edits(episode_idx, self.state.edits)
+
+        all_done = self.progress.get_done_episodes()
+        eps_with_edits = [ep for ep in all_done if self.progress.get_edits_for_episode(ep)]
+
+        if not eps_with_edits:
+            self._set_status("No edits to split on. Mark regions first.")
+            return
+
+        ok = messagebox.askyesno(
+            "Split All Episodes",
+            f"This will split {len(eps_with_edits)} episode(s) into sub-episodes.\n\n"
+            f"Episodes: {sorted(eps_with_edits)}\n\n"
+            f"You will choose an output folder (original dataset is NOT modified).\n\n"
+            f"Continue?",
+        )
+        if not ok:
+            return
+
+        folder = filedialog.askdirectory(title="Choose output folder for split dataset")
+        if not folder:
+            return
+        output_path = Path(folder)
+
+        tail_frames = simpledialog.askinteger(
+            "Tail Frames",
+            "Append how many no-op tail frames to each exported sub-episode?\n"
+            "(0 = disabled)",
+            parent=self.root,
+            minvalue=0,
+            initialvalue=10,
+        )
+        if tail_frames is None:
+            return
+
+        self._set_status("Splitting all episodes...")
+        self.root.update()
+
+        try:
+            from .exporter import split_all_episodes
+            msg = split_all_episodes(
+                self.dataset_path,
+                self.progress,
+                output_path,
+                tail_frames=tail_frames,
+            )
+            self._set_status("Split complete")
+            messagebox.showinfo("Split Complete", msg)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            messagebox.showerror("Split Error", str(e))
+            self._set_status(f"Split failed: {e}")
 
     def _on_mark_start(self, event):
         if self.state is None:
