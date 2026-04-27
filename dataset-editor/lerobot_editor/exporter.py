@@ -30,7 +30,6 @@ def split_all_episodes(
     dataset_path: Path,
     progress: ProgressTracker,
     output_path: Path,
-    tail_frames: int = 0,
 ) -> str:
     """Split ALL episodes that have edits into sub-episodes.
 
@@ -38,7 +37,7 @@ def split_all_episodes(
 
     For each episode with edits, each edit region becomes a new episode.
     Frames outside edit regions are DROPPED.
-    Episodes without edits are kept as-is.
+    Episodes without edits are EXCLUDED from the output.
 
     Updates: data parquet, episode metadata (all columns including video
     timestamps and per-episode stats), tasks.parquet, and info.json.
@@ -50,9 +49,6 @@ def split_all_episodes(
 
     if not episodes_with_edits:
         return "No episodes with edits to split."
-
-    if tail_frames < 0:
-        return "tail_frames must be >= 0"
 
     if output_path.resolve() == dataset_path.resolve():
         return "Output path must be different from source to avoid data loss."
@@ -102,7 +98,7 @@ def split_all_episodes(
 
     # --- 3. Build the new data rows ---
     eps_to_split = set(episodes_with_edits)
-    kept_rows = df[~df["episode_index"].isin(eps_to_split)]
+    kept_rows = df.iloc[0:0].copy()  # unannotated episodes are excluded
 
     new_data_chunks = []         # DataFrames for new sub-episodes
     new_meta_rows = []           # dicts for new episode metadata rows
@@ -140,30 +136,6 @@ def split_all_episodes(
             chunk["timestamp"] = chunk["timestamp"] - old_min_ts
             chunk["episode_index"] = next_ep_idx
             chunk["task_index"] = task_map[edit.task]
-
-            if tail_frames > 0 and len(chunk) > 0:
-                last_row = chunk.iloc[-1].copy()
-                tail_rows = []
-
-                for i in range(tail_frames):
-                    new_row = last_row.copy()
-                    new_row["frame_index"] = int(last_row["frame_index"]) + i + 1
-                    new_row["timestamp"] = float(last_row["timestamp"])  # same timestamp → same video seek → frozen frame
-
-                    # Train a no-op tail by setting action to final observed state.
-                    if "action" in chunk.columns and "observation.state" in chunk.columns:
-                        state_val = last_row["observation.state"]
-                        if isinstance(state_val, np.ndarray):
-                            new_row["action"] = state_val.copy()
-                        elif isinstance(state_val, list):
-                            new_row["action"] = list(state_val)
-                        else:
-                            new_row["action"] = state_val
-
-                    tail_rows.append(new_row)
-
-                if tail_rows:
-                    chunk = pd.concat([chunk, pd.DataFrame(tail_rows)], ignore_index=True)
 
             n_frames = len(chunk)
 
@@ -235,17 +207,8 @@ def split_all_episodes(
     messages.append(f"Wrote {len(old_eps)} episodes to {data_file.name}")
 
     # --- 6. Build complete episode metadata with stats ---
-    # Keep metadata for episodes that were NOT split
-    kept_meta = ep_meta[~ep_meta["episode_index"].isin(split_from_eps)].copy()
-    # Remap their episode indices too
-    kept_meta["episode_index"] = kept_meta["episode_index"].map(remap)
-    # Update their dataset_from_index / dataset_to_index
-    for idx in kept_meta.index:
-        ep_i = kept_meta.at[idx, "episode_index"]
-        ep_data = result[result["episode_index"] == ep_i]
-        if not ep_data.empty:
-            kept_meta.at[idx, "dataset_from_index"] = int(ep_data["index"].min())
-            kept_meta.at[idx, "dataset_to_index"] = int(ep_data["index"].max()) + 1
+    # Unannotated episodes are excluded; only annotated sub-episodes are kept
+    kept_meta = ep_meta.iloc[0:0].copy()
 
     # Compute per-episode stats for new sub-episodes
     stat_columns = [c for c in ep_meta.columns if c.startswith("stats/")]
@@ -370,15 +333,6 @@ def split_all_episodes(
         json.dump(info, fj, indent=2)
     messages.append(f"Updated info.json: {total_episodes} episodes, {total_frames} frames")
 
-    # --- 9. Clean up progress ---
-    for ep_idx in episodes_with_edits:
-        key = str(ep_idx)
-        if key in progress.data["episodes"]:
-            del progress.data["episodes"][key]
-    progress.save()
-
-    if tail_frames > 0:
-        messages.append(f"Added {tail_frames} tail frame(s) per sub-episode (action=final observation.state)")
     messages.append(f"\nDone! Split {len(episodes_with_edits)} episodes → {len(new_data_chunks)} sub-episodes")
     messages.append(f"Total episodes: {total_episodes}, Total frames: {total_frames}")
     messages.append(f"Output: {output_path}")
@@ -388,7 +342,6 @@ def split_episode(
     dataset_path: Path,
     episode_idx: int,
     edits: list,  # list[TaskEdit]
-    progress: ProgressTracker,
 ) -> str:
     """Split one episode into N new episodes (one per edit region).
 
@@ -516,12 +469,6 @@ def split_episode(
         except (pa.ArrowInvalid, pa.ArrowTypeError):
             out_table = pa.Table.from_pandas(df, preserve_index=False)
         pq.write_table(out_table, f)
-
-    # --- 6. Clean up progress tracker ---
-    key = str(episode_idx)
-    if key in progress.data["episodes"]:
-        del progress.data["episodes"][key]
-    progress.save()
 
     messages.append(f"\nSplit episode {episode_idx} → {len(sorted_edits)} new episodes")
     return "\n".join(messages)

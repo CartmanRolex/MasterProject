@@ -31,11 +31,14 @@ class EditorState:
         # Pre-build frame_index → task_index dict for O(1) lookup
         self._frame_task: dict[int, int] = {}
         self._frame_action: dict[int, list[float]] = {}
+        self._frame_state: dict[int, list[float]] = {}  # joints 0-4 only (no gripper)
         for _, row in frame_data.iterrows():
             fi = int(row["frame_index"])
             self._frame_task[fi] = int(row["task_index"])
             if "action" in row.index and row["action"] is not None:
                 self._frame_action[fi] = list(row["action"])
+            if "observation.state" in row.index and row["observation.state"] is not None:
+                self._frame_state[fi] = list(row["observation.state"])[:5]
 
     def get_task_for_frame(self, frame_idx: int) -> str:
         for edit in reversed(self.edits):

@@ -64,6 +64,11 @@ class EditorApp:
         self.root.bind("p", lambda e: self._prev_episode())
         self.root.bind("s", lambda e: self._on_export())
         self.root.bind("q", lambda e: self._on_close())
+        # "f" + arrow → skip to next/prev state change (skips frozen frames)
+        self._f_held = False
+        self._f_arrow_used = False
+        self.root.bind("<KeyPress-f>", self._on_f_press)
+        self.root.bind("<KeyRelease-f>", self._on_f_release)
 
     # ── UI CONSTRUCTION ──────────────────────────
 
@@ -350,7 +355,8 @@ class EditorApp:
         else:
             self.task_label.config(text=task, foreground="#88ff88")
 
-        self.frame_label.config(text=f"Frame: {dataset_frame} (ep: {self.current_frame}/{self.total_frames - 1})")
+        episode_idx = self.episodes[self.ep_pos]
+        self.frame_label.config(text=f"Frame: {dataset_frame}  |  ep {episode_idx}  |  {self.current_frame}/{self.total_frames - 1} within ep")
 
         if self.state.mark_start is not None:
             self.mark_label.config(text=f"Mark start: {self.state.mark_start}", foreground="#ff6666")
@@ -404,9 +410,90 @@ class EditorApp:
             self._request_redraw()
 
     def _step(self, delta):
+        if self._f_held:
+            self._f_arrow_used = True
+            self._jump_to_frozen_region_end(1 if delta > 0 else -1)
+            return
         new_frame = max(0, min(self.total_frames - 1, self.current_frame + delta))
         if new_frame != self.current_frame:
             self.current_frame = new_frame
+            self.slider.set(self.current_frame)
+            self._request_redraw()
+
+    def _on_f_press(self, _event=None):
+        self._f_held = True
+        self._f_arrow_used = False
+
+    def _on_f_release(self, _event=None):
+        self._f_held = False
+        self._f_arrow_used = False
+
+    def _jump_to_frozen_region_end(self, direction: int):
+        """Jump to the last frame of the next (or previous) frozen block.
+
+        A frozen block is a run of consecutive frames with identical arm state
+        (joints 0-4, gripper excluded). Landing on the last frame of the block
+        makes it easy to see exactly where the freeze ends.
+        """
+        if self.state is None:
+            return
+        df = self.current_frame + self.min_frame
+        first = self.min_frame
+        last = self.min_frame + self.total_frames - 1
+
+        def same(a, b):
+            return all(abs(x - y) <= 0.1 for x, y in zip(a, b))
+
+        cur = self.state._frame_state.get(df)
+        if cur is None:
+            return
+
+        if direction > 0:
+            fi = df + 1
+            # Exit the current frozen block (if we're inside one)
+            while fi <= last:
+                s = self.state._frame_state.get(fi)
+                if s is None or not same(s, cur):
+                    break
+                fi += 1
+            # Skip non-frozen (moving) frames to find the next frozen block
+            while fi < last:
+                s_cur = self.state._frame_state.get(fi)
+                s_next = self.state._frame_state.get(fi + 1)
+                if s_cur is not None and s_next is not None and same(s_cur, s_next):
+                    break
+                fi += 1
+            if fi >= last:
+                return
+            # Walk to the last frame of this frozen block
+            frozen_state = self.state._frame_state.get(fi)
+            while fi + 1 <= last:
+                s = self.state._frame_state.get(fi + 1)
+                if s is None or not same(s, frozen_state):
+                    break
+                fi += 1
+        else:
+            fi = df - 1
+            # Exit the current frozen block going backward
+            while fi >= first:
+                s = self.state._frame_state.get(fi)
+                if s is None or not same(s, cur):
+                    break
+                fi -= 1
+            # Skip non-frozen frames backward to find the previous frozen block.
+            # Stop when state[fi] == state[fi-1]; fi is then the last frame of that block.
+            while fi > first:
+                s_cur = self.state._frame_state.get(fi)
+                s_prev = self.state._frame_state.get(fi - 1)
+                if s_cur is not None and s_prev is not None and same(s_cur, s_prev):
+                    break
+                fi -= 1
+            if fi <= first:
+                return
+
+        target = fi - self.min_frame
+        if 0 <= target < self.total_frames:
+            self.current_frame = target
             self.slider.set(self.current_frame)
             self._request_redraw()
 
@@ -456,17 +543,6 @@ class EditorApp:
             return
         output_path = Path(folder)
 
-        tail_frames = simpledialog.askinteger(
-            "Tail Frames",
-            "Append how many no-op tail frames to each exported sub-episode?\n"
-            "(0 = disabled)",
-            parent=self.root,
-            minvalue=0,
-            initialvalue=10,
-        )
-        if tail_frames is None:
-            return
-
         self._set_status("Splitting all episodes...")
         self.root.update()
 
@@ -476,7 +552,6 @@ class EditorApp:
                 self.dataset_path,
                 self.progress,
                 output_path,
-                tail_frames=tail_frames,
             )
             self._set_status("Split complete")
             messagebox.showinfo("Split Complete", msg)

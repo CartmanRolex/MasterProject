@@ -65,7 +65,7 @@ def load_episode_list(episodes_df: pd.DataFrame) -> list[int]:
 
 def load_frame_data(dataset_path: Path, episode_idx: int) -> pd.DataFrame:
     frames = []
-    needed_cols = ["frame_index", "episode_index", "task_index", "action"]
+    needed_cols = ["frame_index", "episode_index", "task_index", "action", "observation.state"]
     for f in sorted((dataset_path / "data").rglob("*.parquet")):
         # Only read the columns we need
         df = pd.read_parquet(f, columns=needed_cols)
