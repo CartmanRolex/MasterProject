@@ -172,7 +172,7 @@ def _recompute_ep_stats(ep_data: pd.DataFrame, ep_meta_row: pd.Series, ep_meta_s
     return row
 
 
-def cmd_fix(dataset_path: Path, output_path: Path, min_frozen: int, task_filter: str) -> None:
+def cmd_fix(dataset_path: Path, output_path: Path, min_frozen: int) -> None:
     if output_path.resolve() == dataset_path.resolve():
         sys.exit("ERROR: output path must differ from source.")
 
@@ -185,9 +185,6 @@ def cmd_fix(dataset_path: Path, output_path: Path, min_frozen: int, task_filter:
         info = json.load(f)
     fps = info.get("fps", 30)
 
-    tasks_df = _load_tasks(output_path)
-    idx2task = {int(r["task_index"]): str(r["task"]) for _, r in tasks_df.iterrows()}
-
     ep_meta_files, ep_meta = _load_ep_meta(output_path)
     ep_meta_schema = pq.read_table(ep_meta_files[0]).schema
 
@@ -197,10 +194,6 @@ def cmd_fix(dataset_path: Path, output_path: Path, min_frozen: int, task_filter:
     to_pad: dict[int, int] = {}  # ep_idx → n_frames_to_add
     for ep_idx, ep_df in df.groupby("episode_index"):
         ep_df = ep_df.sort_values("frame_index")
-        task_idx = int(ep_df["task_index"].iloc[0])
-        task_str = idx2task.get(task_idx, "")
-        if task_filter and task_filter.lower() not in task_str.lower():
-            continue
         states = np.stack(ep_df["observation.state"].values)
         frozen = count_frozen_tail(states)
         if frozen < min_frozen:
@@ -210,7 +203,7 @@ def cmd_fix(dataset_path: Path, output_path: Path, min_frozen: int, task_filter:
         print("No episodes need padding. Done.")
         return
 
-    print(f"Padding {len(to_pad)} episodes (min_frozen={min_frozen}, filter='{task_filter}')...")
+    print(f"Padding {len(to_pad)} episodes (min_frozen={min_frozen})...")
 
     # Build tail rows for each episode and append to df
     tail_chunks = []
@@ -315,15 +308,13 @@ def main():
     p_fix.add_argument("output", type=Path)
     p_fix.add_argument("--min-frozen", type=int, default=24,
                        help="Target number of frozen frames at episode end (default: 24)")
-    p_fix.add_argument("--task-filter", type=str, default="",
-                       help="Only pad episodes whose task contains this string (case-insensitive)")
 
     args = parser.parse_args()
 
     if args.cmd == "analyze":
         cmd_analyze(args.dataset)
     elif args.cmd == "fix":
-        cmd_fix(args.dataset, args.output, args.min_frozen, args.task_filter)
+        cmd_fix(args.dataset, args.output, args.min_frozen)
 
 
 if __name__ == "__main__":
