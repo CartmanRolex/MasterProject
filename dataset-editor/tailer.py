@@ -221,6 +221,7 @@ def cmd_fix(dataset_path: Path, output_path: Path, min_frozen: int, task_filter:
         for i in range(1, n_add + 1):
             new_row = last.copy()
             new_row["frame_index"] = last_fi + i
+            new_row["action"] = new_row["observation.state"]
             tail_chunks.append(new_row)
 
     tail_df = pd.DataFrame(tail_chunks)
