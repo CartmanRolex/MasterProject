@@ -205,18 +205,17 @@ def cmd_fix(dataset_path: Path, output_path: Path, min_frozen: int) -> None:
 
     print(f"Padding {len(to_pad)} episodes (min_frozen={min_frozen})...")
 
-    # Build tail rows for each episode and append to df
-    frame_dt = 1.0 / fps
+    # Build tail rows for each episode and append to df.
+    # Timestamp is frozen at the last real frame's value so all tail frames
+    # resolve to the same absolute video position (last real frame of the episode).
     tail_chunks = []
     for ep_idx, n_add in to_pad.items():
         ep_df = df[df["episode_index"] == ep_idx].sort_values("frame_index")
         last = ep_df.iloc[-1].copy()
         last_fi = int(last["frame_index"])
-        last_ts = float(last["timestamp"])
         for i in range(1, n_add + 1):
             new_row = last.copy()
             new_row["frame_index"] = last_fi + i
-            new_row["timestamp"] = last_ts + i * frame_dt
             new_row["action"] = new_row["observation.state"]
             tail_chunks.append(new_row)
 
@@ -228,8 +227,7 @@ def cmd_fix(dataset_path: Path, output_path: Path, min_frozen: int) -> None:
     # Recompute dataset_from_index / dataset_to_index for all episodes
     ep_ranges = df.groupby("episode_index")["index"].agg(["min", "max"])
 
-    # Update episode metadata
-    video_to_ts_cols = [c for c in ep_meta.columns if c.endswith("/to_timestamp") and c.startswith("videos/")]
+    # Update episode metadata (video timestamps unchanged — tail frames reuse last real frame)
     updated_meta_rows = []
     for _, meta_row in ep_meta.iterrows():
         ep_idx = int(meta_row["episode_index"])
@@ -238,10 +236,6 @@ def cmd_fix(dataset_path: Path, output_path: Path, min_frozen: int) -> None:
         if ep_idx in ep_ranges.index:
             row["dataset_from_index"] = int(ep_ranges.loc[ep_idx, "min"])
             row["dataset_to_index"] = int(ep_ranges.loc[ep_idx, "max"]) + 1
-        if ep_idx in to_pad:
-            new_last_ts = float(ep_data["timestamp"].max())
-            for col in video_to_ts_cols:
-                row[col] = new_last_ts + frame_dt
         updated_meta_rows.append(row)
 
     new_ep_meta = pd.DataFrame(updated_meta_rows).sort_values("episode_index").reset_index(drop=True)
