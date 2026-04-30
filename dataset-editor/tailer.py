@@ -55,7 +55,7 @@ def _load_data(dataset_path: Path) -> tuple[list[Path], list[pa.Schema], pd.Data
     return files, schemas, pd.concat(parts, ignore_index=True)
 
 
-def count_frozen_tail(states: np.ndarray, arm_tol: float = 0.1, grip_tol: float = 5.0) -> int:
+def count_frozen_tail(states: np.ndarray, arm_tol: float = 0.5, grip_tol: float = 5.0) -> int:
     """Count trailing frames whose state matches the last frame.
 
     Arm joints 0-4: tolerance arm_tol. Gripper joint 5: tolerance grip_tol.
@@ -106,15 +106,16 @@ def cmd_analyze(dataset_path: Path) -> None:
 
     print(f"\n=== {dataset_path} ({info.get('total_episodes', '?')} episodes, {info.get('fps', 30)} fps) ===\n")
 
-    header = f"{'Task':<35} {'eps':>5} {'min':>5} {'mean':>6} {'max':>5} {'need_pad':>9}"
+    header = f"{'Task':<35} {'eps':>5} {'min':>5} {'min_ep':>7} {'mean':>6} {'max':>5} {'need_pad':>9}"
     print(header)
     print("-" * len(header))
 
     for task_str, group in per_ep.groupby("task"):
         frozen = group["frozen"]
         label = task_str if len(task_str) <= 35 else task_str[:32] + "..."
+        min_ep = int(group.loc[frozen.idxmin(), "episode_index"])
         need = (frozen < 24).sum()
-        print(f"{label:<35} {len(group):>5} {frozen.min():>5} {frozen.mean():>6.1f} {frozen.max():>5} {need:>9}")
+        print(f"{label:<35} {len(group):>5} {frozen.min():>5} {min_ep:>7} {frozen.mean():>6.1f} {frozen.max():>5} {need:>9}")
 
     print()
     total_need = (per_ep["frozen"] < 24).sum()
