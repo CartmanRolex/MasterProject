@@ -189,7 +189,7 @@ class EditorApp:
         self.progress_label.config(text=f"Progress: {n_done}/{total}")
 
     def _on_edit_task_double_click(self, event):
-        """Double-click an edit to rename its task string."""
+        """Double-click an edit to modify its task, start, and end frame."""
         sel = self.edits_list.curselection()
         if not sel or self.state is None:
             return
@@ -197,17 +197,65 @@ class EditorApp:
         if idx >= len(self.state.edits):
             return
         edit = self.state.edits[idx]
-        new_task = simpledialog.askstring(
-            "Edit Task",
-            f"Change task for frames {edit.start}–{edit.end}:",
-            initialvalue=edit.task,
-            parent=self.root,
-        )
-        if new_task and new_task.strip():
-            edit.task = new_task.strip()
-            self._refresh_edits_list()
-            self._set_status(f"Edit [{idx}] task changed to '{edit.task}'")
-            self._request_redraw()
+
+        # Custom dialog with three fields
+        dlg = tk.Toplevel(self.root)
+        dlg.title("Edit region")
+        dlg.resizable(False, False)
+        dlg.grab_set()
+
+        fields = {}
+        for row, (label, value) in enumerate([
+            ("Task", edit.task),
+            ("Start frame", str(edit.start)),
+            ("End frame", str(edit.end)),
+        ]):
+            ttk.Label(dlg, text=label).grid(row=row, column=0, padx=10, pady=6, sticky="e")
+            var = tk.StringVar(value=str(value))
+            entry = ttk.Entry(dlg, textvariable=var, width=40)
+            entry.grid(row=row, column=1, padx=10, pady=6)
+            if row == 0:
+                entry.focus_set()
+                entry.select_range(0, tk.END)
+            fields[label] = var
+
+        result = {}
+
+        def _ok(_e=None):
+            result["ok"] = True
+            dlg.destroy()
+
+        def _cancel(_e=None):
+            dlg.destroy()
+
+        btn_frame = ttk.Frame(dlg)
+        btn_frame.grid(row=3, column=0, columnspan=2, pady=8)
+        ttk.Button(btn_frame, text="OK", command=_ok, width=10).pack(side="left", padx=4)
+        ttk.Button(btn_frame, text="Cancel", command=_cancel, width=10).pack(side="left", padx=4)
+        dlg.bind("<Return>", _ok)
+        dlg.bind("<Escape>", _cancel)
+
+        self.root.wait_window(dlg)
+
+        if not result.get("ok"):
+            return
+        try:
+            new_task = fields["Task"].get().strip()
+            new_start = int(fields["Start frame"].get())
+            new_end = int(fields["End frame"].get())
+        except ValueError:
+            self._set_status("Invalid frame numbers — edit cancelled.")
+            return
+        if not new_task:
+            return
+        if new_start > new_end:
+            new_start, new_end = new_end, new_start
+        edit.task = new_task
+        edit.start = new_start
+        edit.end = new_end
+        self._refresh_edits_list()
+        self._set_status(f"Edit [{idx}] updated: frames {edit.start}–{edit.end} → '{edit.task}'")
+        self._request_redraw()
     # ── EPISODE LOADING ──────────────────────────
 
     def _close_readers(self):
