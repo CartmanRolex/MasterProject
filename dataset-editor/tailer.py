@@ -55,14 +55,19 @@ def _load_data(dataset_path: Path) -> tuple[list[Path], list[pa.Schema], pd.Data
     return files, schemas, pd.concat(parts, ignore_index=True)
 
 
-def count_frozen_tail(states: np.ndarray, tol: float = 0.1) -> int:
-    """Count trailing frames whose arm state (joints 0-4) matches the last frame."""
+def count_frozen_tail(states: np.ndarray, arm_tol: float = 0.1, grip_tol: float = 5.0) -> int:
+    """Count trailing frames whose state matches the last frame.
+
+    Arm joints 0-4: tolerance arm_tol. Gripper joint 5: tolerance grip_tol.
+    """
     if len(states) == 0:
         return 0
-    last = states[-1][:5]
+    last = states[-1]
     count = 0
     for row in reversed(states):
-        if np.allclose(row[:5], last, atol=tol):
+        arm_ok = np.all(np.abs(row[:5] - last[:5]) <= arm_tol)
+        grip_ok = abs(float(row[5]) - float(last[5])) <= grip_tol
+        if arm_ok and grip_ok:
             count += 1
         else:
             break

@@ -442,7 +442,8 @@ class EditorApp:
         last = self.min_frame + self.total_frames - 1
 
         def same(a, b):
-            return all(abs(x - y) <= 0.1 for x, y in zip(a, b))
+            return (all(abs(x - y) <= 0.1 for x, y in zip(a[:5], b[:5]))
+                    and abs(a[5] - b[5]) <= 5.0)
 
         cur = self.state._frame_state.get(df)
         if cur is None:
