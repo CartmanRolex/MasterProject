@@ -19,6 +19,7 @@ from robot_utils import (
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model_id = "MasterProject2026/Gal-pick-orange-tailed"
 n_episodes = 100
+MAX_STEPS = 5000
 
 AVAILABLE_PROMPTS = [
     "Pick it up",
@@ -142,6 +143,7 @@ print("Loading LeIsaac Environment...")
 envs_dict = make_env("LightwheelAI/leisaac_env:envs/so101_pick_orange.py", n_envs=1, trust_remote_code=True)
 suite_name = next(iter(envs_dict))
 env = envs_dict[suite_name][0].envs[0].unwrapped
+env.cfg.episode_length_s = MAX_STEPS * env.cfg.sim.dt * env.cfg.decimation
 
 print(f"Loading trained policy: {model_id}...")
 policy = SmolVLAPolicy.from_pretrained(model_id).to(device).eval()
