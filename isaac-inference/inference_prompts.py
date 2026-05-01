@@ -1,4 +1,3 @@
-import time
 import threading
 import torch
 import numpy as np
@@ -14,25 +13,17 @@ from robot_utils import (
     convert_lerobot_action_to_leisaac,
 )
 
-# Shared Evaluation Utilities
-from eval_utils import (
-    save_positions,
-    count_oranges_in_plate,
-    save_camera_snapshots,
-    EvaluationTracker,
-)
-
 # ==========================================
 # 1. Configuration & Setup
 # ==========================================
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model_id = "MasterProject2026/pick-orange-mimic-subepisoded"
+model_id = "MasterProject2026/Gal-pick-orange-tailed"
 n_episodes = 100
+MAX_STEPS = 500
 
 AVAILABLE_PROMPTS = [
-    "Go over an orange",
-    "Pick up the orange",
-    "Place the orange into plate",
+    "Pick it up",
+    "Place itinto plate",
     "Go back to start position",
 ]
 
@@ -42,17 +33,20 @@ AVAILABLE_PROMPTS = [
 class PromptController:
     """
     Runs a background thread that listens for terminal input.
-    Type a number to switch prompts, or type any custom string directly.
 
     Usage during simulation:
       Press Enter alone  -> print current prompt and available options
       Type a number      -> switch to that numbered prompt
       Type any text      -> set that text as the custom prompt
+      r / reset          -> force-reset the current episode
+      t <N>              -> set episode truncation to N steps
     """
-    def __init__(self, initial_prompt: str, prompts: list[str]):
+    def __init__(self, initial_prompt: str, prompts: list[str], max_steps: int = 500):
         self._lock = threading.Lock()
         self._prompt = initial_prompt
         self._prompts = prompts
+        self._max_steps = max_steps
+        self._reset_requested = False
         self._thread = threading.Thread(target=self._listen, daemon=True)
 
     def start(self):
@@ -62,6 +56,16 @@ class PromptController:
     def get(self) -> str:
         with self._lock:
             return self._prompt
+
+    def get_max_steps(self) -> int:
+        with self._lock:
+            return self._max_steps
+
+    def get_and_clear_reset(self) -> bool:
+        with self._lock:
+            flag = self._reset_requested
+            self._reset_requested = False
+            return flag
 
     def _set(self, new_prompt: str):
         with self._lock:
@@ -76,6 +80,8 @@ class PromptController:
             print(f"  {marker} [{i}] {p}")
         print("  Enter a number to switch, or type a custom prompt.")
         print(f"  Current: \"{self._prompt}\"")
+        print(f"  Truncation: {self._max_steps} steps  (change: t <N>)")
+        print("  Reset episode: r")
         print("=" * 55 + "\n")
 
     def _listen(self):
@@ -89,6 +95,23 @@ class PromptController:
 
             if not raw:
                 self._print_menu()
+                continue
+
+            if raw in ("r", "reset"):
+                with self._lock:
+                    self._reset_requested = True
+                print("\n🔄 Episode reset requested.\n")
+                continue
+
+            if raw.startswith("t "):
+                parts = raw.split()
+                if len(parts) == 2 and parts[1].isdigit():
+                    n = int(parts[1])
+                    with self._lock:
+                        self._max_steps = n
+                    print(f"\n✅ Truncation set to {n} steps.\n")
+                else:
+                    print("\n⚠️  Usage: t <N>  (e.g. t 200)\n")
                 continue
 
             if raw.isdigit():
@@ -134,14 +157,14 @@ preprocess, postprocess = make_pre_post_processors(
 prompt_controller = PromptController(
     initial_prompt=AVAILABLE_PROMPTS[0],
     prompts=AVAILABLE_PROMPTS,
+    max_steps=MAX_STEPS,
 )
 prompt_controller.start()
 
 # ==========================================
-# 5. Evaluation Loop
+# 5. Inference Loop
 # ==========================================
-tracker = EvaluationTracker(n_episodes)
-print(f"\n--- STARTING EVALUATION: {n_episodes} EPISODES ---")
+print(f"\n--- STARTING: {n_episodes} EPISODES ---")
 
 try:
     for episode in range(n_episodes):
@@ -150,17 +173,14 @@ try:
 
         done = False
         step_count = 0
-        tracker.start_episode(episode)
 
         while not done:
-            # Fetch the current prompt (may have changed between steps)
             instruction = prompt_controller.get()
 
             policy_obs = obs['policy']
 
             raw_front = policy_obs['front'][0].cpu().numpy()
             raw_wrist = policy_obs['wrist'][0].cpu().numpy()
-            save_camera_snapshots(raw_front, raw_wrist, episode, step_count)
 
             joint_pos_raw = policy_obs['joint_pos'].cpu().numpy()
             joint_pos_converted = convert_leisaac_action_to_lerobot(joint_pos_raw)
@@ -175,18 +195,14 @@ try:
                 observation=raw_observations,
                 ds_features=dataset_features,
                 device=device,
-                task=instruction  # live prompt injected here
+                task=instruction
             )
 
             # --- Inference ---
             batch = preprocess(obs_frame)
 
-
-            t_infer_start = time.perf_counter()
             with torch.inference_mode():
                 action_output = policy.select_action(batch)
-            t_infer_end = time.perf_counter()
-            infer_time_ms = (t_infer_end - t_infer_start) * 1000
 
             # --- Action Processing ---
             action_dict = postprocess(action_output)
@@ -199,26 +215,20 @@ try:
             step_action = torch.from_numpy(action_converted).to(device)
 
             # --- Environment Step ---
-            last_positions = save_positions(env)
-            t_step_start = time.perf_counter()
             obs, reward, terminated, truncated, info = env.step(step_action[0].unsqueeze(0))
-            t_step_end = time.perf_counter()
-            step_time_ms = (t_step_end - t_step_start) * 1000
 
-            # --- Update Tracker ---
-            tracker.record_timing(infer_time_ms, step_time_ms)
             step_count += 1
-            tracker.update_step(step_count)
 
             is_terminated = bool(terminated.item() if isinstance(terminated, torch.Tensor) else terminated)
             is_truncated = bool(truncated.item() if isinstance(truncated, torch.Tensor) else truncated)
-            done = is_terminated or is_truncated
+            done = (
+                is_terminated
+                or is_truncated
+                or prompt_controller.get_and_clear_reset()
+                or step_count >= prompt_controller.get_max_steps()
+            )
 
-            if done:
-                oranges_in_plate = count_oranges_in_plate(last_positions)
-                tracker.end_episode(episode, step_count, is_terminated, oranges_in_plate)
-
-    tracker.print_final_summary(model_id)
+        print(f"Episode {episode + 1} done after {step_count} steps.")
 
 except KeyboardInterrupt:
     print("\nForce quitting Isaac Sim...")
