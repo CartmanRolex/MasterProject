@@ -19,7 +19,6 @@ from robot_utils import (
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model_id = "MasterProject2026/Gal-pick-orange-tailed"
 n_episodes = 100
-MAX_STEPS = 500
 
 AVAILABLE_PROMPTS = [
     "Pick it up",
@@ -39,13 +38,13 @@ class PromptController:
       Type a number      -> switch to that numbered prompt
       Type any text      -> set that text as the custom prompt
       r / reset          -> force-reset the current episode
-      t <N>              -> set episode truncation to N steps
+      t <N>              -> set episode truncation to N steps (updates env directly)
     """
-    def __init__(self, initial_prompt: str, prompts: list[str], max_steps: int = 500):
+    def __init__(self, initial_prompt: str, prompts: list[str], env):
         self._lock = threading.Lock()
         self._prompt = initial_prompt
         self._prompts = prompts
-        self._max_steps = max_steps
+        self._env = env
         self._reset_requested = False
         self._thread = threading.Thread(target=self._listen, daemon=True)
 
@@ -57,10 +56,6 @@ class PromptController:
         with self._lock:
             return self._prompt
 
-    def get_max_steps(self) -> int:
-        with self._lock:
-            return self._max_steps
-
     def get_and_clear_reset(self) -> bool:
         with self._lock:
             flag = self._reset_requested
@@ -71,6 +66,13 @@ class PromptController:
         with self._lock:
             self._prompt = new_prompt
 
+    def _current_max_steps(self) -> int:
+        return self._env.max_episode_length
+
+    def _set_max_steps(self, n: int):
+        step_dt = self._env.cfg.sim.dt * self._env.cfg.decimation
+        self._env.cfg.episode_length_s = n * step_dt
+
     def _print_menu(self):
         print("\n" + "=" * 55)
         print("  LIVE PROMPT SWITCHER")
@@ -80,7 +82,7 @@ class PromptController:
             print(f"  {marker} [{i}] {p}")
         print("  Enter a number to switch, or type a custom prompt.")
         print(f"  Current: \"{self._prompt}\"")
-        print(f"  Truncation: {self._max_steps} steps  (change: t <N>)")
+        print(f"  Truncation: {self._current_max_steps()} steps  (change: t <N>)")
         print("  Reset episode: r")
         print("=" * 55 + "\n")
 
@@ -107,8 +109,7 @@ class PromptController:
                 parts = raw.split()
                 if len(parts) == 2 and parts[1].isdigit():
                     n = int(parts[1])
-                    with self._lock:
-                        self._max_steps = n
+                    self._set_max_steps(n)
                     print(f"\n✅ Truncation set to {n} steps.\n")
                 else:
                     print("\n⚠️  Usage: t <N>  (e.g. t 200)\n")
@@ -157,7 +158,7 @@ preprocess, postprocess = make_pre_post_processors(
 prompt_controller = PromptController(
     initial_prompt=AVAILABLE_PROMPTS[0],
     prompts=AVAILABLE_PROMPTS,
-    max_steps=MAX_STEPS,
+    env=env,
 )
 prompt_controller.start()
 
@@ -221,12 +222,7 @@ try:
 
             is_terminated = bool(terminated.item() if isinstance(terminated, torch.Tensor) else terminated)
             is_truncated = bool(truncated.item() if isinstance(truncated, torch.Tensor) else truncated)
-            done = (
-                is_terminated
-                or is_truncated
-                or prompt_controller.get_and_clear_reset()
-                or step_count >= prompt_controller.get_max_steps()
-            )
+            done = is_terminated or is_truncated or prompt_controller.get_and_clear_reset()
 
         print(f"Episode {episode + 1} done after {step_count} steps.")
 
