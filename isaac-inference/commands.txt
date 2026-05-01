@@ -71,26 +71,36 @@ python -m lerobot.async_inference.policy_server \
 
 
   #### TO TELEOPERATE
-  MasterProject/isaac-inference/remote.sh leisaac/scripts/environments/teleoperation/teleop_se3_agent.py  \
+/home/gal/Documents/MasterProject/isaac-inference/remote.sh /home/gal/Documents/leisaac/scripts/environments/teleoperation/teleop_se3_agent.py  \
   --task=LeIsaac-SO101-PickOrange-v0 \
-  --teleop_device=gamepad_v2 \
+  --teleop_device=gamepad_v3 \
   --num_envs=1 \
   --device=cuda \
   --enable_cameras \
   --record \
-  --dataset_file=./datasets/dataset.hdf5
+  --dataset_file=/home/gal/Documents/MasterProject/isaac-inference/teleop-datasets/dataset.hdf5
 
 ####TO VISUALIZE 
 
-MasterProject/isaac-inference/remote.sh leisaac/scripts/environments/teleoperation/replay.py \
+/home/gal/Documents/MasterProject/isaac-inference/remote.sh /home/gal/Documents/leisaac/scripts/environments/teleoperation/replay.py \
   --task=LeIsaac-SO101-PickOrange-v0 \
   --num_envs=1 \
   --device=cuda \
   --enable_cameras \
   --replay_mode=action \
-  --dataset_file=./datasets/dataset.hdf5 \
-  --select_episodes 0 \
-  --task_type=keyboard
+  --dataset_file=/home/gal/Documents/MasterProject/isaac-inference/teleop-datasets/dataset.hdf5 \
+  --task_type=gamepad_v3
 
 ## ENABLE GAMEPAD
 export SDL_JOYSTICK_DEVICE=/dev/input/js0
+
+### TO CONVERT
+
+python leisaac/scripts/convert/isaaclab2lerobotv3.py \
+  --task_name=LeIsaac-SO101-PickOrange-v0 \
+  --repo_id=MasterProject2026/Gal_dataset_raw \
+  --hdf5_root=/home/gal/Documents/MasterProject/isaac-inference/teleop-datasets \
+  --hdf5_files=/home/gal/Documents/MasterProject/isaac-inference/teleop-datasets/dataset.hdf5 \
+  --task_type=gamepad_v3 \
+  --resume \
+  --skip_hdf5_episodes 60
