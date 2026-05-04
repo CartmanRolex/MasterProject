@@ -237,11 +237,13 @@ class SubtaskTracker:
     PLATE_Y_RANGE    = (-0.10, 0.10)
     PLATE_Z_RANGE    = (-0.01, 0.05)
 
+    DEBUG_DRAW = False  # set to True to visualize the grip axis in the Isaac Sim viewport
+
     def __init__(
         self,
         block = False,              # if True, pause after each confirmed event
         patience_frames=10,         # consecutive frames required to confirm grasp or lift
-        centering_threshold=0.03,   # max distance from orange centre to grip-axis segment (m)
+        centering_threshold=0.0,   # max distance from orange centre to grip-axis segment (m)
         closure_threshold=0.065,    # max finger-gap to count as closed around orange (m)
         grip_t_min=0.3,             # min projection parameter: orange must not be outside the fingers
         grip_t_max=0.7,             # max projection parameter
@@ -336,7 +338,7 @@ class SubtaskTracker:
           - Line from orange centre to its projection on the axis  (yellow)
           - Dot at the projection point  (yellow)
         """
-        if self._origin is None:
+        if not self.DEBUG_DRAW or self._origin is None:
             return
         try:
             import omni.debugdraw
