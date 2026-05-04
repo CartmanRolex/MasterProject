@@ -208,19 +208,18 @@ class EvaluationTracker:
 # ============================================================
 
 class SubtaskTracker:
-    """Detects three independent robot events each step and prints a debug report when each fires.
+    """Detects three robot subtask events each step and live-displays their conditions.
 
     Events detected:
-      1. Hover  — EE has been positioned above an unplaced orange for N consecutive frames
-                  while the gripper is open.
-      2. Lift   — Gripper is closed and an unplaced orange has been raised above its
-                  initial height for N consecutive frames.
-      3. Place  — An orange has been stably inside the plate for N consecutive frames
-                  while the gripper is open (i.e. it has been released).
+      1. Grasp — Gripper is closed and the EE is well-centred over an unplaced orange
+                 for N consecutive frames.
+      2. Lift  — Gripper is closed and the active orange has been raised above its
+                 initial height for N consecutive frames.
+      3. Place — The active orange has been stably inside the plate for N consecutive
+                 frames while the gripper is open (i.e. it has been released).
 
-    All three checks run independently every step. Once an orange is confirmed as placed
-    it is excluded from the hover and lift checks.
-    Each event fires a print + pause exactly once per occurrence.
+    Grasp sets the active orange; Lift and Place operate only on that orange.
+    Each confirmation fires a single persistent print and then goes silent.
     """
 
     # Plate bounds relative to plate centre (m). Shared by _check_place and count_oranges_in_plate.
@@ -230,21 +229,17 @@ class SubtaskTracker:
 
     def __init__(
         self,
-        block = False,              # if True, skip all checks and print a single message at init
-        patience_frames=10,        # frames required to confirm hover or lift
-        xy_threshold=0.04,        # max EE–orange XY distance to count as hovering (m)
-        z_offset_min=0.0,         # min EE Z above orange to count as hovering (m)
-        z_offset_max=0.05,        # max EE Z above orange to count as hovering (m)
-        grasp_threshold=0.60,     # gripper joint value: above = open, below = closed
-        lift_height_threshold=0.1,# min height gain from initial Z to count as lifted (m)
+        block = False,              # if True, pause after each confirmed event
+        patience_frames=10,         # consecutive frames required to confirm grasp or lift
+        xy_threshold=0.04,          # max EE–orange XY distance to confirm grasp (m)
+        grasp_threshold=0.60,       # gripper joint value: above = open, below = closed
+        lift_height_threshold=0.1,  # min height gain from initial Z to confirm lift (m)
         orange_names=("Orange001", "Orange002", "Orange003"),
-        stability_frames=10,      # frames orange must be stationary inside plate to confirm place
-        stability_tolerance=0.001,# max orange movement per frame to count as stationary (m)
+        stability_frames=10,        # frames orange must be stationary inside plate to confirm place
+        stability_tolerance=0.001,  # max orange movement per frame to count as stationary (m)
     ):
         self.patience_frames       = patience_frames
         self.xy_threshold          = xy_threshold
-        self.z_offset_min          = z_offset_min
-        self.z_offset_max          = z_offset_max
         self.grasp_threshold       = grasp_threshold
         self.lift_height_threshold = lift_height_threshold
         self.orange_names          = orange_names
@@ -259,7 +254,6 @@ class SubtaskTracker:
         self.placed_oranges    = set()
         self.initial_orange_z  = {}
         self.active_orange     = None    # orange currently being worked on
-        self.hover_counter     = 0
         self.grasp_counter     = 0
         self.lift_counter      = 0
         self._grasp_confirmed  = False
@@ -318,75 +312,19 @@ class SubtaskTracker:
     # ----------------------------------------------------------
 
     def check_status(self, env, step_count):
-        """Run all three subtask checks for the current step."""
+        """Run all subtask checks for the current step."""
         ee_pos, gripper_pos, plate_pos, orange_positions = self._get_env_data(env)
 
-        # Record initial orange heights on the first step
         if step_count == 0:
             for name, pos in orange_positions.items():
                 self.initial_orange_z[name] = pos[2].item()
 
-        self._check_hover(ee_pos, gripper_pos, orange_positions, step_count)
+        self._check_grasp(ee_pos, gripper_pos, orange_positions, step_count)
         self._check_lift(ee_pos, gripper_pos, orange_positions, step_count)
         self._check_place(plate_pos, orange_positions, gripper_pos, step_count)
 
     # ----------------------------------------------------------
-    # 1. Hover check
-    # ----------------------------------------------------------
-
-    def _check_hover(self, ee_pos, gripper_pos, orange_positions, step_count):
-        """Detect when the EE is positioned above an unplaced orange, ready to grasp.
-
-        Increments hover_counter while all conditions hold; resets it otherwise.
-        Fires (print + pause) on the frame the counter reaches patience_frames.
-        """
-        gripper_open = gripper_pos > self.grasp_threshold
-        hovering_over = None
-
-        if gripper_open:
-            for name, pos in orange_positions.items():
-                if name in self.placed_oranges:
-                    continue
-
-                dx = abs(ee_pos[0] - pos[0]).item()
-                dy = abs(ee_pos[1] - pos[1]).item()
-                dz = (ee_pos[2] - pos[2]).item()
-                xy_dist  = (dx**2 + dy**2) ** 0.5
-                on_ground = abs(pos[2].item() - self.initial_orange_z.get(name, pos[2].item())) < 0.01
-
-                if (xy_dist < self.xy_threshold
-                        and self.z_offset_min < dz < self.z_offset_max
-                        and on_ground):
-                    hovering_over = (name, pos, xy_dist, dz, on_ground)
-                    break
-
-        if hovering_over:
-            self.hover_counter += 1
-        else:
-            self.hover_counter = 0
-
-        if self.hover_counter == self.patience_frames:
-            name, pos, xy_dist, dz, on_ground = hovering_over
-            orange_z      = pos[2].item()
-            initial_z     = self.initial_orange_z.get(name, orange_z)
-            z_delta       = abs(orange_z - initial_z)
-            print(
-                f"\n  👁  HOVER: EE over {name} at step {step_count}\n"
-                f"  ── Raw values ──\n"
-                f"     EE pos:      ({ee_pos[0].item():.4f}, {ee_pos[1].item():.4f}, {ee_pos[2].item():.4f})\n"
-                f"     Orange pos:  ({pos[0].item():.4f}, {pos[1].item():.4f}, {pos[2].item():.4f})\n"
-                f"     Gripper pos: {gripper_pos:.4f}\n"
-                f"  ── Conditions ──\n"
-                f"     XY dist:    {xy_dist:.4f} < {self.xy_threshold} ✓\n"
-                f"     Z offset:   {dz:.4f} in ({self.z_offset_min}, {self.z_offset_max}) ✓\n"
-                f"     On ground:  |{orange_z:.4f} - {initial_z:.4f}| = {z_delta:.4f} < 0.02 ✓\n"
-                f"     Gripper:    {gripper_pos:.4f} > {self.grasp_threshold} (open) ✓\n"
-                f"     Patience:   {self.patience_frames}/{self.patience_frames} ✓"
-            )
-            self._pause()
-
-    # ----------------------------------------------------------
-    # 2. Grasp check
+    # 1. Grasp check
     # ----------------------------------------------------------
 
     def _check_grasp(self, ee_pos, gripper_pos, orange_positions, step_count):
@@ -441,7 +379,7 @@ class SubtaskTracker:
             self._pause()
 
     # ----------------------------------------------------------
-    # 3. Lift check
+    # 2. Lift check
     # ----------------------------------------------------------
 
     def _check_lift(self, ee_pos, gripper_pos, orange_positions, step_count):
@@ -607,7 +545,6 @@ class HomeChecker:
 
     def reset_display(self):
         self._status_lines = 0
-        self._status_lines    = 0
 
     def _live_update(self, lines):
         if self._status_lines > 0:
