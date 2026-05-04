@@ -9,6 +9,7 @@ Provides:
 """
 
 import os
+import sys
 import datetime
 
 import numpy as np
@@ -255,12 +256,15 @@ class SubtaskTracker:
 
     def reset(self):
         """Reset all state for a new episode."""
-        self.placed_oranges    = set()   # names of oranges confirmed placed in plate
-        self.initial_orange_z  = {}      # initial Z height per orange, recorded at step 0
-        self.hover_counter     = 0       # consecutive frames EE has been hovering over an orange
-        self.grasp_counter     = 0       # consecutive frames EE has been grasping an orange
-        self.lift_counter      = 0       # consecutive frames an orange has been lifted
-        # Maps orange_name -> (consecutive_stable_frames, last_position_tensor | None)
+        self.placed_oranges    = set()
+        self.initial_orange_z  = {}
+        self.active_orange     = None    # orange currently being worked on
+        self.hover_counter     = 0
+        self.grasp_counter     = 0
+        self.lift_counter      = 0
+        self._grasp_confirmed  = False
+        self._lift_confirmed   = False
+        self._status_lines     = 0       # lines currently held by the live display block
         self._stability: dict[str, tuple[int, torch.Tensor | None]] = {}
 
     # ----------------------------------------------------------
@@ -282,6 +286,15 @@ class SubtaskTracker:
     def _pause(self):
         if(self.block):
             input("  ⏸  Press Enter to continue...")
+
+    def _live_update(self, lines):
+        """Overwrite the previous status block in-place using ANSI escape codes."""
+        if self._status_lines > 0:
+            sys.stdout.write(f"\033[{self._status_lines}A")
+        for line in lines:
+            sys.stdout.write(f"\r\033[2K{line}\n")
+        sys.stdout.flush()
+        self._status_lines = len(lines)
 
     # ----------------------------------------------------------
     # Main entry point — call every step
@@ -360,11 +373,10 @@ class SubtaskTracker:
     # ----------------------------------------------------------
 
     def _check_grasp(self, ee_pos, gripper_pos, orange_positions, step_count):
-        """Detect when the robot has correctly grasped an orange.
+        """Live-display grasp conditions each step; confirm once patience is reached."""
+        if self._grasp_confirmed:
+            return
 
-        Requires the gripper to be closed and the EE to be well-centred over
-        an unplaced orange (XY distance < xy_threshold).
-        """
         gripper_closed = gripper_pos < self.grasp_threshold
         grasping = None
 
@@ -375,7 +387,6 @@ class SubtaskTracker:
                 dx = abs(ee_pos[0] - pos[0]).item()
                 dy = abs(ee_pos[1] - pos[1]).item()
                 xy_dist = (dx**2 + dy**2) ** 0.5
-
                 if xy_dist < self.xy_threshold:
                     grasping = (name, pos, xy_dist)
                     break
@@ -385,19 +396,30 @@ class SubtaskTracker:
         else:
             self.grasp_counter = 0
 
-        if self.grasp_counter == self.patience_frames:
+        g_sym = "✓" if gripper_closed else "✗"
+        if grasping:
             name, pos, xy_dist = grasping
-            print(
-                f"\n  ✊ GRASP: {name} correctly grasped at step {step_count}\n"
-                f"  ── Raw values ──\n"
-                f"     EE pos:      ({ee_pos[0].item():.4f}, {ee_pos[1].item():.4f}, {ee_pos[2].item():.4f})\n"
-                f"     Orange pos:  ({pos[0].item():.4f}, {pos[1].item():.4f}, {pos[2].item():.4f})\n"
-                f"     Gripper pos: {gripper_pos:.4f}\n"
-                f"  ── Conditions ──\n"
-                f"     XY dist:  {xy_dist:.4f} < {self.xy_threshold} ✓\n"
-                f"     Gripper:  {gripper_pos:.4f} < {self.grasp_threshold} (closed) ✓\n"
-                f"     Patience: {self.patience_frames}/{self.patience_frames} ✓"
-            )
+            xy_sym = "✓"
+            lines = [
+                f"  ✊ GRASP [{name}]  step {step_count}",
+                f"     Gripper:  {gripper_pos:.4f} < {self.grasp_threshold} (closed)  {g_sym}",
+                f"     XY dist:  {xy_dist:.4f} < {self.xy_threshold}  {xy_sym}",
+                f"     Patience: {self.grasp_counter}/{self.patience_frames}",
+            ]
+        else:
+            lines = [
+                f"  ✊ GRASP  step {step_count}",
+                f"     Gripper:  {gripper_pos:.4f} < {self.grasp_threshold} (closed)  {g_sym}",
+                f"     XY dist:  no candidate in range  ✗",
+                f"     Patience: {self.grasp_counter}/{self.patience_frames}",
+            ]
+        self._live_update(lines)
+
+        if self.grasp_counter == self.patience_frames:
+            self._grasp_confirmed = True
+            self.active_orange    = grasping[0]
+            self._status_lines    = 0
+            print(f"  ✊ GRASP CONFIRMED: {self.active_orange} is now the active orange  (step {step_count})\n")
             self._pause()
 
     # ----------------------------------------------------------
@@ -405,16 +427,22 @@ class SubtaskTracker:
     # ----------------------------------------------------------
 
     def _check_lift(self, ee_pos, gripper_pos, orange_positions, step_count):
-        """Detect when the robot has successfully grasped and lifted an orange.
+        """Live-display lift conditions for the active orange each step."""
+        if self._lift_confirmed:
+            return
 
-        Requires the gripper to be closed and an unplaced orange to be well above
-        its initial resting height for patience_frames consecutive frames.
-        """
-        gripper_closed  = gripper_pos < self.grasp_threshold
+        gripper_closed   = gripper_pos < self.grasp_threshold
         currently_lifted = None
 
+        target = self.active_orange
+        candidates = (
+            {target: orange_positions[target]}
+            if target and target in orange_positions
+            else orange_positions
+        )
+
         if gripper_closed:
-            for name, pos in orange_positions.items():
+            for name, pos in candidates.items():
                 if name in self.placed_oranges or name not in self.initial_orange_z:
                     continue
                 if pos[2].item() > self.initial_orange_z[name] + self.lift_height_threshold:
@@ -426,20 +454,30 @@ class SubtaskTracker:
         else:
             self.lift_counter = 0
 
+        display = target if target else "?"
+        g_sym   = "✓" if gripper_closed else "✗"
+        if target and target in orange_positions:
+            pos         = orange_positions[target]
+            height_gain = pos[2].item() - self.initial_orange_z.get(target, pos[2].item())
+            h_sym       = "✓" if height_gain > self.lift_height_threshold else "✗"
+            lines = [
+                f"  🤏 LIFT [{display}]  step {step_count}",
+                f"     Gripper:     {gripper_pos:.4f} < {self.grasp_threshold} (closed)  {g_sym}",
+                f"     Height gain: {height_gain:.4f} > {self.lift_height_threshold}  {h_sym}",
+                f"     Patience:    {self.lift_counter}/{self.patience_frames}",
+            ]
+        else:
+            lines = [
+                f"  🤏 LIFT  step {step_count}  (no active orange — grasp first)",
+                f"     Gripper:  {gripper_pos:.4f} < {self.grasp_threshold} (closed)  {g_sym}",
+            ]
+        self._live_update(lines)
+
         if self.lift_counter == self.patience_frames:
             name, pos, current_z, initial_z = currently_lifted
-            print(
-                f"\n  🤏 LIFT: {name} lifted at step {step_count}\n"
-                f"  ── Raw values ──\n"
-                f"     EE pos:      ({ee_pos[0].item():.4f}, {ee_pos[1].item():.4f}, {ee_pos[2].item():.4f})\n"
-                f"     Orange pos:  ({pos[0].item():.4f}, {pos[1].item():.4f}, {pos[2].item():.4f})\n"
-                f"     Gripper pos: {gripper_pos:.4f}\n"
-                f"     Initial Z:   {initial_z:.4f}\n"
-                f"  ── Conditions ──\n"
-                f"     Gripper:  {gripper_pos:.4f} < {self.grasp_threshold} (closed) ✓\n"
-                f"     Lifted:   {current_z:.4f} > {initial_z + self.lift_height_threshold:.4f} ✓\n"
-                f"     Patience: {self.patience_frames}/{self.patience_frames} ✓"
-            )
+            self._lift_confirmed = True
+            self._status_lines   = 0
+            print(f"  🤏 LIFT CONFIRMED: {name} lifted  (height gain: {current_z - initial_z:.4f} m,  step {step_count})\n")
             self._pause()
 
     # ----------------------------------------------------------
@@ -447,34 +485,30 @@ class SubtaskTracker:
     # ----------------------------------------------------------
 
     def _check_place(self, plate_pos, orange_positions, gripper_pos, step_count):
-        """Detect when an orange has been released and is resting stably inside the plate.
-
-        For each unplaced orange currently within the plate bounds, we track how many
-        consecutive frames it has remained stationary. Once it reaches stability_frames
-        AND the gripper is open (confirming the orange has been released), the orange
-        is marked as placed.
-        """
+        """Live-display place conditions for the active orange each step."""
         px, py, pz   = plate_pos[0].item(), plate_pos[1].item(), plate_pos[2].item()
         gripper_open = gripper_pos > self.grasp_threshold
-        newly_confirmed = []
 
-        for name, opos in orange_positions.items():
+        target     = self.active_orange
+        candidates = (
+            {target: orange_positions[target]}
+            if target and target in orange_positions
+            else orange_positions
+        )
+
+        newly_confirmed = []
+        for name, opos in candidates.items():
             if name in self.placed_oranges:
                 continue
-
             ox, oy, oz = opos[0].item(), opos[1].item(), opos[2].item()
             in_plate = (
                 (px + self.PLATE_X_RANGE[0] < ox < px + self.PLATE_X_RANGE[1])
                 and (py + self.PLATE_Y_RANGE[0] < oy < py + self.PLATE_Y_RANGE[1])
                 and (pz + self.PLATE_Z_RANGE[0] < oz < pz + self.PLATE_Z_RANGE[1])
             )
-
             if not in_plate:
-                # Reset stability counter when orange leaves the plate bounds
                 self._stability[name] = (0, None)
                 continue
-
-            # Update stability counter: reset if the orange moved, otherwise increment
             prev_frames, prev_pos = self._stability.get(name, (0, None))
             moved = (
                 (opos - prev_pos).norm().item() > self.stability_tolerance
@@ -482,35 +516,46 @@ class SubtaskTracker:
             )
             stable_frames = 0 if moved else prev_frames + 1
             self._stability[name] = (stable_frames, opos.clone())
-
             if stable_frames >= self.stability_frames and gripper_open:
                 newly_confirmed.append((name, opos, stable_frames))
                 self.placed_oranges.add(name)
 
-        if not newly_confirmed:
-            return
+        # Live status
+        display = target if target else "?"
+        g_sym   = "✓" if gripper_open else "✗"
+        if target and target in orange_positions:
+            opos  = orange_positions[target]
+            ox, oy, oz = opos[0].item(), opos[1].item(), opos[2].item()
+            in_plate = (
+                (px + self.PLATE_X_RANGE[0] < ox < px + self.PLATE_X_RANGE[1])
+                and (py + self.PLATE_Y_RANGE[0] < oy < py + self.PLATE_Y_RANGE[1])
+                and (pz + self.PLATE_Z_RANGE[0] < oz < pz + self.PLATE_Z_RANGE[1])
+            )
+            stable_frames, _ = self._stability.get(target, (0, None))
+            p_sym = "✓" if in_plate else "✗"
+            s_sym = "✓" if stable_frames >= self.stability_frames else "✗"
+            lines = [
+                f"  🍊 PLACE [{display}]  step {step_count}",
+                f"     In plate:  {p_sym}",
+                f"     Stable:    {stable_frames}/{self.stability_frames}  {s_sym}",
+                f"     Gripper:   {gripper_pos:.4f} > {self.grasp_threshold} (open)  {g_sym}",
+            ]
+        else:
+            lines = [
+                f"  🍊 PLACE  step {step_count}  (no active orange — grasp first)",
+                f"     Gripper:  {gripper_pos:.4f} > {self.grasp_threshold} (open)  {g_sym}",
+            ]
+        self._live_update(lines)
 
-        current_count   = len(self.placed_oranges)
-        confirmed_names = ", ".join(n for n, _, _ in newly_confirmed)
-        stable_counts   = ", ".join(str(f) for _, _, f in newly_confirmed)
-        orange_lines    = [
-            f"     {name}: ({opos[0].item():.4f}, {opos[1].item():.4f}, {opos[2].item():.4f})"
-            + (" ✓ just placed"    if any(n == name for n, _, _ in newly_confirmed) else
-               " ✓ already placed" if name in self.placed_oranges else "")
-            for name, opos in orange_positions.items()
-        ]
-        print(
-            f"\n  🍊 PLACE: {confirmed_names} confirmed in plate at step {step_count} "
-            f"({current_count}/{self.total_oranges} total)\n"
-            f"  ── Raw values ──\n"
-            f"     Plate pos: ({plate_pos[0].item():.4f}, {plate_pos[1].item():.4f}, {plate_pos[2].item():.4f})\n"
-            + "\n".join(orange_lines) + "\n"
-            f"  ── Conditions ──\n"
-            f"     Stable frames: {stable_counts} ≥ {self.stability_frames} ✓\n"
-            f"     Stability tol: ≤ {self.stability_tolerance} m/frame ✓\n"
-            f"     Gripper:       {gripper_pos:.4f} > {self.grasp_threshold} (open) ✓"
-        )
-        self._pause()
+        if newly_confirmed:
+            confirmed_names = ", ".join(n for n, _, _ in newly_confirmed)
+            current_count   = len(self.placed_oranges)
+            self.active_orange    = None  # ready for next orange
+            self._grasp_confirmed = False
+            self._lift_confirmed  = False
+            self._status_lines    = 0
+            print(f"  🍊 PLACE CONFIRMED: {confirmed_names}  ({current_count}/{self.total_oranges} total,  step {step_count})\n")
+            self._pause()
 
 
 # ============================================================
@@ -530,15 +575,23 @@ class HomeChecker:
         self._start_joint_pos = None
         self._counter         = 0
         self._fired           = False
+        self._status_lines    = 0
 
     def reset(self, start_joint_pos: np.ndarray):
-        """Record the start joint positions for the new episode."""
         self._start_joint_pos = start_joint_pos.copy()
         self._counter         = 0
         self._fired           = False
+        self._status_lines    = 0
+
+    def _live_update(self, lines):
+        if self._status_lines > 0:
+            sys.stdout.write(f"\033[{self._status_lines}A")
+        for line in lines:
+            sys.stdout.write(f"\r\033[2K{line}\n")
+        sys.stdout.flush()
+        self._status_lines = len(lines)
 
     def check(self, env, step_count: int):
-        """Call every step while the prompt indicates 'go back to start'."""
         if self._start_joint_pos is None or self._fired:
             return
         current = env.scene["robot"].data.joint_pos[0].cpu().numpy()
@@ -549,11 +602,14 @@ class HomeChecker:
         else:
             self._counter = 0
 
+        d_sym = "✓" if max_dev < self.joint_threshold else "✗"
+        self._live_update([
+            f"  🏠 HOME  step {step_count}",
+            f"     Max joint dev: {max_dev:.4f} < {self.joint_threshold}  {d_sym}",
+            f"     Patience:      {self._counter}/{self.patience_frames}",
+        ])
+
         if self._counter == self.patience_frames:
-            self._fired = True
-            print(
-                f"\n  🏠 HOME: Robot at start position at step {step_count}\n"
-                f"  ── Conditions ──\n"
-                f"     Max joint deviation: {max_dev:.4f} rad < {self.joint_threshold} ✓\n"
-                f"     Patience: {self.patience_frames}/{self.patience_frames} ✓"
-            )
+            self._fired        = True
+            self._status_lines = 0
+            print(f"  🏠 HOME CONFIRMED at step {step_count}\n")
