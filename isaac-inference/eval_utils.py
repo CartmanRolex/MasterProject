@@ -348,10 +348,10 @@ class SubtaskTracker:
             return carb.Float3(p[0].item(), p[1].item(), p[2].item())
 
         axis_color = 0xFF00FF00 if meets else 0xFF0000FF   # green / blue  (ARGB)
-        draw.draw_line(w(gripper_tip), axis_color, w(jaw_tip), axis_color, 4.0)
+        draw.draw_line(w(gripper_tip), axis_color, 4.0, w(jaw_tip), axis_color, 4.0)
 
         if best_orange_pos is not None and best_proj is not None:
-            draw.draw_line(w(best_orange_pos), 0xFF00FFFF, w(best_proj), 0xFF00FFFF, 2.0)
+            draw.draw_line(w(best_orange_pos), 0xFF00FFFF, 2.0, w(best_proj), 0xFF00FFFF, 2.0)
             draw.draw_point(w(best_proj), 0xFF00FFFF, 10.0)
 
     # ----------------------------------------------------------
