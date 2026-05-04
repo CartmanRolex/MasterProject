@@ -232,7 +232,7 @@ class SubtaskTracker:
         block = False,              # if True, pause after each confirmed event
         patience_frames=10,         # consecutive frames required to confirm grasp or lift
         xy_threshold=0.04,          # max EE–orange XY distance to confirm grasp (m)
-        grasp_z_min=0.03,           # min EE Z above orange centre to confirm grasp (m)
+        grasp_z_max=0.03,           # min EE Z above orange centre to confirm grasp (m)
         grasp_threshold=0.60,       # gripper joint value: above = open, below = closed
         lift_height_threshold=0.1,  # min height gain from initial Z to confirm lift (m)
         orange_names=("Orange001", "Orange002", "Orange003"),
@@ -241,7 +241,7 @@ class SubtaskTracker:
     ):
         self.patience_frames       = patience_frames
         self.xy_threshold          = xy_threshold
-        self.grasp_z_min           = grasp_z_min
+        self.grasp_z_max           = grasp_z_max    
         self.grasp_threshold       = grasp_threshold
         self.lift_height_threshold = lift_height_threshold
         self.orange_names          = orange_names
@@ -345,7 +345,7 @@ class SubtaskTracker:
                 dy = abs(ee_pos[1] - pos[1]).item()
                 xy_dist = (dx**2 + dy**2) ** 0.5
                 dz = (ee_pos[2] - pos[2]).item()
-                if xy_dist < self.xy_threshold and dz >= self.grasp_z_min:
+                if xy_dist < self.xy_threshold and dz <= self.grasp_z_max:
                     grasping = (name, pos, xy_dist, dz)
                     break
 
@@ -362,7 +362,7 @@ class SubtaskTracker:
                 f"  ✊ GRASP [{name}]  step {step_count}",
                 f"     Gripper:  {gripper_pos:.4f} < {self.grasp_threshold} (closed)  {g_sym}",
                 f"     XY dist:  {xy_dist:.4f} < {self.xy_threshold}  ✓",
-                f"     Z offset: {dz:.4f} >= {self.grasp_z_min}  {z_sym}",
+                f"     Z offset: {dz:.4f} <= {self.grasp_z_max}  {z_sym}",
                 f"     Patience: {self.grasp_counter}/{self.patience_frames}",
             ]
         else:
