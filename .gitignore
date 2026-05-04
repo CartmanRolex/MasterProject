@@ -3,3 +3,4 @@ __pycache__/
 *.py[cod]
 *$py.class
 trained-models/train/
+isaac-inference/teleop-datasets/
