@@ -246,7 +246,7 @@ try:
 
             # --- Prompt-aware task success check ---
             instr_lower = instruction.lower()
-            ee_pos, gripper_pos, plate_pos, orange_positions = subtask_tracker._get_env_data(env)
+            gripper_tip, jaw_tip, gripper_pos, plate_pos, orange_positions = subtask_tracker._get_env_data(env)
             if step_count == 1:
                 for name, pos in orange_positions.items():
                     subtask_tracker.initial_orange_z[name] = pos[2].item()
@@ -259,9 +259,9 @@ try:
                 prev_instr_lower = instr_lower
 
             if "grasp" in instr_lower:
-                subtask_tracker._check_grasp(ee_pos, gripper_pos, orange_positions, step_count)
+                subtask_tracker._check_grasp(gripper_tip, jaw_tip, orange_positions, step_count)
             elif "pick" in instr_lower:
-                subtask_tracker._check_lift(ee_pos, gripper_pos, orange_positions, step_count)
+                subtask_tracker._check_lift(gripper_pos, orange_positions, step_count)
             elif "place" in instr_lower:
                 subtask_tracker._check_place(plate_pos, orange_positions, gripper_pos, step_count)
             elif "go back" in instr_lower or "start" in instr_lower:

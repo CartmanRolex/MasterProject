@@ -231,17 +231,21 @@ class SubtaskTracker:
         self,
         block = False,              # if True, pause after each confirmed event
         patience_frames=10,         # consecutive frames required to confirm grasp or lift
-        xy_threshold=0.04,          # max EE–orange XY distance to confirm grasp (m)
-        grasp_z_max=0.03,           # min EE Z above orange centre to confirm grasp (m)
-        grasp_threshold=0.60,       # gripper joint value: above = open, below = closed
+        centering_threshold=0.03,   # max distance from orange centre to grip-axis segment (m)
+        closure_threshold=0.065,    # max finger-gap to count as closed around orange (m)
+        grip_t_min=0.3,             # min projection parameter: orange must not be outside the fingers
+        grip_t_max=0.7,             # max projection parameter
+        grasp_threshold=0.60,       # gripper joint value: above = open, below = closed (used by lift/place)
         lift_height_threshold=0.1,  # min height gain from initial Z to confirm lift (m)
         orange_names=("Orange001", "Orange002", "Orange003"),
         stability_frames=10,        # frames orange must be stationary inside plate to confirm place
         stability_tolerance=0.001,  # max orange movement per frame to count as stationary (m)
     ):
         self.patience_frames       = patience_frames
-        self.xy_threshold          = xy_threshold
-        self.grasp_z_max           = grasp_z_max    
+        self.centering_threshold   = centering_threshold
+        self.closure_threshold     = closure_threshold
+        self.grip_t_min            = grip_t_min
+        self.grip_t_max            = grip_t_max
         self.grasp_threshold       = grasp_threshold
         self.lift_height_threshold = lift_height_threshold
         self.orange_names          = orange_names
@@ -287,14 +291,16 @@ class SubtaskTracker:
     def _get_env_data(self, env):
         """Extract all needed scene quantities, normalised to env origin."""
         origin = env.scene.env_origins[0]
-        ee_pos      = env.scene["ee_frame"].data.target_pos_w[0, 1, :] - origin
+        frames      = env.scene["ee_frame"].data.target_pos_w[0]
+        gripper_tip = frames[1] - origin   # upper finger tip (index 1)
+        jaw_tip     = frames[2] - origin   # lower jaw tip    (index 2)
         gripper_pos = env.scene["robot"].data.joint_pos[0, -1].item()
         plate_pos   = env.scene["Plate"].data.root_pos_w[0] - origin
         orange_positions = {
             name: env.scene[name].data.root_pos_w[0] - origin
             for name in self.orange_names
         }
-        return ee_pos, gripper_pos, plate_pos, orange_positions
+        return gripper_tip, jaw_tip, gripper_pos, plate_pos, orange_positions
 
     def _pause(self):
         if(self.block):
@@ -315,69 +321,78 @@ class SubtaskTracker:
 
     def check_status(self, env, step_count):
         """Run all subtask checks for the current step."""
-        ee_pos, gripper_pos, plate_pos, orange_positions = self._get_env_data(env)
+        gripper_tip, jaw_tip, gripper_pos, plate_pos, orange_positions = self._get_env_data(env)
 
         if step_count == 0:
             for name, pos in orange_positions.items():
                 self.initial_orange_z[name] = pos[2].item()
 
-        self._check_grasp(ee_pos, gripper_pos, orange_positions, step_count)
-        self._check_lift(ee_pos, gripper_pos, orange_positions, step_count)
+        self._check_grasp(gripper_tip, jaw_tip, orange_positions, step_count)
+        self._check_lift(gripper_pos, orange_positions, step_count)
         self._check_place(plate_pos, orange_positions, gripper_pos, step_count)
 
     # ----------------------------------------------------------
     # 1. Grasp check
     # ----------------------------------------------------------
 
-    def _check_grasp(self, ee_pos, gripper_pos, orange_positions, step_count):
-        """Live-display grasp conditions each step; confirm once patience is reached."""
+    def _check_grasp(self, gripper_tip, jaw_tip, orange_positions, step_count):
+        """Live-display grasp conditions each step; confirm once patience is reached.
+
+        Centering: distance from orange centre to the gripper_tip→jaw_tip segment.
+        Closure:   distance between the two fingertips (finger gap).
+        Both must be under threshold for patience_frames consecutive steps.
+        Always tracks the closest unplaced orange to show live feedback before active_orange is set.
+        """
         if self._grasp_confirmed:
             return
 
-        gripper_closed = gripper_pos < self.grasp_threshold
-        grasping = None
+        axis    = jaw_tip - gripper_tip
+        axis_sq = torch.dot(axis, axis).item()
+        gap     = axis_sq ** 0.5
 
-        if gripper_closed:
-            for name, pos in orange_positions.items():
-                if name in self.placed_oranges or name not in self.initial_orange_z:
-                    continue
-                dx = abs(ee_pos[0] - pos[0]).item()
-                dy = abs(ee_pos[1] - pos[1]).item()
-                xy_dist = (dx**2 + dy**2) ** 0.5
-                dz = (ee_pos[2] - pos[2]).item()
-                if xy_dist < self.xy_threshold and dz <= self.grasp_z_max:
-                    grasping = (name, pos, xy_dist, dz)
-                    break
+        # Find the closest unplaced orange to the grip axis
+        best_name = None
+        best_dist = float("inf")
+        best_t    = 0.0
+        for name, orange_pos in orange_positions.items():
+            if name in self.placed_oranges or name not in self.initial_orange_z:
+                continue
+            t_raw = torch.dot(orange_pos - gripper_tip, axis).item() / (axis_sq + 1e-8)
+            t_clamped = max(0.0, min(1.0, t_raw))
+            proj = gripper_tip + t_clamped * axis
+            dist = (orange_pos - proj).norm().item()
+            if dist < best_dist:
+                best_dist, best_name, best_t = dist, name, t_raw
 
-        if grasping:
+        t_ok  = best_name is not None and self.grip_t_min <= best_t <= self.grip_t_max
+        meets = (best_name is not None
+                 and best_dist < self.centering_threshold
+                 and gap < self.closure_threshold
+                 and t_ok)
+
+        if meets:
             self.grasp_counter += 1
         else:
             self.grasp_counter = 0
 
-        g_sym = "✓" if gripper_closed else "✗"
-        if grasping:
-            name, pos, xy_dist, dz = grasping
-            z_sym = "✓"
-            lines = [
-                f"  ✊ GRASP [{name}]  step {step_count}",
-                f"     Gripper:  {gripper_pos:.4f} < {self.grasp_threshold} (closed)  {g_sym}",
-                f"     XY dist:  {xy_dist:.4f} < {self.xy_threshold}  ✓",
-                f"     Z offset: {dz:.4f} <= {self.grasp_z_max}  {z_sym}",
-                f"     Patience: {self.grasp_counter}/{self.patience_frames}",
-            ]
-        else:
-            lines = [
-                f"  ✊ GRASP  step {step_count}",
-                f"     Gripper:  {gripper_pos:.4f} < {self.grasp_threshold} (closed)  {g_sym}",
-                f"     XY dist:  no candidate in range  ✗",
-                f"     Patience: {self.grasp_counter}/{self.patience_frames}",
-            ]
+        # Live display — always show best candidate
+        c_sym = "✓" if best_dist < self.centering_threshold else "✗"
+        g_sym = "✓" if gap < self.closure_threshold else "✗"
+        t_sym = "✓" if t_ok else "✗"
+        label = best_name if best_name else "?"
+        lines = [
+            f"  ✊ GRASP [{label}]  step {step_count}",
+            f"     Centering: {best_dist:.4f} < {self.centering_threshold}  {c_sym}",
+            f"     Closure:   {gap:.4f} < {self.closure_threshold}  {g_sym}",
+            f"     Grip pos:  t={best_t:.2f}  ∈ [{self.grip_t_min}, {self.grip_t_max}]  {t_sym}",
+            f"     Patience:  {self.grasp_counter}/{self.patience_frames}",
+        ]
         self._live_update(lines)
 
         if self.grasp_counter == self.patience_frames:
             self._grasp_confirmed = True
-            self._place_confirmed = False  # allow place check for new orange cycle
-            self.active_orange    = grasping[0]
+            self._place_confirmed = False
+            self.active_orange    = best_name
             self._status_lines    = 0
             print(f"  ✊ GRASP CONFIRMED: {self.active_orange} is now the active orange  (step {step_count})\n")
             self._pause()
@@ -386,7 +401,7 @@ class SubtaskTracker:
     # 2. Lift check
     # ----------------------------------------------------------
 
-    def _check_lift(self, ee_pos, gripper_pos, orange_positions, step_count):
+    def _check_lift(self, gripper_pos, orange_positions, step_count):
         """Live-display lift conditions for the active orange each step."""
         if self._lift_confirmed:
             return
