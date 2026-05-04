@@ -12,6 +12,7 @@ from robot_utils import (
     convert_leisaac_action_to_lerobot,
     convert_lerobot_action_to_leisaac,
 )
+from eval_utils import SubtaskTracker, HomeChecker
 
 # ==========================================
 # 1. Configuration & Setup
@@ -23,7 +24,7 @@ MAX_STEPS = 5000
 
 AVAILABLE_PROMPTS = [
     "Pick it up",
-    "Place itinto plate",
+    "Place it into plate",
     "Go back to start position",
 ]
 
@@ -164,6 +165,9 @@ prompt_controller = PromptController(
 )
 prompt_controller.start()
 
+subtask_tracker = SubtaskTracker()
+home_checker    = HomeChecker()
+
 # ==========================================
 # 5. Inference Loop
 # ==========================================
@@ -173,6 +177,10 @@ try:
     for episode in range(n_episodes):
         obs, _ = env.reset()
         policy.reset()
+
+        start_joint_pos = env.scene["robot"].data.joint_pos[0].cpu().numpy().copy()
+        subtask_tracker.reset()
+        home_checker.reset(start_joint_pos)
 
         done = False
         step_count = 0
@@ -221,6 +229,22 @@ try:
             obs, reward, terminated, truncated, info = env.step(step_action[0].unsqueeze(0))
 
             step_count += 1
+
+            # --- Prompt-aware task success check ---
+            instr_lower = instruction.lower()
+            ee_pos, gripper_pos, plate_pos, orange_positions = subtask_tracker._get_env_data(env)
+            if step_count == 1:
+                for name, pos in orange_positions.items():
+                    subtask_tracker.initial_orange_z[name] = pos[2].item()
+
+            if "grasp" in instr_lower:
+                subtask_tracker._check_grasp(ee_pos, gripper_pos, orange_positions, step_count)
+            elif "pick" in instr_lower:
+                subtask_tracker._check_lift(ee_pos, gripper_pos, orange_positions, step_count)
+            elif "place" in instr_lower:
+                subtask_tracker._check_place(plate_pos, orange_positions, gripper_pos, step_count)
+            elif "go back" in instr_lower or "start" in instr_lower:
+                home_checker.check(env, step_count)
 
             is_terminated = bool(terminated.item() if isinstance(terminated, torch.Tensor) else terminated)
             is_truncated = bool(truncated.item() if isinstance(truncated, torch.Tensor) else truncated)

@@ -258,6 +258,7 @@ class SubtaskTracker:
         self.placed_oranges    = set()   # names of oranges confirmed placed in plate
         self.initial_orange_z  = {}      # initial Z height per orange, recorded at step 0
         self.hover_counter     = 0       # consecutive frames EE has been hovering over an orange
+        self.grasp_counter     = 0       # consecutive frames EE has been grasping an orange
         self.lift_counter      = 0       # consecutive frames an orange has been lifted
         # Maps orange_name -> (consecutive_stable_frames, last_position_tensor | None)
         self._stability: dict[str, tuple[int, torch.Tensor | None]] = {}
@@ -355,7 +356,52 @@ class SubtaskTracker:
             self._pause()
 
     # ----------------------------------------------------------
-    # 2. Lift check
+    # 2. Grasp check
+    # ----------------------------------------------------------
+
+    def _check_grasp(self, ee_pos, gripper_pos, orange_positions, step_count):
+        """Detect when the robot has correctly grasped an orange.
+
+        Requires the gripper to be closed and the EE to be well-centred over
+        an unplaced orange (XY distance < xy_threshold).
+        """
+        gripper_closed = gripper_pos < self.grasp_threshold
+        grasping = None
+
+        if gripper_closed:
+            for name, pos in orange_positions.items():
+                if name in self.placed_oranges or name not in self.initial_orange_z:
+                    continue
+                dx = abs(ee_pos[0] - pos[0]).item()
+                dy = abs(ee_pos[1] - pos[1]).item()
+                xy_dist = (dx**2 + dy**2) ** 0.5
+
+                if xy_dist < self.xy_threshold:
+                    grasping = (name, pos, xy_dist)
+                    break
+
+        if grasping:
+            self.grasp_counter += 1
+        else:
+            self.grasp_counter = 0
+
+        if self.grasp_counter == self.patience_frames:
+            name, pos, xy_dist = grasping
+            print(
+                f"\n  ✊ GRASP: {name} correctly grasped at step {step_count}\n"
+                f"  ── Raw values ──\n"
+                f"     EE pos:      ({ee_pos[0].item():.4f}, {ee_pos[1].item():.4f}, {ee_pos[2].item():.4f})\n"
+                f"     Orange pos:  ({pos[0].item():.4f}, {pos[1].item():.4f}, {pos[2].item():.4f})\n"
+                f"     Gripper pos: {gripper_pos:.4f}\n"
+                f"  ── Conditions ──\n"
+                f"     XY dist:  {xy_dist:.4f} < {self.xy_threshold} ✓\n"
+                f"     Gripper:  {gripper_pos:.4f} < {self.grasp_threshold} (closed) ✓\n"
+                f"     Patience: {self.patience_frames}/{self.patience_frames} ✓"
+            )
+            self._pause()
+
+    # ----------------------------------------------------------
+    # 3. Lift check
     # ----------------------------------------------------------
 
     def _check_lift(self, ee_pos, gripper_pos, orange_positions, step_count):
@@ -465,3 +511,49 @@ class SubtaskTracker:
             f"     Gripper:       {gripper_pos:.4f} > {self.grasp_threshold} (open) ✓"
         )
         self._pause()
+
+
+# ============================================================
+# Home Position Checker
+# ============================================================
+
+class HomeChecker:
+    """Detects when the robot has returned to its episode-start joint configuration.
+
+    Fires once per episode when all joints are within `joint_threshold` radians of
+    their initial positions for `patience_frames` consecutive frames.
+    """
+
+    def __init__(self, patience_frames=5, joint_threshold=0.05):
+        self.patience_frames  = patience_frames
+        self.joint_threshold  = joint_threshold
+        self._start_joint_pos = None
+        self._counter         = 0
+        self._fired           = False
+
+    def reset(self, start_joint_pos: np.ndarray):
+        """Record the start joint positions for the new episode."""
+        self._start_joint_pos = start_joint_pos.copy()
+        self._counter         = 0
+        self._fired           = False
+
+    def check(self, env, step_count: int):
+        """Call every step while the prompt indicates 'go back to start'."""
+        if self._start_joint_pos is None or self._fired:
+            return
+        current = env.scene["robot"].data.joint_pos[0].cpu().numpy()
+        max_dev = np.abs(current - self._start_joint_pos).max()
+
+        if max_dev < self.joint_threshold:
+            self._counter += 1
+        else:
+            self._counter = 0
+
+        if self._counter == self.patience_frames:
+            self._fired = True
+            print(
+                f"\n  🏠 HOME: Robot at start position at step {step_count}\n"
+                f"  ── Conditions ──\n"
+                f"     Max joint deviation: {max_dev:.4f} rad < {self.joint_threshold} ✓\n"
+                f"     Patience: {self.patience_frames}/{self.patience_frames} ✓"
+            )
