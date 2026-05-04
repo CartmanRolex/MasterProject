@@ -310,7 +310,7 @@ class SubtaskTracker:
         gripper_pos = env.scene["robot"].data.joint_pos[0, -1].item()
         plate_pos   = env.scene["Plate"].data.root_pos_w[0] - self._origin
         orange_positions = {
-            name: env.scene[name].data.root_pos_w[0] - self._origin
+            name: env.scene[name].data.root_com_pos_w[0] - self._origin
             for name in self.orange_names
         }
         return gripper_tip, jaw_tip, gripper_pos, plate_pos, orange_positions
