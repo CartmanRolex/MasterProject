@@ -354,6 +354,38 @@ class SubtaskTracker:
             draw.draw_line(w(best_orange_pos), 0xFF00FFFF, 2.0, w(best_proj), 0xFF00FFFF, 2.0)
             draw.draw_point(w(best_proj), 0xFF00FFFF, 10.0)
 
+    def draw_debug(self, gripper_tip, jaw_tip, orange_positions):
+        """Draw grip axis debug geometry every step regardless of active prompt."""
+        axis    = jaw_tip - gripper_tip
+        axis_sq = torch.dot(axis, axis).item()
+
+        target = self.active_orange
+        candidates = {target: orange_positions[target]} if target and target in orange_positions else orange_positions
+
+        best_name, best_dist, best_t = None, float("inf"), 0.0
+        for name, pos in candidates.items():
+            if name in self.placed_oranges or name not in self.initial_orange_z:
+                continue
+            t_raw     = torch.dot(pos - gripper_tip, axis).item() / (axis_sq + 1e-8)
+            t_clamped = max(0.0, min(1.0, t_raw))
+            proj      = gripper_tip + t_clamped * axis
+            dist      = (pos - proj).norm().item()
+            if dist < best_dist:
+                best_dist, best_name, best_t = dist, name, t_raw
+
+        best_proj = None
+        if best_name is not None:
+            best_proj = gripper_tip + max(0.0, min(1.0, best_t)) * axis
+
+        gap   = axis_sq ** 0.5
+        t_ok  = best_name is not None and self.grip_t_min <= best_t <= self.grip_t_max
+        meets = (best_name is not None
+                 and best_dist < self.centering_threshold
+                 and gap < self.closure_threshold
+                 and t_ok)
+
+        self._draw_grip_axis(gripper_tip, jaw_tip, orange_positions.get(best_name), best_proj, meets)
+
     # ----------------------------------------------------------
     # Main entry point — call every step
     # ----------------------------------------------------------
@@ -427,13 +459,6 @@ class SubtaskTracker:
             f"     Patience:  {self.grasp_counter}/{self.patience_frames}",
         ]
         self._live_update(lines)
-
-        # Viewport debug drawing
-        best_proj = None
-        if best_name is not None:
-            t_clamped = max(0.0, min(1.0, best_t))
-            best_proj = gripper_tip + t_clamped * axis
-        self._draw_grip_axis(gripper_tip, jaw_tip, orange_positions.get(best_name), best_proj, meets)
 
         if self.grasp_counter == self.patience_frames:
             self._grasp_confirmed = True

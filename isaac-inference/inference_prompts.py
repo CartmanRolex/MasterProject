@@ -246,6 +246,7 @@ try:
             # --- Prompt-aware task success check ---
             instr_lower = instruction.lower()
             gripper_tip, jaw_tip, gripper_pos, plate_pos, orange_positions = subtask_tracker._get_env_data(env)
+            subtask_tracker.draw_debug(gripper_tip, jaw_tip, orange_positions)
             if step_count == 1:
                 for name, pos in orange_positions.items():
                     subtask_tracker.initial_orange_z[name] = pos[2].item()
