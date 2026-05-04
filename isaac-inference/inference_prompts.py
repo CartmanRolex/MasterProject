@@ -191,9 +191,8 @@ try:
         obs, _ = env.reset()
         policy.reset()
 
-        start_joint_pos = env.scene["robot"].data.joint_pos[0].cpu().numpy().copy()
         subtask_tracker.reset()
-        home_checker.reset(start_joint_pos)
+        home_checker.reset()
         prev_instr_lower = ""
 
         done = False

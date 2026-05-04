@@ -12,6 +12,16 @@ import os
 import sys
 import datetime
 
+# Rest-pose range for SO101 (degrees). Mirrors SO101_FOLLOWER_REST_POSE_RANGE in leisaac.
+_SO101_REST_POSE_DEG = {
+    "shoulder_pan":  (-30.0,   30.0),   # 0°
+    "shoulder_lift": (-130.0, -70.0),   # -100°
+    "elbow_flex":    (  60.0, 120.0),   # 90°
+    "wrist_flex":    (  20.0,  80.0),   # 50°
+    "wrist_roll":    ( -30.0,  30.0),   # 0°
+    "gripper":       ( -40.0,  20.0),   # -10°
+}
+
 import numpy as np
 import torch
 from tqdm import tqdm
@@ -548,19 +558,16 @@ class HomeChecker:
     their initial positions for `patience_frames` consecutive frames.
     """
 
-    def __init__(self, patience_frames=5, joint_threshold=0.05):
-        self.patience_frames  = patience_frames
-        self.joint_threshold  = joint_threshold
-        self._start_joint_pos = None
-        self._counter         = 0
-        self._fired           = False
-        self._status_lines    = 0
+    def __init__(self, patience_frames=5):
+        self.patience_frames = patience_frames
+        self._counter        = 0
+        self._fired          = False
+        self._status_lines   = 0
 
-    def reset(self, start_joint_pos: np.ndarray):
-        self._start_joint_pos = start_joint_pos.copy()
-        self._counter         = 0
-        self._fired           = False
-        self._status_lines    = 0
+    def reset(self):
+        self._counter      = 0
+        self._fired        = False
+        self._status_lines = 0
 
     def reset_display(self):
         self._status_lines = 0
@@ -574,22 +581,31 @@ class HomeChecker:
         self._status_lines = len(lines)
 
     def check(self, env, step_count: int):
-        if self._start_joint_pos is None or self._fired:
+        if self._fired:
             return
-        current = env.scene["robot"].data.joint_pos[0].cpu().numpy()
-        max_dev = np.abs(current - self._start_joint_pos).max()
 
-        if max_dev < self.joint_threshold:
+        joint_pos   = env.scene["robot"].data.joint_pos[0]
+        joint_names = env.scene["robot"].data.joint_names
+        joint_deg   = joint_pos.cpu() / torch.pi * 180.0
+
+        at_rest = all(
+            lo < joint_deg[joint_names.index(name)].item() < hi
+            for name, (lo, hi) in _SO101_REST_POSE_DEG.items()
+        )
+
+        if at_rest:
             self._counter += 1
         else:
             self._counter = 0
 
-        d_sym = "✓" if max_dev < self.joint_threshold else "✗"
-        self._live_update([
-            f"  🏠 HOME  step {step_count}",
-            f"     Max joint dev: {max_dev:.4f} < {self.joint_threshold}  {d_sym}",
-            f"     Patience:      {self._counter}/{self.patience_frames}",
-        ])
+        lines = [f"  🏠 HOME  step {step_count}"]
+        for joint_name, (lo, hi) in _SO101_REST_POSE_DEG.items():
+            idx     = joint_names.index(joint_name)
+            val     = joint_deg[idx].item()
+            ok      = "✓" if lo < val < hi else "✗"
+            lines.append(f"     {joint_name:<14s} {val:+7.1f}°  ∈ [{lo:.0f}, {hi:.0f}]  {ok}")
+        lines.append(f"     Patience:      {self._counter}/{self.patience_frames}")
+        self._live_update(lines)
 
         if self._counter == self.patience_frames:
             self._fired        = True
