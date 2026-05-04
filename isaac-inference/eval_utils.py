@@ -302,9 +302,11 @@ class SubtaskTracker:
     def _get_env_data(self, env):
         """Extract all needed scene quantities, normalised to env origin."""
         self._origin = env.scene.env_origins[0]   # stored for debug drawing
-        frames      = env.scene["ee_frame"].data.target_pos_w[0]
-        gripper_tip = frames[1] - self._origin   # upper finger tip (index 1)
-        jaw_tip     = frames[2] - self._origin   # lower jaw tip    (index 2)
+        ee_frame    = env.scene["ee_frame"]
+        frame_names = ee_frame.data.target_frame_names
+        frames      = ee_frame.data.target_pos_w[0]
+        gripper_tip = frames[frame_names.index("gripper_tip")] - self._origin
+        jaw_tip     = frames[frame_names.index("jaw_tip")]     - self._origin
         gripper_pos = env.scene["robot"].data.joint_pos[0, -1].item()
         plate_pos   = env.scene["Plate"].data.root_pos_w[0] - self._origin
         orange_positions = {
