@@ -9,7 +9,9 @@ lerobot-train \
   --output_dir=outputs/train/pick-orange-mimic \
   --job_name=pick-orange-mimic \
   --policy.device=cuda \
-  --wandb.enable=true
+  --wandb.enable=true \
+  --policy.chunk_size=20 \
+  --policy.n_action_steps=20 \
 
 lerobot-train \
   --policy.type=act  \
@@ -21,7 +23,7 @@ lerobot-train \
   --output_dir=outputs/train/ACT-pick-orange \
   --job_name=pick-orange-ACT \
   --policy.device=cuda \
-  --wandb.enable=true
+  --wandb.enable= 
 
 
 ##################

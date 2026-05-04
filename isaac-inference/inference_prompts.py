@@ -17,7 +17,7 @@ from robot_utils import (
 # 1. Configuration & Setup
 # ==========================================
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model_id = "MasterProject2026/Gal-pick-orange-tailed"
+model_id = "MasterProject2026/Gal-pick-orange-tailedCH20"
 n_episodes = 100
 MAX_STEPS = 5000
 
