@@ -356,20 +356,6 @@ class SubtaskTracker:
             draw.draw_line(w(best_orange_pos), 0xFF00FFFF, 2.0, w(best_proj), 0xFF00FFFF, 2.0)
             draw.draw_point(w(best_proj), 0xFF00FFFF, 10.0)
 
-            # Horizontal plane at the orange's Z height
-            wp  = best_orange_pos + self._origin
-            ox, oy, oz = wp[0].item(), wp[1].item(), wp[2].item()
-            half, step = 0.10, 0.05
-            n = round(half / step)
-            plane_color = 0xFFFFFFFF  # white
-            for i in range(-n, n + 1):
-                y = oy + i * step
-                draw.draw_line(carb.Float3(ox - half, y, oz), plane_color, 1.0,
-                               carb.Float3(ox + half, y, oz), plane_color, 1.0)
-            for i in range(-n, n + 1):
-                x = ox + i * step
-                draw.draw_line(carb.Float3(x, oy - half, oz), plane_color, 1.0,
-                               carb.Float3(x, oy + half, oz), plane_color, 1.0)
 
     def draw_debug(self, gripper_tip, jaw_tip, orange_positions):
         """Draw grip axis debug geometry every step regardless of active prompt."""
