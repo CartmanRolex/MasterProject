@@ -14,6 +14,7 @@ from robot_utils import (
 )
 from eval_utils import SubtaskTracker, HomeChecker
 
+
 # ==========================================
 # 1. Configuration & Setup
 # ==========================================
@@ -171,6 +172,18 @@ home_checker    = HomeChecker()
 # ==========================================
 # 5. Inference Loop
 # ==========================================
+
+# --- Disable Isaac Sim / carb logs before starting interaction ---
+import logging
+logging.getLogger("omni").setLevel(logging.ERROR)
+logging.getLogger("carb").setLevel(logging.ERROR)
+
+try:
+    import carb
+    # This disables the C++ level carb logging (which produces the [Warning] [carb...] prints)
+    carb.settings.get_settings().set_string("/log/level", "error")
+except ImportError:
+    pass
 print(f"\n--- STARTING: {n_episodes} EPISODES ---")
 
 try:
@@ -181,6 +194,7 @@ try:
         start_joint_pos = env.scene["robot"].data.joint_pos[0].cpu().numpy().copy()
         subtask_tracker.reset()
         home_checker.reset(start_joint_pos)
+        prev_instr_lower = ""
 
         done = False
         step_count = 0
@@ -236,6 +250,13 @@ try:
             if step_count == 1:
                 for name, pos in orange_positions.items():
                     subtask_tracker.initial_orange_z[name] = pos[2].item()
+
+            if instr_lower != prev_instr_lower:
+                subtask_tracker.reset_display()
+                home_checker.reset_display()
+                if "grasp" in instr_lower:
+                    subtask_tracker.reset_grasp_state()
+                prev_instr_lower = instr_lower
 
             if "grasp" in instr_lower:
                 subtask_tracker._check_grasp(ee_pos, gripper_pos, orange_positions, step_count)

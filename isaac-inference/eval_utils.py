@@ -231,7 +231,7 @@ class SubtaskTracker:
     def __init__(
         self,
         block = False,              # if True, skip all checks and print a single message at init
-        patience_frames=5,        # frames required to confirm hover or lift
+        patience_frames=10,        # frames required to confirm hover or lift
         xy_threshold=0.04,        # max EE–orange XY distance to count as hovering (m)
         z_offset_min=0.0,         # min EE Z above orange to count as hovering (m)
         z_offset_max=0.05,        # max EE Z above orange to count as hovering (m)
@@ -267,6 +267,22 @@ class SubtaskTracker:
         self._place_confirmed  = False
         self._status_lines     = 0       # lines currently held by the live display block
         self._stability: dict[str, tuple[int, torch.Tensor | None]] = {}
+
+    def reset_grasp_state(self):
+        """Reset active orange and all subtask flags without clearing placed_oranges or initial heights.
+        Call each time the user re-issues a 'grasp' prompt for a fresh orange selection.
+        """
+        self.active_orange    = None
+        self.grasp_counter    = 0
+        self.lift_counter     = 0
+        self._grasp_confirmed = False
+        self._lift_confirmed  = False
+        self._place_confirmed = False
+        self._status_lines    = 0
+
+    def reset_display(self):
+        """Reset cursor tracking so the next live update starts fresh below the current cursor."""
+        self._status_lines = 0
 
     # ----------------------------------------------------------
     # Internal helpers
@@ -587,6 +603,10 @@ class HomeChecker:
         self._start_joint_pos = start_joint_pos.copy()
         self._counter         = 0
         self._fired           = False
+        self._status_lines    = 0
+
+    def reset_display(self):
+        self._status_lines = 0
         self._status_lines    = 0
 
     def _live_update(self, lines):
