@@ -264,6 +264,7 @@ class SubtaskTracker:
         self.lift_counter      = 0
         self._grasp_confirmed  = False
         self._lift_confirmed   = False
+        self._place_confirmed  = False
         self._status_lines     = 0       # lines currently held by the live display block
         self._stability: dict[str, tuple[int, torch.Tensor | None]] = {}
 
@@ -417,6 +418,7 @@ class SubtaskTracker:
 
         if self.grasp_counter == self.patience_frames:
             self._grasp_confirmed = True
+            self._place_confirmed = False  # allow place check for new orange cycle
             self.active_orange    = grasping[0]
             self._status_lines    = 0
             print(f"  ✊ GRASP CONFIRMED: {self.active_orange} is now the active orange  (step {step_count})\n")
@@ -486,6 +488,9 @@ class SubtaskTracker:
 
     def _check_place(self, plate_pos, orange_positions, gripper_pos, step_count):
         """Live-display place conditions for the active orange each step."""
+        if self._place_confirmed:
+            return
+
         px, py, pz   = plate_pos[0].item(), plate_pos[1].item(), plate_pos[2].item()
         gripper_open = gripper_pos > self.grasp_threshold
 
@@ -553,6 +558,7 @@ class SubtaskTracker:
             self.active_orange    = None  # ready for next orange
             self._grasp_confirmed = False
             self._lift_confirmed  = False
+            self._place_confirmed = True
             self._status_lines    = 0
             print(f"  🍊 PLACE CONFIRMED: {confirmed_names}  ({current_count}/{self.total_oranges} total,  step {step_count})\n")
             self._pause()
