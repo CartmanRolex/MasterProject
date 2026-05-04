@@ -276,6 +276,7 @@ class SubtaskTracker:
         self._lift_confirmed   = False
         self._place_confirmed  = False
         self._status_lines     = 0       # lines currently held by the live display block
+        self._origin           = None    # cached env origin for debug drawing
         self._stability: dict[str, tuple[int, torch.Tensor | None]] = {}
 
     def reset_grasp_state(self):
@@ -300,14 +301,14 @@ class SubtaskTracker:
 
     def _get_env_data(self, env):
         """Extract all needed scene quantities, normalised to env origin."""
-        origin = env.scene.env_origins[0]
+        self._origin = env.scene.env_origins[0]   # stored for debug drawing
         frames      = env.scene["ee_frame"].data.target_pos_w[0]
-        gripper_tip = frames[1] - origin   # upper finger tip (index 1)
-        jaw_tip     = frames[2] - origin   # lower jaw tip    (index 2)
+        gripper_tip = frames[1] - self._origin   # upper finger tip (index 1)
+        jaw_tip     = frames[2] - self._origin   # lower jaw tip    (index 2)
         gripper_pos = env.scene["robot"].data.joint_pos[0, -1].item()
-        plate_pos   = env.scene["Plate"].data.root_pos_w[0] - origin
+        plate_pos   = env.scene["Plate"].data.root_pos_w[0] - self._origin
         orange_positions = {
-            name: env.scene[name].data.root_pos_w[0] - origin
+            name: env.scene[name].data.root_pos_w[0] - self._origin
             for name in self.orange_names
         }
         return gripper_tip, jaw_tip, gripper_pos, plate_pos, orange_positions
@@ -324,6 +325,34 @@ class SubtaskTracker:
             sys.stdout.write(f"\r\033[2K{line}\n")
         sys.stdout.flush()
         self._status_lines = len(lines)
+
+    def _draw_grip_axis(self, gripper_tip, jaw_tip, best_orange_pos, best_proj, meets):
+        """Draw the grip axis and centering debug geometry in the Isaac Sim viewport.
+
+        Draws (in world space, cleared each call):
+          - Grip axis segment gripper_tip → jaw_tip  (green = all conditions met, red otherwise)
+          - Line from orange centre to its projection on the axis  (yellow)
+          - Dot at the projection point  (yellow)
+        """
+        if self._origin is None:
+            return
+        try:
+            import omni.debugdraw
+            import carb
+            draw = omni.debugdraw.get_debug_draw_interface()
+        except Exception:
+            return
+
+        def w(pos):
+            p = pos + self._origin
+            return carb.Float3(p[0].item(), p[1].item(), p[2].item())
+
+        axis_color = 0xFF00FF00 if meets else 0xFF0000FF   # green / blue  (ARGB)
+        draw.draw_line(w(gripper_tip), axis_color, w(jaw_tip), axis_color, 4.0)
+
+        if best_orange_pos is not None and best_proj is not None:
+            draw.draw_line(w(best_orange_pos), 0xFF00FFFF, w(best_proj), 0xFF00FFFF, 2.0)
+            draw.draw_point(w(best_proj), 0xFF00FFFF, 10.0)
 
     # ----------------------------------------------------------
     # Main entry point — call every step
@@ -398,6 +427,13 @@ class SubtaskTracker:
             f"     Patience:  {self.grasp_counter}/{self.patience_frames}",
         ]
         self._live_update(lines)
+
+        # Viewport debug drawing
+        best_proj = None
+        if best_name is not None:
+            t_clamped = max(0.0, min(1.0, best_t))
+            best_proj = gripper_tip + t_clamped * axis
+        self._draw_grip_axis(gripper_tip, jaw_tip, orange_positions.get(best_name), best_proj, meets)
 
         if self.grasp_counter == self.patience_frames:
             self._grasp_confirmed = True
