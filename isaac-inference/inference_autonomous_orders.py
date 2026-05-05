@@ -63,15 +63,11 @@ class OrderController:
         self.phase = "SELECT_TARGET"
         self.target_name = None
         self.target_label = None
-        self._steps_in_lift = 0
-        self._last_target_z = None
 
     def reset_episode(self):
         self.phase = "SELECT_TARGET"
         self.target_name = None
         self.target_label = None
-        self._steps_in_lift = 0
-        self._last_target_z = None
 
     def _remaining_targets(self, tracker: SubtaskTracker, orange_positions: dict):
         return [name for name in self.orange_names if name not in tracker.placed_oranges and name in orange_positions]
@@ -88,8 +84,6 @@ class OrderController:
         self.target_name = random.choice(remaining)
         self.target_label = labels.get(self.target_name, self.target_name)
         self.phase = "GRASP"
-        self._steps_in_lift = 0
-        self._last_target_z = orange_positions[self.target_name][2].item()
         tracker.reset_display()
         print(f"\n🎯 Selected target: {self.target_name} ({self.target_label})")
         return self.target_name
@@ -119,32 +113,19 @@ class OrderController:
             return
 
         if self.phase == "LIFT":
-            self._steps_in_lift += 1
-
             if tracker._lift_confirmed and tracker.active_orange == self.target_name:
                 self.phase = "PLACE"
                 tracker.reset_display()
                 print(f"  ✅ Lift confirmed for {self.target_name}; switching to place")
                 return
 
-            fell_during_lift = False
-            initial_z = tracker.initial_orange_z.get(self.target_name, target_z)
-            if self._last_target_z is not None and target_z < self._last_target_z - 0.004:
-                fell_during_lift = True
-            if self._steps_in_lift >= 4 and target_z <= initial_z + 0.008:
-                fell_during_lift = True
-
-            if fell_during_lift:
+            held, _ = tracker._is_orange_held(orange_positions[self.target_name])
+            if not held:
                 tracker.reset_display()
                 print(f"  ⚠️  {self.target_name} fell during lift; returning to grasp")
                 tracker.reset_grasp_state()
                 tracker.active_orange = self.target_name
                 self.phase = "GRASP"
-                self._steps_in_lift = 0
-                self._last_target_z = target_z
-                return
-
-            self._last_target_z = target_z
             return
 
         if self.phase == "PLACE":
@@ -153,8 +134,6 @@ class OrderController:
                 print(f"  ✅ Placed {self.target_name}")
                 self.target_name = None
                 self.target_label = None
-                self._steps_in_lift = 0
-                self._last_target_z = None
                 if len(tracker.placed_oranges) >= len(self.orange_names):
                     self.phase = "DONE"
                     tracker.reset_display()

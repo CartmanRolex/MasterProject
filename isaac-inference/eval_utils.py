@@ -645,14 +645,11 @@ class SubtaskTracker:
         if target and target in orange_positions:
             pos         = orange_positions[target]
             height_gain = pos[2].item() - self.initial_orange_z.get(target, pos[2].item())
-            held, held_dist = self._is_orange_held(pos)
             h_sym = "✓" if height_gain > self.lift_height_threshold else "✗"
-            d_sym = "✓" if held else "✗"
             lines = [
                 f"  🤏 LIFT [{display}]  step {step_count}",
                 f"     Gripper:     {gripper_pos:.4f} < {self.grasp_threshold} (closed)  {g_sym}",
                 f"     Height gain: {height_gain:.4f} > {self.lift_height_threshold}  {h_sym}",
-                f"     Held:        {held_dist:.4f} < {self.ORANGE_HELD_MAX_DIST}  {d_sym}",
                 f"     Patience:    {self.lift_counter}/{self.patience_frames}",
             ]
         else:
