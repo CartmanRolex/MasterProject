@@ -243,10 +243,11 @@ class SubtaskTracker:
         self,
         block = False,              # if True, pause after each confirmed event
         patience_frames=10,         # consecutive frames required to confirm grasp or lift
-        centering_threshold=0.015,   # max distance from orange centre to grip-axis segment (m)
-        closure_threshold=0.065,    # max finger-gap to count as closed around orange (m)
-        grip_t_min=0.4,             # min projection parameter: orange must not be outside the fingers
-        grip_t_max=0.67,             # max projection parameter
+        centering_threshold=0.015,   # info only — not used as confirmation condition
+        closure_threshold=0.065,    # info only — not used as confirmation condition
+        grip_t_min=0.4,             # info only — not used as confirmation condition
+        grip_t_max=0.67,            # info only — not used as confirmation condition
+        contact_force_min=20.0,     # min projected contact force (N) on each tip to confirm grasp
         grasp_threshold=0.60,       # gripper joint value: above = open, below = closed (used by lift/place)
         lift_height_threshold=0.06,  # min height gain from initial Z to confirm lift (m)
         orange_names=("Orange001", "Orange002", "Orange003"),
@@ -258,6 +259,7 @@ class SubtaskTracker:
         self.closure_threshold     = closure_threshold
         self.grip_t_min            = grip_t_min
         self.grip_t_max            = grip_t_max
+        self.contact_force_min     = contact_force_min
         self.grasp_threshold       = grasp_threshold
         self.lift_height_threshold = lift_height_threshold
         self.orange_names          = orange_names
@@ -480,11 +482,8 @@ class SubtaskTracker:
             if dist < best_dist:
                 best_dist, best_name, best_t = dist, name, t_raw
 
-        t_ok  = best_name is not None and self.grip_t_min <= best_t <= self.grip_t_max
-        meets = (best_name is not None
-                 and best_dist < self.centering_threshold
-                 and gap < self.closure_threshold
-                 and t_ok)
+        meets = (gripper_grasp_N >= self.contact_force_min
+                 and jaw_grasp_N >= self.contact_force_min)
 
         if meets:
             self.grasp_counter += 1
@@ -492,17 +491,16 @@ class SubtaskTracker:
             self.grasp_counter = 0
 
         # Live display — always show best candidate
-        c_sym = "✓" if best_dist < self.centering_threshold else "✗"
-        g_sym = "✓" if gap < self.closure_threshold else "✗"
-        t_sym = "✓" if t_ok else "✗"
-        label = best_name if best_name else "?"
+        gf_sym = "✓" if gripper_grasp_N >= self.contact_force_min else "✗"
+        jf_sym = "✓" if jaw_grasp_N     >= self.contact_force_min else "✗"
+        label  = best_name if best_name else "?"
         lines = [
             f"  ✊ GRASP [{label}]  step {step_count}",
-            f"     Centering: {best_dist:.4f} < {self.centering_threshold}  {c_sym}",
-            f"     Closure:   {gap:.4f} < {self.closure_threshold}  {g_sym}",
-            f"     Grip pos:  t={best_t:.2f}  ∈ [{self.grip_t_min}, {self.grip_t_max}]  {t_sym}",
-            f"     Gripper F: {gripper_grasp_N:.2f} N  (along axis)",
-            f"     Jaw F:     {jaw_grasp_N:.2f} N  (along axis)",
+            f"     Centering: {best_dist:.4f}  (info)",
+            f"     Closure:   {gap:.4f}  (info)",
+            f"     Grip pos:  t={best_t:.2f}  (info)",
+            f"     Gripper F: {gripper_grasp_N:.2f} N >= {self.contact_force_min}  {gf_sym}",
+            f"     Jaw F:     {jaw_grasp_N:.2f} N >= {self.contact_force_min}  {jf_sym}",
             f"     Patience:  {self.grasp_counter}/{self.patience_frames}",
         ]
         self._live_update(lines)
