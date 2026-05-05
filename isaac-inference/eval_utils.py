@@ -53,8 +53,8 @@ def save_camera_snapshots(raw_front, raw_wrist, episode, step_count,
 
 ORANGE_REF_AXIS          = "x"    # primary axis for left/right: "x" or "y"
 ORANGE_INVERT            = True   # flip left/right on the primary axis
-ORANGE_SECONDARY_INVERT  = False  # flip bottom/top on the secondary axis
-ORANGE_AXIS_TOL          = 0.0    # oranges within this distance (m) on primary axis use secondary axis for disambiguation
+ORANGE_SECONDARY_INVERT  = True  # flip bottom/top on the secondary axis
+ORANGE_AXIS_TOL          = 0.3    # oranges within this distance (m) on primary axis use secondary axis for disambiguation
 
 
 def classify_orange_positions(orange_positions: dict) -> dict:
@@ -93,7 +93,20 @@ def classify_orange_positions(orange_positions: dict) -> dict:
         by_sec = sorted([n0, n1, n2], key=lambda n: sec[n])
         if ORANGE_SECONDARY_INVERT:
             by_sec = by_sec[::-1]
-        return {by_sec[0]: "bottom", by_sec[1]: "middle", by_sec[2]: "top"}
+        sec_lbl = {by_sec[0]: "bottom", by_sec[1]: "middle", by_sec[2]: "top"}
+        pri_lbl = {n0: "left", n1: "middle", n2: "right"}
+        result  = {}
+        for name in (n0, n1, n2):
+            s, p = sec_lbl[name], pri_lbl[name]
+            if s == "middle" and p == "middle":
+                result[name] = "middle"
+            elif s == "middle":
+                result[name] = p               # "left" or "right"
+            elif p == "middle":
+                result[name] = s               # "bottom" or "top"
+            else:
+                result[name] = f"{s} {p}"     # "bottom left", "top right", etc.
+        return result
     elif close_01:
         bot, top = split_pair(n0, n1)
         return {bot: "bottom left", top: "top left", n2: "right"}
