@@ -706,7 +706,7 @@ class SubtaskTracker:
             )
             stable_frames = 0 if moved else prev_frames + 1
             self._stability[name] = (stable_frames, opos.clone())
-            gripper_z = self._gripper_tip[2].item() if self._gripper_tip is not None else float("inf")
+            gripper_z = (self._gripper_tip[2].item() - pz) if self._gripper_tip is not None else float("inf")
             if stable_frames >= self.stability_frames and gripper_open and gripper_z >= self.PLACE_GRIPPER_Z_MIN:
                 newly_confirmed.append((name, opos, stable_frames))
                 self.placed_oranges.add(name)
@@ -724,7 +724,7 @@ class SubtaskTracker:
             )
             stable_frames, _ = self._stability.get(target, (0, None))
             held, held_dist  = self._is_orange_held(opos)
-            gripper_z = self._gripper_tip[2].item() if self._gripper_tip is not None else float("nan")
+            gripper_z = (self._gripper_tip[2].item() - pz) if self._gripper_tip is not None else float("nan")
             r_sym  = "✓" if xy_dist < self.PLATE_RADIUS else "✗"
             z_sym  = "✓" if pz + self.PLATE_Z_MIN < oz < pz + self.PLATE_Z_MAX else "✗"
             s_sym  = "✓" if stable_frames >= self.stability_frames else "✗"
@@ -736,7 +736,7 @@ class SubtaskTracker:
                 f"     Held:       {held_dist:.4f} < {self.ORANGE_HELD_MAX_DIST}  {d_sym}  (info)",
                 f"     XY dist:    {xy_dist:.4f} < {self.PLATE_RADIUS}  {r_sym}",
                 f"     Orange Z:   {oz - pz:.4f}  ∈ [{self.PLATE_Z_MIN}, {self.PLATE_Z_MAX}]  {z_sym}",
-                f"     Gripper Z:  {gripper_z:.4f} >= {self.PLACE_GRIPPER_Z_MIN}  {gz_sym}",
+                f"     Tip-Plate Z:{gripper_z:.4f} >= {self.PLACE_GRIPPER_Z_MIN}  {gz_sym}",
                 f"     Stable:     {stable_frames}/{self.stability_frames}  {s_sym}",
                 f"     Open:       {gripper_pos:.4f} > {self.grasp_threshold}  {g_sym}",
             ]
