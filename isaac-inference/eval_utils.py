@@ -54,7 +54,7 @@ def save_camera_snapshots(raw_front, raw_wrist, episode, step_count,
 ORANGE_REF_AXIS          = "x"    # primary axis for left/right: "x" or "y"
 ORANGE_INVERT            = True   # flip left/right on the primary axis
 ORANGE_SECONDARY_INVERT  = True  # flip bottom/top on the secondary axis
-ORANGE_AXIS_TOL          = 0.3    # oranges within this distance (m) on primary axis use secondary axis for disambiguation
+ORANGE_AXIS_TOL          = 0.03    # oranges within this distance (m) on primary axis use secondary axis for disambiguation
 
 
 def classify_orange_positions(orange_positions: dict) -> dict:
@@ -307,7 +307,8 @@ class SubtaskTracker:
     PLATE_Z_MIN  = -0.01   # bottom of the cylinder (relative to plate centre Z)
     PLATE_Z_MAX  =  0.065   # top of the cylinder
 
-    DEBUG_DRAW = False  # set to True to visualize the grip axis in the Isaac Sim viewport
+    DEBUG_DRAW          = False  # set to True to visualize the grip axis in the Isaac Sim viewport
+    ORANGE_HELD_MAX_DIST = 0.03  # max tip-to-orange distance (m) to consider orange still held
 
     def __init__(
         self,
@@ -352,6 +353,8 @@ class SubtaskTracker:
         self._status_lines     = 0       # lines currently held by the live display block
         self._origin           = None    # cached env origin for debug drawing
         self._plate_pos        = None    # cached plate position for debug drawing
+        self._gripper_tip      = None    # cached tip positions for held-check in lift/place
+        self._jaw_tip          = None
         self._stability: dict[str, tuple[int, torch.Tensor | None]] = {}
 
     def reset_grasp_state(self):
@@ -380,8 +383,10 @@ class SubtaskTracker:
         ee_frame    = env.scene["ee_frame"]
         frame_names = ee_frame.data.target_frame_names
         frames      = ee_frame.data.target_pos_w[0]
-        gripper_tip = frames[frame_names.index("gripper_tip")] - self._origin
-        jaw_tip     = frames[frame_names.index("jaw_tip")]     - self._origin
+        gripper_tip       = frames[frame_names.index("gripper_tip")] - self._origin
+        jaw_tip           = frames[frame_names.index("jaw_tip")]     - self._origin
+        self._gripper_tip = gripper_tip
+        self._jaw_tip     = jaw_tip
         gripper_pos = env.scene["robot"].data.joint_pos[0, -1].item()
         plate_pos         = env.scene["Plate"].data.root_pos_w[0] - self._origin
         self._plate_pos   = plate_pos
@@ -407,6 +412,15 @@ class SubtaskTracker:
             sys.stdout.write(f"\r\033[2K{line}\n")
         sys.stdout.flush()
         self._status_lines = len(lines)
+
+    def _is_orange_held(self, orange_pos) -> tuple[bool, float]:
+        """Return (held, min_dist) — True if the closest tip is within ORANGE_HELD_MAX_DIST."""
+        if self._gripper_tip is None or self._jaw_tip is None:
+            return True, 0.0
+        d_gripper = (self._gripper_tip - orange_pos).norm().item()
+        d_jaw     = (self._jaw_tip     - orange_pos).norm().item()
+        min_dist  = min(d_gripper, d_jaw)
+        return min_dist < self.ORANGE_HELD_MAX_DIST, min_dist
 
     def _draw_grip_axis(self, gripper_tip, jaw_tip, best_orange_pos, best_proj, meets):
         """Draw the grip axis and centering debug geometry in the Isaac Sim viewport.
@@ -631,11 +645,14 @@ class SubtaskTracker:
         if target and target in orange_positions:
             pos         = orange_positions[target]
             height_gain = pos[2].item() - self.initial_orange_z.get(target, pos[2].item())
-            h_sym       = "✓" if height_gain > self.lift_height_threshold else "✗"
+            held, held_dist = self._is_orange_held(pos)
+            h_sym = "✓" if height_gain > self.lift_height_threshold else "✗"
+            d_sym = "✓" if held else "✗"
             lines = [
                 f"  🤏 LIFT [{display}]  step {step_count}",
                 f"     Gripper:     {gripper_pos:.4f} < {self.grasp_threshold} (closed)  {g_sym}",
                 f"     Height gain: {height_gain:.4f} > {self.lift_height_threshold}  {h_sym}",
+                f"     Held:        {held_dist:.4f} < {self.ORANGE_HELD_MAX_DIST}  {d_sym}",
                 f"     Patience:    {self.lift_counter}/{self.patience_frames}",
             ]
         else:
@@ -707,11 +724,14 @@ class SubtaskTracker:
                 and pz + self.PLATE_Z_MIN < oz < pz + self.PLATE_Z_MAX
             )
             stable_frames, _ = self._stability.get(target, (0, None))
+            held, held_dist  = self._is_orange_held(opos)
             r_sym = "✓" if xy_dist < self.PLATE_RADIUS else "✗"
             z_sym = "✓" if pz + self.PLATE_Z_MIN < oz < pz + self.PLATE_Z_MAX else "✗"
             s_sym = "✓" if stable_frames >= self.stability_frames else "✗"
+            d_sym = "✓" if held else "✗"
             lines = [
                 f"  🍊 PLACE [{display}]  step {step_count}",
+                f"     Held:      {held_dist:.4f} < {self.ORANGE_HELD_MAX_DIST}  {d_sym}  (info)",
                 f"     XY dist:   {xy_dist:.4f} < {self.PLATE_RADIUS}  {r_sym}",
                 f"     Z:         {oz - pz:.4f}  ∈ [{self.PLATE_Z_MIN}, {self.PLATE_Z_MAX}]  {z_sym}",
                 f"     Stable:    {stable_frames}/{self.stability_frames}  {s_sym}",
