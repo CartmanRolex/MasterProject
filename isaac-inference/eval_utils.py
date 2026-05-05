@@ -459,9 +459,12 @@ class SubtaskTracker:
         if self._grasp_confirmed:
             return
 
-        axis    = jaw_tip - gripper_tip
-        axis_sq = torch.dot(axis, axis).item()
-        gap     = axis_sq ** 0.5
+        axis      = jaw_tip - gripper_tip
+        axis_sq   = torch.dot(axis, axis).item()
+        gap       = axis_sq ** 0.5
+        axis_unit = axis / (gap + 1e-8)
+        gripper_grasp_N = abs(torch.dot(gripper_force_vec, axis_unit).item()) if gripper_force_vec is not None else 0.0
+        jaw_grasp_N     = abs(torch.dot(jaw_force_vec,     axis_unit).item()) if jaw_force_vec     is not None else 0.0
 
         # Find the closest unplaced orange to the grip axis
         best_name = None
@@ -498,8 +501,8 @@ class SubtaskTracker:
             f"     Centering: {best_dist:.4f} < {self.centering_threshold}  {c_sym}",
             f"     Closure:   {gap:.4f} < {self.closure_threshold}  {g_sym}",
             f"     Grip pos:  t={best_t:.2f}  ∈ [{self.grip_t_min}, {self.grip_t_max}]  {t_sym}",
-            f"     Gripper F: x={gripper_force_vec[0].item():+.2f}  y={gripper_force_vec[1].item():+.2f}  z={gripper_force_vec[2].item():+.2f} N" if gripper_force_vec is not None else "     Gripper F: N/A",
-            f"     Jaw F:     x={jaw_force_vec[0].item():+.2f}  y={jaw_force_vec[1].item():+.2f}  z={jaw_force_vec[2].item():+.2f} N"     if jaw_force_vec     is not None else "     Jaw F:     N/A",
+            f"     Gripper F: {gripper_grasp_N:.2f} N  (along axis)",
+            f"     Jaw F:     {jaw_grasp_N:.2f} N  (along axis)",
             f"     Patience:  {self.grasp_counter}/{self.patience_frames}",
         ]
         self._live_update(lines)
