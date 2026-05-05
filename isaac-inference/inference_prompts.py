@@ -245,7 +245,7 @@ try:
 
             # --- Prompt-aware task success check ---
             instr_lower = instruction.lower()
-            gripper_tip, jaw_tip, gripper_pos, gripper_force_mag, jaw_force_mag, plate_pos, orange_positions = subtask_tracker._get_env_data(env)
+            gripper_tip, jaw_tip, gripper_pos, gripper_force_vec, jaw_force_vec, plate_pos, orange_positions = subtask_tracker._get_env_data(env)
             subtask_tracker.draw_debug(gripper_tip, jaw_tip, orange_positions)
             if step_count == 1:
                 for name, pos in orange_positions.items():
@@ -262,7 +262,7 @@ try:
                 print(f"{'─' * 50}\n")
 
             if "grasp" in instr_lower:
-                subtask_tracker._check_grasp(gripper_tip, jaw_tip, orange_positions, step_count, gripper_force_mag, jaw_force_mag)
+                subtask_tracker._check_grasp(gripper_tip, jaw_tip, orange_positions, step_count, gripper_force_vec, jaw_force_vec)
             elif "pick" in instr_lower:
                 subtask_tracker._check_lift(gripper_pos, orange_positions, step_count)
             elif "place" in instr_lower:

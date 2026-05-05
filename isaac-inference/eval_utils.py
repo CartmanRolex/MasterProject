@@ -235,9 +235,9 @@ class SubtaskTracker:
     # Cylindrical plate bounds relative to plate centre (m).
     PLATE_RADIUS = 0.10    # XY radius of the cylinder
     PLATE_Z_MIN  = -0.01   # bottom of the cylinder (relative to plate centre Z)
-    PLATE_Z_MAX  =  0.05   # top of the cylinder
+    PLATE_Z_MAX  =  0.065   # top of the cylinder
 
-    DEBUG_DRAW = True  # set to True to visualize the grip axis in the Isaac Sim viewport
+    DEBUG_DRAW = False  # set to True to visualize the grip axis in the Isaac Sim viewport
 
     def __init__(
         self,
@@ -317,9 +317,11 @@ class SubtaskTracker:
             name: env.scene[name].data.root_com_pos_w[0] - self._origin
             for name in self.orange_names
         }
-        gripper_force_mag = env.scene["gripper_contact"].data.net_forces_w[0].norm(dim=-1).max().item()
-        jaw_force_mag     = env.scene["jaw_contact"].data.net_forces_w[0].norm(dim=-1).max().item()
-        return gripper_tip, jaw_tip, gripper_pos, gripper_force_mag, jaw_force_mag, plate_pos, orange_positions
+        gripper_forces = env.scene["gripper_contact"].data.net_forces_w[0]  # (num_bodies, 3)
+        jaw_forces     = env.scene["jaw_contact"].data.net_forces_w[0]
+        gripper_force_vec = gripper_forces[gripper_forces.norm(dim=-1).argmax()].cpu()
+        jaw_force_vec     = jaw_forces[jaw_forces.norm(dim=-1).argmax()].cpu()
+        return gripper_tip, jaw_tip, gripper_pos, gripper_force_vec, jaw_force_vec, plate_pos, orange_positions
 
     def _pause(self):
         if(self.block):
@@ -432,13 +434,13 @@ class SubtaskTracker:
 
     def check_status(self, env, step_count):
         """Run all subtask checks for the current step."""
-        gripper_tip, jaw_tip, gripper_pos, gripper_force_mag, jaw_force_mag, plate_pos, orange_positions = self._get_env_data(env)
+        gripper_tip, jaw_tip, gripper_pos, gripper_force_vec, jaw_force_vec, plate_pos, orange_positions = self._get_env_data(env)
 
         if step_count == 0:
             for name, pos in orange_positions.items():
                 self.initial_orange_z[name] = pos[2].item()
 
-        self._check_grasp(gripper_tip, jaw_tip, orange_positions, step_count, gripper_force_mag, jaw_force_mag)
+        self._check_grasp(gripper_tip, jaw_tip, orange_positions, step_count, gripper_force_vec, jaw_force_vec)
         self._check_lift(gripper_pos, orange_positions, step_count)
         self._check_place(plate_pos, orange_positions, gripper_pos, step_count)
 
@@ -446,7 +448,7 @@ class SubtaskTracker:
     # 1. Grasp check
     # ----------------------------------------------------------
 
-    def _check_grasp(self, gripper_tip, jaw_tip, orange_positions, step_count, gripper_force_mag=0.0, jaw_force_mag=0.0):
+    def _check_grasp(self, gripper_tip, jaw_tip, orange_positions, step_count, gripper_force_vec=None, jaw_force_vec=None):
         """Live-display grasp conditions each step; confirm once patience is reached.
 
         Centering: distance from orange centre to the gripper_tip→jaw_tip segment.
@@ -496,8 +498,8 @@ class SubtaskTracker:
             f"     Centering: {best_dist:.4f} < {self.centering_threshold}  {c_sym}",
             f"     Closure:   {gap:.4f} < {self.closure_threshold}  {g_sym}",
             f"     Grip pos:  t={best_t:.2f}  ∈ [{self.grip_t_min}, {self.grip_t_max}]  {t_sym}",
-            f"     Gripper F: {gripper_force_mag:.2f} N  (info)",
-            f"     Jaw F:     {jaw_force_mag:.2f} N  (info)",
+            f"     Gripper F: x={gripper_force_vec[0].item():+.2f}  y={gripper_force_vec[1].item():+.2f}  z={gripper_force_vec[2].item():+.2f} N" if gripper_force_vec is not None else "     Gripper F: N/A",
+            f"     Jaw F:     x={jaw_force_vec[0].item():+.2f}  y={jaw_force_vec[1].item():+.2f}  z={jaw_force_vec[2].item():+.2f} N"     if jaw_force_vec     is not None else "     Jaw F:     N/A",
             f"     Patience:  {self.grasp_counter}/{self.patience_frames}",
         ]
         self._live_update(lines)
