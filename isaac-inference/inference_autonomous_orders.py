@@ -20,7 +20,6 @@ from eval_utils import (
     SubtaskTracker,
     classify_orange_positions,
     count_oranges_in_plate,
-    save_camera_snapshots,
     save_positions,
 )
 
@@ -258,7 +257,7 @@ try:
             policy_obs = obs["policy"]
             raw_front = policy_obs["front"][0].cpu().numpy()
             raw_wrist = policy_obs["wrist"][0].cpu().numpy()
-            save_camera_snapshots(raw_front, raw_wrist, episode, step_count)
+
             joint_pos_converted = convert_leisaac_action_to_lerobot(policy_obs["joint_pos"].cpu().numpy())
 
             obs_frame = build_inference_frame(

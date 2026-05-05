@@ -307,8 +307,9 @@ class SubtaskTracker:
     PLATE_Z_MIN  = -0.01   # bottom of the cylinder (relative to plate centre Z)
     PLATE_Z_MAX  =  0.065   # top of the cylinder
 
-    DEBUG_DRAW          = False  # set to True to visualize the grip axis in the Isaac Sim viewport
-    ORANGE_HELD_MAX_DIST = 0.03  # max tip-to-orange distance (m) to consider orange still held
+    DEBUG_DRAW            = False  # set to True to visualize the grip axis in the Isaac Sim viewport
+    ORANGE_HELD_MAX_DIST  = 0.06   # max tip-to-orange distance (m) to consider orange still held
+    PLACE_GRIPPER_Z_MIN   = 0.0    # gripper tip must be at or above this env-relative Z to confirm place
 
     def __init__(
         self,
@@ -318,7 +319,7 @@ class SubtaskTracker:
         closure_threshold=0.065,    # info only — not used as confirmation condition
         grip_t_min=0.4,             # info only — not used as confirmation condition
         grip_t_max=0.67,            # info only — not used as confirmation condition
-        contact_force_min=20.0,     # min projected contact force (N) on each tip to confirm grasp
+        contact_force_min=10.0,     # min projected contact force (N) on each tip to confirm grasp
         grasp_threshold=0.60,       # gripper joint value: above = open, below = closed (used by lift/place)
         lift_height_threshold=0.06,  # min height gain from initial Z to confirm lift (m)
         orange_names=("Orange001", "Orange002", "Orange003"),
@@ -705,7 +706,8 @@ class SubtaskTracker:
             )
             stable_frames = 0 if moved else prev_frames + 1
             self._stability[name] = (stable_frames, opos.clone())
-            if stable_frames >= self.stability_frames and gripper_open:
+            gripper_z = self._gripper_tip[2].item() if self._gripper_tip is not None else float("inf")
+            if stable_frames >= self.stability_frames and gripper_open and gripper_z >= self.PLACE_GRIPPER_Z_MIN:
                 newly_confirmed.append((name, opos, stable_frames))
                 self.placed_oranges.add(name)
 
@@ -722,17 +724,21 @@ class SubtaskTracker:
             )
             stable_frames, _ = self._stability.get(target, (0, None))
             held, held_dist  = self._is_orange_held(opos)
-            r_sym = "✓" if xy_dist < self.PLATE_RADIUS else "✗"
-            z_sym = "✓" if pz + self.PLATE_Z_MIN < oz < pz + self.PLATE_Z_MAX else "✗"
-            s_sym = "✓" if stable_frames >= self.stability_frames else "✗"
-            d_sym = "✓" if held else "✗"
+            gripper_z = self._gripper_tip[2].item() if self._gripper_tip is not None else float("nan")
+            r_sym  = "✓" if xy_dist < self.PLATE_RADIUS else "✗"
+            z_sym  = "✓" if pz + self.PLATE_Z_MIN < oz < pz + self.PLATE_Z_MAX else "✗"
+            s_sym  = "✓" if stable_frames >= self.stability_frames else "✗"
+            d_sym  = "✓" if held else "✗"
+            gz_sym = "✓" if gripper_z >= self.PLACE_GRIPPER_Z_MIN else "✗"
+            g_sym  = "✓" if gripper_open else "✗"
             lines = [
                 f"  🍊 PLACE [{display}]  step {step_count}",
-                f"     Held:      {held_dist:.4f} < {self.ORANGE_HELD_MAX_DIST}  {d_sym}  (info)",
-                f"     XY dist:   {xy_dist:.4f} < {self.PLATE_RADIUS}  {r_sym}",
-                f"     Z:         {oz - pz:.4f}  ∈ [{self.PLATE_Z_MIN}, {self.PLATE_Z_MAX}]  {z_sym}",
-                f"     Stable:    {stable_frames}/{self.stability_frames}  {s_sym}",
-                f"     Gripper:   {gripper_pos:.4f} > {self.grasp_threshold} (open)  {g_sym}",
+                f"     Held:       {held_dist:.4f} < {self.ORANGE_HELD_MAX_DIST}  {d_sym}  (info)",
+                f"     XY dist:    {xy_dist:.4f} < {self.PLATE_RADIUS}  {r_sym}",
+                f"     Orange Z:   {oz - pz:.4f}  ∈ [{self.PLATE_Z_MIN}, {self.PLATE_Z_MAX}]  {z_sym}",
+                f"     Gripper Z:  {gripper_z:.4f} >= {self.PLACE_GRIPPER_Z_MIN}  {gz_sym}",
+                f"     Stable:     {stable_frames}/{self.stability_frames}  {s_sym}",
+                f"     Open:       {gripper_pos:.4f} > {self.grasp_threshold}  {g_sym}",
             ]
         else:
             lines = [
