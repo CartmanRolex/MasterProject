@@ -47,14 +47,12 @@ def tensor_to_bool(value):
 
 
 def build_task_prompt(phase: str, label: Optional[str]) -> str:
-    if label and label.startswith("Orange"):
-        label = None
     if phase == "GRASP":
-        return f"Pick up the {label} orange" if label else "Pick it up"
+        return f"Grasp {label} orange" if label else "Grasp orange"
     if phase == "LIFT":
-        return f"Lift the {label} orange" if label else "Pick it up"
+        return "Pick it up"
     if phase == "PLACE":
-        return f"Place the {label} orange into plate" if label else "Place it into plate"
+        return "Place it into plate"
     return "Pick it up"
 
 
@@ -185,6 +183,7 @@ preprocess, postprocess = make_pre_post_processors(
 tracker = EvaluationTracker(n_episodes)
 sub_tracker = SubtaskTracker(block=False)
 controller = OrderController(sub_tracker.orange_names)
+sub_tracker._live_update = lambda lines: None
 
 logging.getLogger("omni").setLevel(logging.ERROR)
 logging.getLogger("carb").setLevel(logging.ERROR)
@@ -208,6 +207,7 @@ try:
 
         done = False
         step_count = 0
+        last_model_prompt = None
 
         while not done:
             policy_obs = obs["policy"]
@@ -228,6 +228,9 @@ try:
                 controller._select_target(sub_tracker, orange_positions)
 
             task_prompt = controller.current_prompt()
+            if task_prompt != last_model_prompt:
+                print(f"  [MODEL PROMPT] {task_prompt}")
+                last_model_prompt = task_prompt
             raw_observations = {
                 "front": raw_front,
                 "wrist": raw_wrist,
