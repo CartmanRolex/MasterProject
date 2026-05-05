@@ -51,25 +51,28 @@ def save_camera_snapshots(raw_front, raw_wrist, episode, step_count,
 # Orange Position Classifier
 # ============================================================
 
-ORANGE_REF_AXIS = "x"    # axis used for left/right: "x" or "y"
-ORANGE_INVERT   = False  # set True to flip left/right direction
-ORANGE_AXIS_TOL = 0.03   # oranges within this distance (m) on ref axis use Z for disambiguation
+ORANGE_REF_AXIS          = "x"    # primary axis for left/right: "x" or "y"
+ORANGE_INVERT            = True   # flip left/right on the primary axis
+ORANGE_SECONDARY_INVERT  = False  # flip bottom/top on the secondary axis
+ORANGE_AXIS_TOL          = 0.0    # oranges within this distance (m) on primary axis use secondary axis for disambiguation
 
 
 def classify_orange_positions(orange_positions: dict) -> dict:
-    """Return a label (e.g. 'left', 'center', 'right', 'bottom left') for each orange.
+    """Return a label (e.g. 'left', 'middle', 'right', 'bottom left') for each orange.
 
-    Sorts oranges along ORANGE_REF_AXIS to assign left/center/right.
-    If two adjacent oranges are within ORANGE_AXIS_TOL on that axis they are
-    indistinguishable laterally, so they are split by Z (bottom/top) and the
-    word 'center' disappears for that pair.
+    Sorts oranges along ORANGE_REF_AXIS to assign left/middle/right.
+    If two adjacent oranges are within ORANGE_AXIS_TOL on the primary axis they are
+    indistinguishable laterally, so they are split by the secondary horizontal axis
+    (y if primary is x, x if primary is y) using bottom/top labels.
     """
     if len(orange_positions) != 3:
         return {name: name for name in orange_positions}
 
-    axis_idx = 0 if ORANGE_REF_AXIS == "x" else 1
-    vals  = {n: pos[axis_idx].item() for n, pos in orange_positions.items()}
-    z_vals = {n: pos[2].item()        for n, pos in orange_positions.items()}
+    primary_idx   = 0 if ORANGE_REF_AXIS == "x" else 1
+    secondary_idx = 1 if ORANGE_REF_AXIS == "x" else 0
+
+    vals  = {n: pos[primary_idx].item()   for n, pos in orange_positions.items()}
+    sec   = {n: pos[secondary_idx].item() for n, pos in orange_positions.items()}
 
     sorted_names = sorted(vals, key=lambda n: vals[n])
     if ORANGE_INVERT:
@@ -79,17 +82,26 @@ def classify_orange_positions(orange_positions: dict) -> dict:
     close_01 = abs(vals[n0] - vals[n1]) < ORANGE_AXIS_TOL
     close_12 = abs(vals[n1] - vals[n2]) < ORANGE_AXIS_TOL
 
+    def split_pair(a, b):
+        """Return (bottom, top) names for a close pair using the secondary axis."""
+        lo, hi = (a, b) if sec[a] <= sec[b] else (b, a)
+        if ORANGE_SECONDARY_INVERT:
+            lo, hi = hi, lo
+        return lo, hi   # lo = "bottom", hi = "top"
+
     if close_01 and close_12:
-        by_z = sorted([n0, n1, n2], key=lambda n: z_vals[n])
-        return {by_z[0]: "bottom", by_z[1]: "center", by_z[2]: "top"}
+        by_sec = sorted([n0, n1, n2], key=lambda n: sec[n])
+        if ORANGE_SECONDARY_INVERT:
+            by_sec = by_sec[::-1]
+        return {by_sec[0]: "bottom", by_sec[1]: "middle", by_sec[2]: "top"}
     elif close_01:
-        by_z = sorted([n0, n1], key=lambda n: z_vals[n])
-        return {by_z[0]: "bottom left", by_z[1]: "top left", n2: "right"}
+        bot, top = split_pair(n0, n1)
+        return {bot: "bottom left", top: "top left", n2: "right"}
     elif close_12:
-        by_z = sorted([n1, n2], key=lambda n: z_vals[n])
-        return {n0: "left", by_z[0]: "bottom right", by_z[1]: "top right"}
+        bot, top = split_pair(n1, n2)
+        return {n0: "left", bot: "bottom right", top: "top right"}
     else:
-        return {n0: "left", n1: "center", n2: "right"}
+        return {n0: "left", n1: "middle", n2: "right"}
 
 
 # ============================================================
