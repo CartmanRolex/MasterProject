@@ -279,6 +279,7 @@ class SubtaskTracker:
         self._place_confirmed  = False
         self._status_lines     = 0       # lines currently held by the live display block
         self._origin           = None    # cached env origin for debug drawing
+        self._plate_pos        = None    # cached plate position for debug drawing
         self._stability: dict[str, tuple[int, torch.Tensor | None]] = {}
 
     def reset_grasp_state(self):
@@ -310,7 +311,8 @@ class SubtaskTracker:
         gripper_tip = frames[frame_names.index("gripper_tip")] - self._origin
         jaw_tip     = frames[frame_names.index("jaw_tip")]     - self._origin
         gripper_pos = env.scene["robot"].data.joint_pos[0, -1].item()
-        plate_pos   = env.scene["Plate"].data.root_pos_w[0] - self._origin
+        plate_pos         = env.scene["Plate"].data.root_pos_w[0] - self._origin
+        self._plate_pos   = plate_pos
         orange_positions = {
             name: env.scene[name].data.root_com_pos_w[0] - self._origin
             for name in self.orange_names
@@ -361,6 +363,40 @@ class SubtaskTracker:
             draw.draw_point(w(best_proj), 0xFF00FFFF, 10.0)
 
 
+    def _draw_plate_box(self):
+        """Draw the 3-D bounding box used by the place check in the Isaac Sim viewport."""
+        if not self.DEBUG_DRAW or self._origin is None or self._plate_pos is None:
+            return
+        try:
+            import omni.debugdraw
+            import carb
+            draw = omni.debugdraw.get_debug_draw_interface()
+        except Exception:
+            return
+
+        p  = self._plate_pos + self._origin
+        px, py, pz = p[0].item(), p[1].item(), p[2].item()
+        x0, x1 = px + self.PLATE_X_RANGE[0], px + self.PLATE_X_RANGE[1]
+        y0, y1 = py + self.PLATE_Y_RANGE[0], py + self.PLATE_Y_RANGE[1]
+        z0, z1 = pz + self.PLATE_Z_RANGE[0], pz + self.PLATE_Z_RANGE[1]
+
+        color = 0xFFFF8800  # orange (ARGB)
+        w = 2.0
+
+        corners = [
+            carb.Float3(x0, y0, z0), carb.Float3(x1, y0, z0),
+            carb.Float3(x1, y1, z0), carb.Float3(x0, y1, z0),
+            carb.Float3(x0, y0, z1), carb.Float3(x1, y0, z1),
+            carb.Float3(x1, y1, z1), carb.Float3(x0, y1, z1),
+        ]
+        edges = [
+            (0,1),(1,2),(2,3),(3,0),  # bottom face
+            (4,5),(5,6),(6,7),(7,4),  # top face
+            (0,4),(1,5),(2,6),(3,7),  # vertical edges
+        ]
+        for a, b in edges:
+            draw.draw_line(corners[a], color, w, corners[b], color, w)
+
     def draw_debug(self, gripper_tip, jaw_tip, orange_positions):
         """Draw grip axis debug geometry every step regardless of active prompt."""
         axis    = jaw_tip - gripper_tip
@@ -392,6 +428,7 @@ class SubtaskTracker:
                  and t_ok)
 
         self._draw_grip_axis(gripper_tip, jaw_tip, orange_positions.get(best_name), best_proj, meets)
+        self._draw_plate_box()
 
     # ----------------------------------------------------------
     # Main entry point — call every step
