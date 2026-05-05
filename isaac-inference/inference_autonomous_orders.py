@@ -247,6 +247,7 @@ try:
         last_positions = save_positions(env)
 
         while not done:
+            # --- Reset check ---
             if reset_controller.get_and_clear_reset():
                 sub_tracker.reset_display()
                 print("\n🔄 Episode reset requested.")
@@ -255,80 +256,79 @@ try:
                 done = True
                 break
 
-            policy_obs = obs["policy"]
-
-            raw_front = policy_obs["front"][0].cpu().numpy()
-            raw_wrist = policy_obs["wrist"][0].cpu().numpy()
-            save_camera_snapshots(raw_front, raw_wrist, episode, step_count)
-
-            joint_pos_raw = policy_obs["joint_pos"].cpu().numpy()
-            joint_pos_converted = convert_leisaac_action_to_lerobot(joint_pos_raw)
-
-            current_gripper_tip, current_jaw_tip, current_gripper_pos, current_gripper_force_vec, current_jaw_force_vec, current_plate_pos, orange_positions = sub_tracker._get_env_data(env)
+            # --- Pre-step: select target + init orange heights (prompt must be ready before inference) ---
+            *_, orange_positions = sub_tracker._get_env_data(env)
             if step_count == 0:
                 for name, pos in orange_positions.items():
                     sub_tracker.initial_orange_z[name] = pos[2].item()
-
             if controller.phase == "SELECT_TARGET":
                 controller._select_target(sub_tracker, orange_positions)
 
+            # --- Build prompt ---
             task_prompt = controller.current_prompt()
             if task_prompt != last_model_prompt:
                 sub_tracker.reset_display()
-                print(f"  [MODEL PROMPT] {task_prompt}")
+                print(f"\n{'─' * 50}")
+                print(f"  ACTIVE PROMPT → \"{task_prompt}\"")
+                print(f"{'─' * 50}\n")
                 last_model_prompt = task_prompt
-            raw_observations = {
-                "front": raw_front,
-                "wrist": raw_wrist,
-                "state": joint_pos_converted[0],
-            }
+
+            # --- Observation ---
+            policy_obs = obs["policy"]
+            raw_front = policy_obs["front"][0].cpu().numpy()
+            raw_wrist = policy_obs["wrist"][0].cpu().numpy()
+            save_camera_snapshots(raw_front, raw_wrist, episode, step_count)
+            joint_pos_converted = convert_leisaac_action_to_lerobot(policy_obs["joint_pos"].cpu().numpy())
 
             obs_frame = build_inference_frame(
-                observation=raw_observations,
+                observation={"front": raw_front, "wrist": raw_wrist, "state": joint_pos_converted[0]},
                 ds_features=dataset_features,
                 device=device,
                 task=task_prompt,
             )
 
+            # --- Inference ---
             batch = preprocess(obs_frame)
             t_infer_start = time.perf_counter()
             with torch.inference_mode():
                 action_output = policy.select_action(batch)
-            t_infer_end = time.perf_counter()
-            infer_time_ms = (t_infer_end - t_infer_start) * 1000
+            infer_time_ms = (time.perf_counter() - t_infer_start) * 1000
 
+            # --- Action ---
             action_dict = postprocess(action_output)
             final_action = action_dict.get("action", action_dict) if isinstance(action_dict, dict) else action_dict
-
             action_np = final_action.cpu().numpy()
             if action_np.ndim == 1:
                 action_np = action_np[None, :]
-            action_converted = convert_lerobot_action_to_leisaac(action_np)
-            step_action = torch.from_numpy(action_converted).to(device)
+            step_action = torch.from_numpy(convert_lerobot_action_to_leisaac(action_np)).to(device)
 
+            # --- Step ---
             last_positions = save_positions(env)
             t_step_start = time.perf_counter()
             obs, reward, terminated, truncated, info = env.step(step_action[0].unsqueeze(0))
-            t_step_end = time.perf_counter()
-            step_time_ms = (t_step_end - t_step_start) * 1000
-
-            sub_tracker.check_status(env, step_count)
-            gripper_tip, jaw_tip, gripper_pos, gripper_force_vec, jaw_force_vec, plate_pos, post_orange_positions = sub_tracker._get_env_data(env)
-            if controller.phase == "GRASP":
-                sub_tracker._check_grasp(gripper_tip, jaw_tip, post_orange_positions, step_count, gripper_force_vec, jaw_force_vec)
-            elif controller.phase == "LIFT":
-                sub_tracker._check_lift(gripper_pos, post_orange_positions, step_count)
-            elif controller.phase == "PLACE":
-                sub_tracker._check_place(plate_pos, post_orange_positions, gripper_pos, step_count)
-            sub_tracker.draw_debug(gripper_tip, jaw_tip, post_orange_positions)
-            controller.update_after_step(sub_tracker, post_orange_positions, step_count)
-
-            tracker.record_timing(infer_time_ms, step_time_ms)
+            step_time_ms = (time.perf_counter() - t_step_start) * 1000
             step_count += 1
+
+            # --- Post-step: single env read for all checks ---
+            gripper_tip, jaw_tip, gripper_pos, gripper_force_vec, jaw_force_vec, plate_pos, orange_positions = sub_tracker._get_env_data(env)
+
+            if controller.phase == "GRASP":
+                sub_tracker._check_grasp(gripper_tip, jaw_tip, orange_positions, step_count,
+                                         gripper_force_vec, jaw_force_vec)
+            elif controller.phase == "LIFT":
+                sub_tracker._check_lift(gripper_pos, orange_positions, step_count)
+            elif controller.phase == "PLACE":
+                sub_tracker._check_place(plate_pos, orange_positions, gripper_pos, step_count)
+
+            sub_tracker.draw_debug(gripper_tip, jaw_tip, orange_positions)
+            controller.update_after_step(sub_tracker, orange_positions, step_count)
+
+            # --- Bookkeeping ---
+            tracker.record_timing(infer_time_ms, step_time_ms)
             tracker.update_step(step_count)
 
             is_terminated = tensor_to_bool(terminated)
-            is_truncated = tensor_to_bool(truncated)
+            is_truncated  = tensor_to_bool(truncated)
             done = is_terminated or is_truncated or controller.phase == "DONE"
 
             if done:
