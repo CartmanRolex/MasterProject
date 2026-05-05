@@ -232,12 +232,12 @@ class SubtaskTracker:
     Each confirmation fires a single persistent print and then goes silent.
     """
 
-    # Plate bounds relative to plate centre (m). Shared by _check_place and count_oranges_in_plate.
-    PLATE_X_RANGE    = (-0.10, 0.10)
-    PLATE_Y_RANGE    = (-0.10, 0.10)
-    PLATE_Z_RANGE    = (-0.01, 0.05)
+    # Cylindrical plate bounds relative to plate centre (m).
+    PLATE_RADIUS = 0.10    # XY radius of the cylinder
+    PLATE_Z_MIN  = -0.01   # bottom of the cylinder (relative to plate centre Z)
+    PLATE_Z_MAX  =  0.05   # top of the cylinder
 
-    DEBUG_DRAW = False  # set to True to visualize the grip axis in the Isaac Sim viewport
+    DEBUG_DRAW = True  # set to True to visualize the grip axis in the Isaac Sim viewport
 
     def __init__(
         self,
@@ -363,39 +363,35 @@ class SubtaskTracker:
             draw.draw_point(w(best_proj), 0xFF00FFFF, 10.0)
 
 
-    def _draw_plate_box(self):
-        """Draw the 3-D bounding box used by the place check in the Isaac Sim viewport."""
+    def _draw_plate_cylinder(self):
+        """Draw the cylindrical plate check volume in the Isaac Sim viewport."""
         if not self.DEBUG_DRAW or self._origin is None or self._plate_pos is None:
             return
         try:
             import omni.debugdraw
             import carb
+            import math
             draw = omni.debugdraw.get_debug_draw_interface()
         except Exception:
             return
 
         p  = self._plate_pos + self._origin
-        px, py, pz = p[0].item(), p[1].item(), p[2].item()
-        x0, x1 = px + self.PLATE_X_RANGE[0], px + self.PLATE_X_RANGE[1]
-        y0, y1 = py + self.PLATE_Y_RANGE[0], py + self.PLATE_Y_RANGE[1]
-        z0, z1 = pz + self.PLATE_Z_RANGE[0], pz + self.PLATE_Z_RANGE[1]
+        cx, cy, cz = p[0].item(), p[1].item(), p[2].item()
+        z0 = cz + self.PLATE_Z_MIN
+        z1 = cz + self.PLATE_Z_MAX
+        r  = self.PLATE_RADIUS
+        color, w, N = 0xFFFF8800, 2.0, 24  # orange, line width, segments
 
-        color = 0xFFFF8800  # orange (ARGB)
-        w = 2.0
+        pts_bot = [carb.Float3(cx + r * math.cos(2*math.pi*i/N),
+                               cy + r * math.sin(2*math.pi*i/N), z0) for i in range(N)]
+        pts_top = [carb.Float3(cx + r * math.cos(2*math.pi*i/N),
+                               cy + r * math.sin(2*math.pi*i/N), z1) for i in range(N)]
 
-        corners = [
-            carb.Float3(x0, y0, z0), carb.Float3(x1, y0, z0),
-            carb.Float3(x1, y1, z0), carb.Float3(x0, y1, z0),
-            carb.Float3(x0, y0, z1), carb.Float3(x1, y0, z1),
-            carb.Float3(x1, y1, z1), carb.Float3(x0, y1, z1),
-        ]
-        edges = [
-            (0,1),(1,2),(2,3),(3,0),  # bottom face
-            (4,5),(5,6),(6,7),(7,4),  # top face
-            (0,4),(1,5),(2,6),(3,7),  # vertical edges
-        ]
-        for a, b in edges:
-            draw.draw_line(corners[a], color, w, corners[b], color, w)
+        for i in range(N):
+            j = (i + 1) % N
+            draw.draw_line(pts_bot[i], color, w, pts_bot[j], color, w)  # bottom ring
+            draw.draw_line(pts_top[i], color, w, pts_top[j], color, w)  # top ring
+            draw.draw_line(pts_bot[i], color, w, pts_top[i], color, w)  # vertical edge
 
     def draw_debug(self, gripper_tip, jaw_tip, orange_positions):
         """Draw grip axis debug geometry every step regardless of active prompt."""
@@ -428,7 +424,7 @@ class SubtaskTracker:
                  and t_ok)
 
         self._draw_grip_axis(gripper_tip, jaw_tip, orange_positions.get(best_name), best_proj, meets)
-        self._draw_plate_box()
+        self._draw_plate_cylinder()
 
     # ----------------------------------------------------------
     # Main entry point — call every step
@@ -596,10 +592,10 @@ class SubtaskTracker:
             if name in self.placed_oranges:
                 continue
             ox, oy, oz = opos[0].item(), opos[1].item(), opos[2].item()
+            xy_dist  = ((ox - px)**2 + (oy - py)**2) ** 0.5
             in_plate = (
-                (px + self.PLATE_X_RANGE[0] < ox < px + self.PLATE_X_RANGE[1])
-                and (py + self.PLATE_Y_RANGE[0] < oy < py + self.PLATE_Y_RANGE[1])
-                and (pz + self.PLATE_Z_RANGE[0] < oz < pz + self.PLATE_Z_RANGE[1])
+                xy_dist < self.PLATE_RADIUS
+                and pz + self.PLATE_Z_MIN < oz < pz + self.PLATE_Z_MAX
             )
             if not in_plate:
                 self._stability[name] = (0, None)
@@ -621,17 +617,19 @@ class SubtaskTracker:
         if target and target in orange_positions:
             opos  = orange_positions[target]
             ox, oy, oz = opos[0].item(), opos[1].item(), opos[2].item()
+            xy_dist  = ((ox - px)**2 + (oy - py)**2) ** 0.5
             in_plate = (
-                (px + self.PLATE_X_RANGE[0] < ox < px + self.PLATE_X_RANGE[1])
-                and (py + self.PLATE_Y_RANGE[0] < oy < py + self.PLATE_Y_RANGE[1])
-                and (pz + self.PLATE_Z_RANGE[0] < oz < pz + self.PLATE_Z_RANGE[1])
+                xy_dist < self.PLATE_RADIUS
+                and pz + self.PLATE_Z_MIN < oz < pz + self.PLATE_Z_MAX
             )
             stable_frames, _ = self._stability.get(target, (0, None))
-            p_sym = "✓" if in_plate else "✗"
+            r_sym = "✓" if xy_dist < self.PLATE_RADIUS else "✗"
+            z_sym = "✓" if pz + self.PLATE_Z_MIN < oz < pz + self.PLATE_Z_MAX else "✗"
             s_sym = "✓" if stable_frames >= self.stability_frames else "✗"
             lines = [
                 f"  🍊 PLACE [{display}]  step {step_count}",
-                f"     In plate:  {p_sym}",
+                f"     XY dist:   {xy_dist:.4f} < {self.PLATE_RADIUS}  {r_sym}",
+                f"     Z:         {oz - pz:.4f}  ∈ [{self.PLATE_Z_MIN}, {self.PLATE_Z_MAX}]  {z_sym}",
                 f"     Stable:    {stable_frames}/{self.stability_frames}  {s_sym}",
                 f"     Gripper:   {gripper_pos:.4f} > {self.grasp_threshold} (open)  {g_sym}",
             ]
