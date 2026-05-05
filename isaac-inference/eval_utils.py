@@ -309,7 +309,8 @@ class SubtaskTracker:
 
     DEBUG_DRAW            = False  # set to True to visualize the grip axis in the Isaac Sim viewport
     ORANGE_HELD_MAX_DIST  = 0.06   # max tip-to-orange distance (m) to consider orange still held
-    PLACE_GRIPPER_Z_MIN   = 0.04    # gripper tip must be at or above this env-relative Z to confirm place
+    PLACE_GRIPPER_Z_MIN   = 0.04   # gripper tip must be at or above this env-relative Z to confirm place
+    GRASP_APPROACH_DIST   = 0.10   # tip-to-orange distance (m) beyond which only V_approach contributes
 
     def __init__(
         self,
@@ -593,6 +594,15 @@ class SubtaskTracker:
         pos_labels   = classify_orange_positions(orange_positions)
         orange_label = f"{best_name} / {pos_labels.get(best_name, '?')}" if best_name else "?"
 
+        # Value function
+        _, tip_dist = self._is_orange_held(orange_positions[best_name]) if best_name else (False, float("inf"))
+        v_approach = max(0.0, 1.0 - tip_dist / self.GRASP_APPROACH_DIST)
+        v_center   = max(0.0, 1.0 - best_dist / self.centering_threshold) if best_name else 0.0
+        v_closure  = max(0.0, 1.0 - gap / self.closure_threshold)
+        v_force    = min(1.0, (gripper_grasp_N + jaw_grasp_N) / (2 * self.contact_force_min + 1e-8))
+        v_precise  = v_center * v_closure * v_force
+        v_grasp    = 0.8 * v_approach + (0.2 * v_precise if tip_dist < self.GRASP_APPROACH_DIST else 0.0)
+
         # Live display
         c_sym  = "✓" if best_dist < self.centering_threshold else "✗"
         g_sym  = "✓" if gap < self.closure_threshold else "✗"
@@ -607,6 +617,7 @@ class SubtaskTracker:
             f"     Gripper F: {gripper_grasp_N:.2f} N >= {self.contact_force_min}  {gf_sym}",
             f"     Jaw F:     {jaw_grasp_N:.2f} N >= {self.contact_force_min}  {jf_sym}",
             f"     Patience:  {self.grasp_counter}/{self.patience_frames}",
+            f"     V = {v_grasp:.2f}  (approach={v_approach:.2f}  precise={v_precise:.2f})",
         ]
         self._live_update(lines)
 
@@ -655,12 +666,17 @@ class SubtaskTracker:
         if target and target in orange_positions:
             pos         = orange_positions[target]
             height_gain = pos[2].item() - self.initial_orange_z.get(target, pos[2].item())
+            _, held_dist = self._is_orange_held(pos)
+            v_height = min(1.0, max(0.0, height_gain / self.lift_height_threshold))
+            v_held   = max(0.0, 1.0 - held_dist / self.ORANGE_HELD_MAX_DIST)
+            v_lift   = v_height * v_held
             h_sym = "✓" if height_gain > self.lift_height_threshold else "✗"
             lines = [
                 f"  🤏 LIFT [{display}]  step {step_count}",
                 f"     Gripper:     {gripper_pos:.4f} < {self.grasp_threshold} (closed)  {g_sym}",
                 f"     Height gain: {height_gain:.4f} > {self.lift_height_threshold}  {h_sym}",
                 f"     Patience:    {self.lift_counter}/{self.patience_frames}",
+                f"     V = {v_lift:.2f}  (height={v_height:.2f}  held={v_held:.2f})",
             ]
         else:
             lines = [
@@ -734,6 +750,11 @@ class SubtaskTracker:
             stable_frames, _ = self._stability.get(target, (0, None))
             held, held_dist  = self._is_orange_held(opos)
             gripper_z = (self._gripper_tip[2].item() - pz) if self._gripper_tip is not None else float("nan")
+            v_xy     = max(0.0, 1.0 - xy_dist / self.PLATE_RADIUS)
+            v_z      = 1.0 if pz + self.PLATE_Z_MIN < oz < pz + self.PLATE_Z_MAX else 0.0
+            v_open   = min(1.0, max(0.0, (gripper_pos - self.grasp_threshold) / (1.0 - self.grasp_threshold + 1e-8)))
+            v_stable = min(1.0, stable_frames / (self.stability_frames + 1e-8))
+            v_place  = v_xy * v_z * v_open * v_stable
             r_sym  = "✓" if xy_dist < self.PLATE_RADIUS else "✗"
             z_sym  = "✓" if pz + self.PLATE_Z_MIN < oz < pz + self.PLATE_Z_MAX else "✗"
             s_sym  = "✓" if stable_frames >= self.stability_frames else "✗"
@@ -748,6 +769,7 @@ class SubtaskTracker:
                 f"     Tip-Plate Z:{gripper_z:.4f} >= {self.PLACE_GRIPPER_Z_MIN}  {gz_sym}",
                 f"     Stable:     {stable_frames}/{self.stability_frames}  {s_sym}",
                 f"     Open:       {gripper_pos:.4f} > {self.grasp_threshold}  {g_sym}",
+                f"     V = {v_place:.2f}  (xy={v_xy:.2f}  z={v_z:.0f}  open={v_open:.2f}  stable={v_stable:.2f})",
             ]
         else:
             lines = [
@@ -819,13 +841,20 @@ class HomeChecker:
         else:
             self._counter = 0
 
+        v_joints = []
         lines = [f"  🏠 HOME  step {step_count}"]
         for joint_name, (lo, hi) in _SO101_REST_POSE_DEG.items():
-            idx     = joint_names.index(joint_name)
-            val     = joint_deg[idx].item()
-            ok      = "✓" if lo < val < hi else "✗"
+            idx    = joint_names.index(joint_name)
+            val    = joint_deg[idx].item()
+            centre = (lo + hi) / 2.0
+            half   = (hi - lo) / 2.0
+            v_j    = max(0.0, 1.0 - abs(val - centre) / half)
+            v_joints.append(v_j)
+            ok = "✓" if lo < val < hi else "✗"
             lines.append(f"     {joint_name:<14s} {val:+7.1f}°  ∈ [{lo:.0f}, {hi:.0f}]  {ok}")
+        v_home = sum(v_joints) / len(v_joints)
         lines.append(f"     Patience:      {self._counter}/{self.patience_frames}")
+        lines.append(f"     V = {v_home:.2f}")
         self._live_update(lines)
 
         if self._counter == self.patience_frames:
