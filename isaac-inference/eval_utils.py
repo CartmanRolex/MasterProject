@@ -463,8 +463,8 @@ class SubtaskTracker:
         axis_sq   = torch.dot(axis, axis).item()
         gap       = axis_sq ** 0.5
         axis_unit = axis / (gap + 1e-8)
-        gripper_grasp_N = abs(torch.dot(gripper_force_vec, axis_unit).item()) if gripper_force_vec is not None else 0.0
-        jaw_grasp_N     = abs(torch.dot(jaw_force_vec,     axis_unit).item()) if jaw_force_vec     is not None else 0.0
+        gripper_grasp_N = abs(torch.dot(gripper_force_vec.to(axis_unit.device), axis_unit).item()) if gripper_force_vec is not None else 0.0
+        jaw_grasp_N     = abs(torch.dot(jaw_force_vec.to(axis_unit.device),     axis_unit).item()) if jaw_force_vec     is not None else 0.0
 
         # Find the closest unplaced orange to the grip axis
         best_name = None
