@@ -15,21 +15,18 @@ from robot_utils import (
 
 # Shared Evaluation Utilities
 from eval_utils import (
-    save_positions, 
-    count_oranges_in_plate, 
-    save_camera_snapshots, 
+    save_positions,
+    count_oranges_in_plate,
     EvaluationTracker,
-    SubtaskTracker
 )
 
 # ==========================================
 # 1. Configuration & Setup
 # ==========================================
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model_id = "../trained-models/train/pick-orange-mimic/checkpoints/040000/pretrained_model"
+model_id = "MasterProject2026/pick-orange-mimic"
 n_episodes = 100
 instruction = "Grab orange and place into plate"
-block_subtask = False 
 dataset_features = {
     "observation.images.front": {"dtype": "video", "shape": (3, 480, 640), "names": ["front"]},
     "observation.images.wrist": {"dtype": "video", "shape": (3, 480, 640), "names": ["wrist"]},
@@ -58,25 +55,22 @@ preprocess, postprocess = make_pre_post_processors(
 # 3. Evaluation Loop
 # ==========================================
 tracker = EvaluationTracker(n_episodes)
-sub_tracker = SubtaskTracker(block=block_subtask)
 print(f"\n--- STARTING EVALUATION: {n_episodes} EPISODES ---")
 
 try:
     for episode in range(n_episodes):
         obs, _ = env.reset()
-        policy.reset() 
-        
+        policy.reset()
+
         done = False
         step_count = 0
         tracker.start_episode(episode)
-        sub_tracker.reset()
 
         while not done:
             policy_obs = obs['policy']
 
             raw_front = policy_obs['front'][0].cpu().numpy()
             raw_wrist = policy_obs['wrist'][0].cpu().numpy()
-            save_camera_snapshots(raw_front, raw_wrist, episode, step_count)
 
             joint_pos_raw = policy_obs['joint_pos'].cpu().numpy()
             joint_pos_converted = convert_leisaac_action_to_lerobot(joint_pos_raw)
@@ -117,7 +111,6 @@ try:
             t_step_start = time.perf_counter()
             obs, reward, terminated, truncated, info = env.step(step_action[0].unsqueeze(0))
             t_step_end = time.perf_counter()
-            sub_tracker.check_status(env, step_count)
             step_time_ms = (t_step_end - t_step_start) * 1000
 
             # --- Update Tracker ---
