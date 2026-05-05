@@ -309,7 +309,7 @@ class SubtaskTracker:
 
     DEBUG_DRAW            = False  # set to True to visualize the grip axis in the Isaac Sim viewport
     ORANGE_HELD_MAX_DIST  = 0.06   # max tip-to-orange distance (m) to consider orange still held
-    PLACE_GRIPPER_Z_MIN   = 0.0    # gripper tip must be at or above this env-relative Z to confirm place
+    PLACE_GRIPPER_Z_MIN   = 0.04    # gripper tip must be at or above this env-relative Z to confirm place
 
     def __init__(
         self,
@@ -413,6 +413,15 @@ class SubtaskTracker:
             sys.stdout.write(f"\r\033[2K{line}\n")
         sys.stdout.flush()
         self._status_lines = len(lines)
+
+    def _is_orange_in_plate(self, orange_pos) -> bool:
+        """Return True if orange_pos is inside the cylindrical plate bounds."""
+        if self._plate_pos is None:
+            return False
+        px, py, pz = self._plate_pos[0].item(), self._plate_pos[1].item(), self._plate_pos[2].item()
+        ox, oy, oz = orange_pos[0].item(), orange_pos[1].item(), orange_pos[2].item()
+        xy_dist = ((ox - px)**2 + (oy - py)**2) ** 0.5
+        return xy_dist < self.PLATE_RADIUS and pz + self.PLATE_Z_MIN < oz < pz + self.PLATE_Z_MAX
 
     def _is_orange_held(self, orange_pos) -> tuple[bool, float]:
         """Return (held, min_dist) — True if the closest tip is within ORANGE_HELD_MAX_DIST."""

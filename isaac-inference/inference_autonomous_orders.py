@@ -143,6 +143,16 @@ class OrderController:
                     self.phase = "SELECT_TARGET"
             elif tracker.active_orange != self.target_name and tracker._place_confirmed:
                 self.phase = "SELECT_TARGET"
+            elif self.target_name in orange_positions:
+                orange_pos = orange_positions[self.target_name]
+                held, _    = tracker._is_orange_held(orange_pos)
+                in_plate   = tracker._is_orange_in_plate(orange_pos)
+                if not held and not in_plate:
+                    tracker.reset_display()
+                    print(f"  ⚠️  {self.target_name} fell out during placement; returning to grasp")
+                    tracker.reset_grasp_state()
+                    tracker.active_orange = self.target_name
+                    self.phase = "GRASP"
 
 
 class ResetController:
