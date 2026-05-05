@@ -17,6 +17,7 @@ from robot_utils import (
 )
 from eval_utils import (
     EvaluationTracker,
+    HomeChecker,
     SubtaskTracker,
     classify_orange_positions,
     count_oranges_in_plate,
@@ -53,6 +54,8 @@ def build_task_prompt(phase: str, label: Optional[str]) -> str:
         return "Pick it up"
     if phase == "PLACE":
         return "Place it into plate"
+    if phase == "HOME":
+        return "Go back to start position"
     return "Pick it up"
 
 
@@ -76,7 +79,8 @@ class OrderController:
         if not remaining:
             self.target_name = None
             self.target_label = None
-            self.phase = "DONE"
+            self.phase = "HOME"
+            print("\n🏠 All oranges placed — returning to start position")
             return None
 
         labels = classify_orange_positions(orange_positions)
@@ -91,7 +95,7 @@ class OrderController:
         return build_task_prompt(self.phase, self.target_label)
 
     def update_after_step(self, tracker: SubtaskTracker, orange_positions: dict, step_count: int):
-        if self.phase == "DONE":
+        if self.phase == "HOME":
             return
 
         if self.target_name is None or self.target_name not in orange_positions or self.target_name in tracker.placed_oranges:
@@ -136,9 +140,9 @@ class OrderController:
                 self.target_name = None
                 self.target_label = None
                 if len(tracker.placed_oranges) >= len(self.orange_names):
-                    self.phase = "DONE"
+                    self.phase = "HOME"
                     tracker.reset_display()
-                    print("\n🏁 All oranges placed")
+                    print("\n🏠 All oranges placed — returning to start position")
                 else:
                     self.phase = "SELECT_TARGET"
             elif tracker.active_orange != self.target_name and tracker._place_confirmed:
@@ -208,6 +212,7 @@ preprocess, postprocess = make_pre_post_processors(
 tracker = EvaluationTracker(n_episodes)
 sub_tracker = SubtaskTracker(block=False)
 controller = OrderController(sub_tracker.orange_names)
+home_checker     = HomeChecker()
 reset_controller = ResetController()
 reset_controller.start()
 
@@ -229,6 +234,7 @@ try:
 
         tracker.start_episode(episode)
         sub_tracker.reset()
+        home_checker.reset()
         controller.reset_episode()
 
         done = False
@@ -309,6 +315,8 @@ try:
                 sub_tracker._check_lift(gripper_pos, orange_positions, step_count)
             elif controller.phase == "PLACE":
                 sub_tracker._check_place(plate_pos, orange_positions, gripper_pos, step_count)
+            elif controller.phase == "HOME":
+                home_checker.check(env, step_count)
 
             sub_tracker.draw_debug(gripper_tip, jaw_tip, orange_positions)
             controller.update_after_step(sub_tracker, orange_positions, step_count)
@@ -319,7 +327,7 @@ try:
 
             is_terminated = tensor_to_bool(terminated)
             is_truncated  = tensor_to_bool(truncated)
-            done = is_terminated or is_truncated or controller.phase == "DONE"
+            done = is_terminated or is_truncated
 
             if done:
                 oranges_in_plate = count_oranges_in_plate(last_positions)
