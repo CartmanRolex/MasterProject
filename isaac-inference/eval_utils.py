@@ -243,12 +243,12 @@ class SubtaskTracker:
         self,
         block = False,              # if True, pause after each confirmed event
         patience_frames=10,         # consecutive frames required to confirm grasp or lift
-        centering_threshold=0.0,   # max distance from orange centre to grip-axis segment (m)
+        centering_threshold=0.015,   # max distance from orange centre to grip-axis segment (m)
         closure_threshold=0.065,    # max finger-gap to count as closed around orange (m)
-        grip_t_min=0.3,             # min projection parameter: orange must not be outside the fingers
-        grip_t_max=0.7,             # max projection parameter
+        grip_t_min=0.4,             # min projection parameter: orange must not be outside the fingers
+        grip_t_max=0.67,             # max projection parameter
         grasp_threshold=0.60,       # gripper joint value: above = open, below = closed (used by lift/place)
-        lift_height_threshold=0.1,  # min height gain from initial Z to confirm lift (m)
+        lift_height_threshold=0.06,  # min height gain from initial Z to confirm lift (m)
         orange_names=("Orange001", "Orange002", "Orange003"),
         stability_frames=10,        # frames orange must be stationary inside plate to confirm place
         stability_tolerance=0.001,  # max orange movement per frame to count as stationary (m)
@@ -315,7 +315,9 @@ class SubtaskTracker:
             name: env.scene[name].data.root_com_pos_w[0] - self._origin
             for name in self.orange_names
         }
-        return gripper_tip, jaw_tip, gripper_pos, plate_pos, orange_positions
+        gripper_force_mag = env.scene["gripper_contact"].data.net_forces_w[0].norm(dim=-1).max().item()
+        jaw_force_mag     = env.scene["jaw_contact"].data.net_forces_w[0].norm(dim=-1).max().item()
+        return gripper_tip, jaw_tip, gripper_pos, gripper_force_mag, jaw_force_mag, plate_pos, orange_positions
 
     def _pause(self):
         if(self.block):
@@ -397,13 +399,13 @@ class SubtaskTracker:
 
     def check_status(self, env, step_count):
         """Run all subtask checks for the current step."""
-        gripper_tip, jaw_tip, gripper_pos, plate_pos, orange_positions = self._get_env_data(env)
+        gripper_tip, jaw_tip, gripper_pos, gripper_force_mag, jaw_force_mag, plate_pos, orange_positions = self._get_env_data(env)
 
         if step_count == 0:
             for name, pos in orange_positions.items():
                 self.initial_orange_z[name] = pos[2].item()
 
-        self._check_grasp(gripper_tip, jaw_tip, orange_positions, step_count)
+        self._check_grasp(gripper_tip, jaw_tip, orange_positions, step_count, gripper_force_mag, jaw_force_mag)
         self._check_lift(gripper_pos, orange_positions, step_count)
         self._check_place(plate_pos, orange_positions, gripper_pos, step_count)
 
@@ -411,7 +413,7 @@ class SubtaskTracker:
     # 1. Grasp check
     # ----------------------------------------------------------
 
-    def _check_grasp(self, gripper_tip, jaw_tip, orange_positions, step_count):
+    def _check_grasp(self, gripper_tip, jaw_tip, orange_positions, step_count, gripper_force_mag=0.0, jaw_force_mag=0.0):
         """Live-display grasp conditions each step; confirm once patience is reached.
 
         Centering: distance from orange centre to the gripper_tip→jaw_tip segment.
@@ -461,6 +463,8 @@ class SubtaskTracker:
             f"     Centering: {best_dist:.4f} < {self.centering_threshold}  {c_sym}",
             f"     Closure:   {gap:.4f} < {self.closure_threshold}  {g_sym}",
             f"     Grip pos:  t={best_t:.2f}  ∈ [{self.grip_t_min}, {self.grip_t_max}]  {t_sym}",
+            f"     Gripper F: {gripper_force_mag:.2f} N  (info)",
+            f"     Jaw F:     {jaw_force_mag:.2f} N  (info)",
             f"     Patience:  {self.grasp_counter}/{self.patience_frames}",
         ]
         self._live_update(lines)
