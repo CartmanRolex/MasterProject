@@ -257,6 +257,9 @@ try:
                 if "grasp" in instr_lower:
                     subtask_tracker.reset_grasp_state()
                 prev_instr_lower = instr_lower
+                print(f"\n{'─' * 50}")
+                print(f"  ACTIVE PROMPT → \"{instruction}\"")
+                print(f"{'─' * 50}\n")
 
             if "grasp" in instr_lower:
                 subtask_tracker._check_grasp(gripper_tip, jaw_tip, orange_positions, step_count)
