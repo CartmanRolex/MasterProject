@@ -48,6 +48,51 @@ def save_camera_snapshots(raw_front, raw_wrist, episode, step_count,
 
 
 # ============================================================
+# Orange Position Classifier
+# ============================================================
+
+ORANGE_REF_AXIS = "x"    # axis used for left/right: "x" or "y"
+ORANGE_INVERT   = False  # set True to flip left/right direction
+ORANGE_AXIS_TOL = 0.03   # oranges within this distance (m) on ref axis use Z for disambiguation
+
+
+def classify_orange_positions(orange_positions: dict) -> dict:
+    """Return a label (e.g. 'left', 'center', 'right', 'bottom left') for each orange.
+
+    Sorts oranges along ORANGE_REF_AXIS to assign left/center/right.
+    If two adjacent oranges are within ORANGE_AXIS_TOL on that axis they are
+    indistinguishable laterally, so they are split by Z (bottom/top) and the
+    word 'center' disappears for that pair.
+    """
+    if len(orange_positions) != 3:
+        return {name: name for name in orange_positions}
+
+    axis_idx = 0 if ORANGE_REF_AXIS == "x" else 1
+    vals  = {n: pos[axis_idx].item() for n, pos in orange_positions.items()}
+    z_vals = {n: pos[2].item()        for n, pos in orange_positions.items()}
+
+    sorted_names = sorted(vals, key=lambda n: vals[n])
+    if ORANGE_INVERT:
+        sorted_names = sorted_names[::-1]
+
+    n0, n1, n2 = sorted_names
+    close_01 = abs(vals[n0] - vals[n1]) < ORANGE_AXIS_TOL
+    close_12 = abs(vals[n1] - vals[n2]) < ORANGE_AXIS_TOL
+
+    if close_01 and close_12:
+        by_z = sorted([n0, n1, n2], key=lambda n: z_vals[n])
+        return {by_z[0]: "bottom", by_z[1]: "center", by_z[2]: "top"}
+    elif close_01:
+        by_z = sorted([n0, n1], key=lambda n: z_vals[n])
+        return {by_z[0]: "bottom left", by_z[1]: "top left", n2: "right"}
+    elif close_12:
+        by_z = sorted([n1, n2], key=lambda n: z_vals[n])
+        return {n0: "left", by_z[0]: "bottom right", by_z[1]: "top right"}
+    else:
+        return {n0: "left", n1: "center", n2: "right"}
+
+
+# ============================================================
 # Scene-State Helpers
 # ============================================================
 
@@ -482,23 +527,34 @@ class SubtaskTracker:
             if dist < best_dist:
                 best_dist, best_name, best_t = dist, name, t_raw
 
-        meets = (gripper_grasp_N >= self.contact_force_min
-                 and jaw_grasp_N >= self.contact_force_min)
+        t_ok  = best_name is not None and self.grip_t_min <= best_t <= self.grip_t_max
+        meets = (best_name is not None
+                 and best_dist < self.centering_threshold
+                 and gap < self.closure_threshold
+                 and t_ok
+                 and gripper_grasp_N >= self.contact_force_min
+                 and jaw_grasp_N     >= self.contact_force_min)
 
         if meets:
             self.grasp_counter += 1
         else:
             self.grasp_counter = 0
 
-        # Live display — always show best candidate
+        # Orange position label
+        pos_labels   = classify_orange_positions(orange_positions)
+        orange_label = f"{best_name} / {pos_labels.get(best_name, '?')}" if best_name else "?"
+
+        # Live display
+        c_sym  = "✓" if best_dist < self.centering_threshold else "✗"
+        g_sym  = "✓" if gap < self.closure_threshold else "✗"
+        t_sym  = "✓" if t_ok else "✗"
         gf_sym = "✓" if gripper_grasp_N >= self.contact_force_min else "✗"
         jf_sym = "✓" if jaw_grasp_N     >= self.contact_force_min else "✗"
-        label  = best_name if best_name else "?"
         lines = [
-            f"  ✊ GRASP [{label}]  step {step_count}",
-            f"     Centering: {best_dist:.4f}  (info)",
-            f"     Closure:   {gap:.4f}  (info)",
-            f"     Grip pos:  t={best_t:.2f}  (info)",
+            f"  ✊ GRASP [{orange_label}]  step {step_count}",
+            f"     Centering: {best_dist:.4f} < {self.centering_threshold}  {c_sym}",
+            f"     Closure:   {gap:.4f} < {self.closure_threshold}  {g_sym}",
+            f"     Grip pos:  t={best_t:.2f}  ∈ [{self.grip_t_min}, {self.grip_t_max}]  {t_sym}",
             f"     Gripper F: {gripper_grasp_N:.2f} N >= {self.contact_force_min}  {gf_sym}",
             f"     Jaw F:     {jaw_grasp_N:.2f} N >= {self.contact_force_min}  {jf_sym}",
             f"     Patience:  {self.grasp_counter}/{self.patience_frames}",
