@@ -1,5 +1,6 @@
 import logging
 import random
+import threading
 import time
 from typing import Optional
 
@@ -89,6 +90,7 @@ class OrderController:
         self.phase = "GRASP"
         self._steps_in_lift = 0
         self._last_target_z = orange_positions[self.target_name][2].item()
+        tracker.reset_display()
         print(f"\n🎯 Selected target: {self.target_name} ({self.target_label})")
         return self.target_name
 
@@ -112,6 +114,7 @@ class OrderController:
                 self.phase = "LIFT"
                 self._steps_in_lift = 0
                 self._last_target_z = target_z
+                tracker.reset_display()
                 print(f"  ✅ Grasp confirmed for {self.target_name}; switching to lift")
             return
 
@@ -120,6 +123,7 @@ class OrderController:
 
             if tracker._lift_confirmed and tracker.active_orange == self.target_name:
                 self.phase = "PLACE"
+                tracker.reset_display()
                 print(f"  ✅ Lift confirmed for {self.target_name}; switching to place")
                 return
 
@@ -131,6 +135,7 @@ class OrderController:
                 fell_during_lift = True
 
             if fell_during_lift:
+                tracker.reset_display()
                 print(f"  ⚠️  {self.target_name} fell during lift; returning to grasp")
                 tracker.reset_grasp_state()
                 tracker.active_orange = self.target_name
@@ -144,6 +149,7 @@ class OrderController:
 
         if self.phase == "PLACE":
             if self.target_name in tracker.placed_oranges:
+                tracker.reset_display()
                 print(f"  ✅ Placed {self.target_name}")
                 self.target_name = None
                 self.target_label = None
@@ -151,11 +157,40 @@ class OrderController:
                 self._last_target_z = None
                 if len(tracker.placed_oranges) >= len(self.orange_names):
                     self.phase = "DONE"
+                    tracker.reset_display()
                     print("\n🏁 All oranges placed")
                 else:
                     self.phase = "SELECT_TARGET"
             elif tracker.active_orange != self.target_name and tracker._place_confirmed:
                 self.phase = "SELECT_TARGET"
+
+
+class ResetController:
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._reset_requested = False
+        self._thread = threading.Thread(target=self._listen, daemon=True)
+
+    def start(self):
+        self._thread.start()
+
+    def get_and_clear_reset(self) -> bool:
+        with self._lock:
+            flag = self._reset_requested
+            self._reset_requested = False
+            return flag
+
+    def _listen(self):
+        while True:
+            try:
+                raw = input()
+            except EOFError:
+                break
+
+            raw = raw.strip().lower()
+            if raw in ("r", "reset"):
+                with self._lock:
+                    self._reset_requested = True
 
 
 # ==========================================
@@ -183,7 +218,8 @@ preprocess, postprocess = make_pre_post_processors(
 tracker = EvaluationTracker(n_episodes)
 sub_tracker = SubtaskTracker(block=False)
 controller = OrderController(sub_tracker.orange_names)
-sub_tracker._live_update = lambda lines: None
+reset_controller = ResetController()
+reset_controller.start()
 
 logging.getLogger("omni").setLevel(logging.ERROR)
 logging.getLogger("carb").setLevel(logging.ERROR)
@@ -208,8 +244,17 @@ try:
         done = False
         step_count = 0
         last_model_prompt = None
+        last_positions = save_positions(env)
 
         while not done:
+            if reset_controller.get_and_clear_reset():
+                sub_tracker.reset_display()
+                print("\n🔄 Episode reset requested.")
+                oranges_in_plate = count_oranges_in_plate(last_positions)
+                tracker.end_episode(episode, step_count, False, oranges_in_plate)
+                done = True
+                break
+
             policy_obs = obs["policy"]
 
             raw_front = policy_obs["front"][0].cpu().numpy()
@@ -229,6 +274,7 @@ try:
 
             task_prompt = controller.current_prompt()
             if task_prompt != last_model_prompt:
+                sub_tracker.reset_display()
                 print(f"  [MODEL PROMPT] {task_prompt}")
                 last_model_prompt = task_prompt
             raw_observations = {
@@ -267,7 +313,14 @@ try:
             step_time_ms = (t_step_end - t_step_start) * 1000
 
             sub_tracker.check_status(env, step_count)
-            _, _, _, _, _, _, post_orange_positions = sub_tracker._get_env_data(env)
+            gripper_tip, jaw_tip, gripper_pos, gripper_force_vec, jaw_force_vec, plate_pos, post_orange_positions = sub_tracker._get_env_data(env)
+            if controller.phase == "GRASP":
+                sub_tracker._check_grasp(gripper_tip, jaw_tip, post_orange_positions, step_count, gripper_force_vec, jaw_force_vec)
+            elif controller.phase == "LIFT":
+                sub_tracker._check_lift(gripper_pos, post_orange_positions, step_count)
+            elif controller.phase == "PLACE":
+                sub_tracker._check_place(plate_pos, post_orange_positions, gripper_pos, step_count)
+            sub_tracker.draw_debug(gripper_tip, jaw_tip, post_orange_positions)
             controller.update_after_step(sub_tracker, post_orange_positions, step_count)
 
             tracker.record_timing(infer_time_ms, step_time_ms)
