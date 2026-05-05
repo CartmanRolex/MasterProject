@@ -104,16 +104,18 @@ class OrderController:
         target_z = orange_positions[self.target_name][2].item()
 
         if self.phase == "GRASP":
-            if tracker._grasp_confirmed and tracker.active_orange == self.target_name:
+            if tracker._grasp_confirmed:
+                if tracker.active_orange != self.target_name:
+                    print(f"  ℹ️  Grasped {tracker.active_orange} instead of target {self.target_name} — adapting")
+                    self.target_name  = tracker.active_orange
+                    self.target_label = classify_orange_positions(orange_positions).get(tracker.active_orange, tracker.active_orange)
                 self.phase = "LIFT"
-                self._steps_in_lift = 0
-                self._last_target_z = target_z
                 tracker.reset_display()
                 print(f"  ✅ Grasp confirmed for {self.target_name}; switching to lift")
             return
 
         if self.phase == "LIFT":
-            if tracker._lift_confirmed and tracker.active_orange == self.target_name:
+            if tracker._lift_confirmed:
                 self.phase = "PLACE"
                 tracker.reset_display()
                 print(f"  ✅ Lift confirmed for {self.target_name}; switching to place")
