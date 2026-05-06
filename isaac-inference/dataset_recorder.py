@@ -73,7 +73,7 @@ class SubtaskRecorder:
         """Add one frame to the buffer. No-op if not armed."""
         if self._active:
             self._buffer.append({
-                k: v.astype(np.float32) if isinstance(v, np.ndarray) and v.dtype != np.float32 else v
+                k: v.astype(np.float32) if isinstance(v, np.ndarray) and np.issubdtype(v.dtype, np.floating) and v.dtype != np.float32 else v
                 for k, v in frame.items()
             })
 
