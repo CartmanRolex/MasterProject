@@ -101,6 +101,9 @@ class SubtaskRecorder:
     def finalize(self):
         """Close all writers, compute stats, and push to HuggingFace Hub."""
         self.discard()
-        self._dataset.consolidate()
+        if hasattr(self._dataset, "consolidate"):
+            self._dataset.consolidate()
+        elif hasattr(self._dataset, "finalize"):
+            self._dataset.finalize()
         self._dataset.push_to_hub()
         print(f"  📤 Dataset pushed to Hub: {self._dataset.repo_id}")
