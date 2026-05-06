@@ -89,12 +89,15 @@ class SubtaskRecorder:
         last_frame = self._buffer[-1]
         if FREEZE_FRAMES > 0:
             last_state = last_frame.get("observation.state")
+            last_action = last_frame.get("action")
             for _ in range(FREEZE_FRAMES):
                 freeze_frame = dict(last_frame)
                 if last_state is not None:
                     freeze_state = np.asarray(last_state, dtype=np.float32).copy()
                     freeze_frame["observation.state"] = freeze_state
-                    freeze_frame["action"] = freeze_state.copy()
+                if last_action is not None:
+                    freeze_action = np.asarray(last_action, dtype=np.float32).copy()
+                    freeze_frame["action"] = freeze_action
                 self._buffer.append(freeze_frame)
 
         for frame in self._buffer:
