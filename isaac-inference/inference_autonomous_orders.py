@@ -23,6 +23,7 @@ from eval_utils import (
     count_oranges_in_plate,
     save_positions,
 )
+from dataset_recorder import SubtaskRecorder
 
 
 # ==========================================
@@ -32,6 +33,10 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model_id = "MasterProject2026/Gal-pick-orange-tailedCH20"
 n_episodes = 100
 max_steps = 5000
+
+RECORD_ENABLED    = True
+RECORD_REPO_ID    = "MasterProject2026/Gal-auto-subtasks"
+RECORD_LOCAL_PATH = "./recorded_dataset"
 
 TIMEOUT_STEPS = {
     "GRASP": 700,
@@ -250,6 +255,8 @@ home_checker     = HomeChecker()
 reset_controller = ResetController()
 reset_controller.start()
 
+recorder = SubtaskRecorder.create(RECORD_REPO_ID, RECORD_LOCAL_PATH) if RECORD_ENABLED else None
+
 logging.getLogger("omni").setLevel(logging.ERROR)
 logging.getLogger("carb").setLevel(logging.ERROR)
 try:
@@ -270,6 +277,8 @@ try:
         sub_tracker.reset()
         home_checker.reset()
         controller.reset_episode()
+        if recorder:
+            recorder.discard()
 
         done = False
         step_count = 0
@@ -281,6 +290,8 @@ try:
             if reset_controller.get_and_clear_reset():
                 sub_tracker.reset_display()
                 print("\n🔄 Episode reset requested.")
+                if recorder:
+                    recorder.discard()
                 oranges_in_plate = count_oranges_in_plate(last_positions)
                 tracker.end_episode(episode, step_count, False, oranges_in_plate)
                 done = True
@@ -332,6 +343,15 @@ try:
                 action_np = action_np[None, :]
             step_action = torch.from_numpy(convert_lerobot_action_to_leisaac(action_np)).to(device)
 
+            # --- Record frame ---
+            if recorder:
+                recorder.record({
+                    "observation.images.front": raw_front,
+                    "observation.images.wrist": raw_wrist,
+                    "observation.state": joint_pos_converted[0],
+                    "action": action_np[0],
+                })
+
             # --- Step ---
             last_positions = save_positions(env)
             t_step_start = time.perf_counter()
@@ -355,7 +375,26 @@ try:
                 pass
 
             sub_tracker.draw_debug(gripper_tip, jaw_tip, orange_positions)
+            phase_before     = controller.phase
+            home_fired_before = home_checker._fired
             controller.update_after_step(sub_tracker, orange_positions, step_count)
+            phase_after = controller.phase
+
+            # --- Dataset recording: commit, discard, or arm for next phase ---
+            if recorder:
+                if phase_before == "GRASP" and phase_after == "LIFT":
+                    recorder.commit(task=f"Grasp {controller.target_label} orange")
+                elif phase_before == "LIFT" and phase_after == "PLACE":
+                    recorder.commit(task="Pick it up")
+                elif phase_before == "PLACE" and phase_after in ("SELECT_TARGET", "HOME"):
+                    recorder.commit(task="Place it into plate")
+                elif phase_before == "HOME" and not home_fired_before and home_checker._fired:
+                    recorder.commit(task="Go back to start position")
+                elif phase_after == "RECOVERY":
+                    recorder.discard()
+
+                if phase_before != phase_after and phase_after in ("GRASP", "LIFT", "PLACE", "HOME"):
+                    recorder.start()
 
             # --- Bookkeeping ---
             tracker.record_timing(infer_time_ms, step_time_ms)
@@ -366,10 +405,14 @@ try:
             done = is_terminated or is_truncated
 
             if done:
+                if recorder:
+                    recorder.discard()
                 oranges_in_plate = count_oranges_in_plate(last_positions)
                 tracker.end_episode(episode, step_count, is_terminated, oranges_in_plate)
 
     tracker.print_final_summary(model_id)
+    if recorder:
+        recorder.finalize()
 
 except KeyboardInterrupt:
     print("\nForce quitting Isaac Sim...")
