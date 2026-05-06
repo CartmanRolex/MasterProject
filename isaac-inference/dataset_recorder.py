@@ -26,6 +26,8 @@ DATASET_FEATURES = {
     "action":            {"dtype": "float32", "shape": (6,), "names": JOINT_NAMES},
 }
 
+FREEZE_FRAMES = 20
+
 
 class SubtaskRecorder:
     """Wraps a LeRobotDataset and manages a per-subtask frame buffer.
@@ -83,6 +85,17 @@ class SubtaskRecorder:
             self._active = False
             self._buffer = []
             return
+
+        last_frame = self._buffer[-1]
+        if FREEZE_FRAMES > 0:
+            last_state = last_frame.get("observation.state")
+            for _ in range(FREEZE_FRAMES):
+                freeze_frame = dict(last_frame)
+                if last_state is not None:
+                    freeze_state = np.asarray(last_state, dtype=np.float32).copy()
+                    freeze_frame["observation.state"] = freeze_state
+                    freeze_frame["action"] = freeze_state.copy()
+                self._buffer.append(freeze_frame)
 
         for frame in self._buffer:
             self._dataset.add_frame({**frame, "task": task})
