@@ -33,6 +33,13 @@ model_id = "MasterProject2026/Gal-pick-orange-tailedCH20"
 n_episodes = 100
 max_steps = 5000
 
+TIMEOUT_STEPS = {
+    "GRASP": 700,
+    "LIFT":  400,
+    "PLACE": 500,
+}
+RECOVERY_STEPS = 200
+
 dataset_features = {
     "observation.images.front": {"dtype": "video", "shape": (3, 480, 640), "names": ["front"]},
     "observation.images.wrist": {"dtype": "video", "shape": (3, 480, 640), "names": ["wrist"]},
@@ -56,6 +63,8 @@ def build_task_prompt(phase: str, label: Optional[str]) -> str:
         return "Place it into plate"
     if phase == "HOME":
         return "Go back to start position"
+    if phase == "RECOVERY":
+        return "Go back to start position"
     return "Pick it up"
 
 
@@ -65,11 +74,19 @@ class OrderController:
         self.phase = "SELECT_TARGET"
         self.target_name = None
         self.target_label = None
+        self._phase_steps = 0
+        self._recovery_remaining = 0
 
     def reset_episode(self):
         self.phase = "SELECT_TARGET"
         self.target_name = None
         self.target_label = None
+        self._phase_steps = 0
+        self._recovery_remaining = 0
+
+    def _set_phase(self, phase: str):
+        self.phase = phase
+        self._phase_steps = 0
 
     def _remaining_targets(self, tracker: SubtaskTracker, orange_positions: dict):
         return [name for name in self.orange_names if name not in tracker.placed_oranges and name in orange_positions]
@@ -79,14 +96,14 @@ class OrderController:
         if not remaining:
             self.target_name = None
             self.target_label = None
-            self.phase = "HOME"
+            self._set_phase("HOME")
             print("\n🏠 All oranges placed — returning to start position")
             return None
 
         labels = classify_orange_positions(orange_positions)
         self.target_name = random.choice(remaining)
         self.target_label = labels.get(self.target_name, self.target_name)
-        self.phase = "GRASP"
+        self._set_phase("GRASP")
         tracker.reset_display()
         print(f"\n🎯 Selected target: {self.target_name} ({self.target_label})")
         return self.target_name
@@ -95,12 +112,29 @@ class OrderController:
         return build_task_prompt(self.phase, self.target_label)
 
     def update_after_step(self, tracker: SubtaskTracker, orange_positions: dict, step_count: int):
+        if self.phase == "RECOVERY":
+            self._recovery_remaining -= 1
+            if self._recovery_remaining <= 0:
+                self._set_phase("SELECT_TARGET")
+            return
+
         if self.phase == "HOME":
+            return
+
+        self._phase_steps += 1
+        timeout = TIMEOUT_STEPS.get(self.phase)
+        if timeout is not None and self._phase_steps >= timeout:
+            print(f"\n⏱  {self.phase} timed out after {self._phase_steps} steps — recovering")
+            tracker.reset_grasp_state()
+            self.target_name  = None
+            self.target_label = None
+            self._set_phase("RECOVERY")
+            self._recovery_remaining = RECOVERY_STEPS
             return
 
         if self.target_name is None or self.target_name not in orange_positions or self.target_name in tracker.placed_oranges:
             if self.phase != "SELECT_TARGET":
-                self.phase = "SELECT_TARGET"
+                self._set_phase("SELECT_TARGET")
             self._select_target(tracker, orange_positions)
             return
 
@@ -112,14 +146,14 @@ class OrderController:
                     print(f"  ℹ️  Grasped {tracker.active_orange} instead of target {self.target_name} — adapting")
                     self.target_name  = tracker.active_orange
                     self.target_label = classify_orange_positions(orange_positions).get(tracker.active_orange, tracker.active_orange)
-                self.phase = "LIFT"
+                self._set_phase("LIFT")
                 tracker.reset_display()
                 print(f"  ✅ Grasp confirmed for {self.target_name}; switching to lift")
             return
 
         if self.phase == "LIFT":
             if tracker._lift_confirmed:
-                self.phase = "PLACE"
+                self._set_phase("PLACE")
                 tracker.reset_display()
                 print(f"  ✅ Lift confirmed for {self.target_name}; switching to place")
                 return
@@ -130,7 +164,7 @@ class OrderController:
                 print(f"  ⚠️  {self.target_name} fell during lift; returning to grasp")
                 tracker.reset_grasp_state()
                 tracker.active_orange = self.target_name
-                self.phase = "GRASP"
+                self._set_phase("GRASP")
             return
 
         if self.phase == "PLACE":
@@ -140,13 +174,13 @@ class OrderController:
                 self.target_name = None
                 self.target_label = None
                 if len(tracker.placed_oranges) >= len(self.orange_names):
-                    self.phase = "HOME"
+                    self._set_phase("HOME")
                     tracker.reset_display()
                     print("\n🏠 All oranges placed — returning to start position")
                 else:
-                    self.phase = "SELECT_TARGET"
+                    self._set_phase("SELECT_TARGET")
             elif tracker.active_orange != self.target_name and tracker._place_confirmed:
-                self.phase = "SELECT_TARGET"
+                self._set_phase("SELECT_TARGET")
             elif self.target_name in orange_positions:
                 orange_pos = orange_positions[self.target_name]
                 held, _    = tracker._is_orange_held(orange_pos)
@@ -156,7 +190,7 @@ class OrderController:
                     print(f"  ⚠️  {self.target_name} fell out during placement; returning to grasp")
                     tracker.reset_grasp_state()
                     tracker.active_orange = self.target_name
-                    self.phase = "GRASP"
+                    self._set_phase("GRASP")
 
 
 class ResetController:
@@ -317,6 +351,8 @@ try:
                 sub_tracker._check_place(plate_pos, orange_positions, gripper_pos, step_count)
             elif controller.phase == "HOME":
                 home_checker.check(env, step_count)
+            elif controller.phase == "RECOVERY":
+                pass
 
             sub_tracker.draw_debug(gripper_tip, jaw_tip, orange_positions)
             controller.update_after_step(sub_tracker, orange_positions, step_count)
