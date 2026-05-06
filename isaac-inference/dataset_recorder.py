@@ -20,10 +20,10 @@ JOINT_NAMES = [
 ]
 
 DATASET_FEATURES = {
-    "observation.images.front": {"dtype": "video", "shape": [480, 640, 3], "names": None},
-    "observation.images.wrist": {"dtype": "video", "shape": [480, 640, 3], "names": None},
-    "observation.state": {"dtype": "float32", "shape": [6], "names": JOINT_NAMES},
-    "action":            {"dtype": "float32", "shape": [6], "names": JOINT_NAMES},
+    "observation.images.front": {"dtype": "video", "shape": (480, 640, 3), "names": None},
+    "observation.images.wrist": {"dtype": "video", "shape": (480, 640, 3), "names": None},
+    "observation.state": {"dtype": "float32", "shape": (6,), "names": JOINT_NAMES},
+    "action":            {"dtype": "float32", "shape": (6,), "names": JOINT_NAMES},
 }
 
 
@@ -72,7 +72,10 @@ class SubtaskRecorder:
     def record(self, frame: dict):
         """Add one frame to the buffer. No-op if not armed."""
         if self._active:
-            self._buffer.append(frame)
+            self._buffer.append({
+                k: v.astype(np.float32) if isinstance(v, np.ndarray) and v.dtype != np.float32 else v
+                for k, v in frame.items()
+            })
 
     def commit(self, task: str):
         """Flush the buffer as a new episode with the given task label."""
