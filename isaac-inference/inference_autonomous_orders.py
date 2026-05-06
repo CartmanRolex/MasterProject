@@ -31,12 +31,12 @@ from dataset_recorder import SubtaskRecorder
 # ==========================================
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model_id = "MasterProject2026/Gal-pick-orange-tailedCH20"
-n_episodes = 100
+n_episodes = 5
 max_steps = 5000
 
 RECORD_ENABLED    = True
 RECORD_REPO_ID    = "MasterProject2026/Gal-auto-subtasks"
-RECORD_LOCAL_PATH = "./recorded_dataset"
+RECORD_LOCAL_PATH = "/home/gal/Documents/MasterProject/synthetic_datasets/recorded_dataset"
 
 TIMEOUT_STEPS = {
     "GRASP": 700,
@@ -81,6 +81,7 @@ class OrderController:
         self.target_label = None
         self._phase_steps = 0
         self._recovery_remaining = 0
+        self._avoid_target = None
 
     def reset_episode(self):
         self.phase = "SELECT_TARGET"
@@ -88,6 +89,7 @@ class OrderController:
         self.target_label = None
         self._phase_steps = 0
         self._recovery_remaining = 0
+        self._avoid_target = None
 
     def _set_phase(self, phase: str):
         self.phase = phase
@@ -105,8 +107,17 @@ class OrderController:
             print("\n🏠 All oranges placed — returning to start position")
             return None
 
+        if self._avoid_target and self._avoid_target not in remaining:
+            self._avoid_target = None
+
+        selectable = remaining
+        if self._avoid_target in remaining and len(remaining) > 1:
+            selectable = [name for name in remaining if name != self._avoid_target]
+        elif self._avoid_target in remaining and len(remaining) == 1:
+            self._avoid_target = None
+
         labels = classify_orange_positions(orange_positions)
-        self.target_name = random.choice(remaining)
+        self.target_name = random.choice(selectable)
         self.target_label = labels.get(self.target_name, self.target_name)
         self._set_phase("GRASP")
         tracker.reset_display()
@@ -130,6 +141,8 @@ class OrderController:
         timeout = TIMEOUT_STEPS.get(self.phase)
         if timeout is not None and self._phase_steps >= timeout:
             print(f"\n⏱  {self.phase} timed out after {self._phase_steps} steps — recovering")
+            if self.phase == "GRASP" and self.target_name:
+                self._avoid_target = self.target_name
             tracker.reset_grasp_state()
             self.target_name  = None
             self.target_label = None
