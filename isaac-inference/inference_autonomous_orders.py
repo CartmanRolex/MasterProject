@@ -36,7 +36,7 @@ model_id = "MasterProject2026/Gal-pick-orange-tailedCH20"
 # One inference run = env reset → robot picks all oranges → done.
 # Each successful subtask within a run produces one subtask recording
 # in the dataset (what LeRobot calls an "episode").
-n_inference_runs = 1
+n_inference_runs = 100
 max_steps = 5000
 
 # --- Dataset recording ---
@@ -51,7 +51,7 @@ TIMEOUT_STEPS = {
     "LIFT":  400,
     "PLACE": 500,
 }
-RECOVERY_STEPS = 200
+RECOVERY_STEPS = 150
 
 dataset_features = {
     "observation.images.front": {"dtype": "video", "shape": (3, 480, 640), "names": ["front"]},
@@ -449,6 +449,13 @@ try:
             # --- Post-step: single env read for all checks ---
             gripper_tip, jaw_tip, gripper_pos, gripper_force_vec, jaw_force_vec, plate_pos, orange_positions = sub_tracker._get_env_data(env)
 
+            # Capture state BEFORE any checks mutate it, so commit conditions can
+            # detect transitions (e.g. home_fired_before must be False on the step
+            # home_checker fires, not True because we just called home_checker.check()).
+            phase_before      = controller.phase
+            target_before     = controller.target_name
+            home_fired_before = home_checker._fired
+
             if controller.phase == "GRASP":
                 sub_tracker._check_grasp(gripper_tip, jaw_tip, orange_positions, step_count,
                                          gripper_force_vec, jaw_force_vec)
@@ -462,9 +469,6 @@ try:
                 pass
 
             sub_tracker.draw_debug(gripper_tip, jaw_tip, orange_positions)
-            phase_before      = controller.phase
-            target_before     = controller.target_name   # capture before update (needed for PLACE check)
-            home_fired_before = home_checker._fired
             controller.update_after_step(sub_tracker, orange_positions, step_count)
             phase_after = controller.phase
 
