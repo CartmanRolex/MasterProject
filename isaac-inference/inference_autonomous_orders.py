@@ -38,15 +38,15 @@ model_id = "MasterProject2026/Gal-pick-orange-tailedCH20"
 # One inference run = env reset → robot picks all oranges → done.
 # Each successful subtask within a run produces one subtask recording
 # in the dataset (what LeRobot calls an "episode").
-n_inference_runs = 100
+n_inference_runs = 2
 max_steps = 5000
 
 # --- Dataset recording ---
-RECORD_ENABLED    = False
-RECORD_RESUME     = True   # True: append to existing dataset  |  False: start fresh (needs RECORD_OVERWRITE)
-RECORD_OVERWRITE  = False  # True: delete existing dataset and start fresh (DESTRUCTIVE — set intentionally)
-RECORD_REPO_ID    = "MasterProject2026/Gal-auto-subtasks"
-RECORD_LOCAL_PATH = "/home/gal/Documents/MasterProject/isaac-inference/synthetic_datasets/recorded_dataset"
+RECORD_ENABLED      = True
+RECORD_RESUME       = True   # True: append to existing dataset  |  False: start fresh (needs RECORD_OVERWRITE)
+RECORD_OVERWRITE    = False  # True: delete existing dataset and start fresh (DESTRUCTIVE — set intentionally)
+RECORD_DATASET_NAME = "Gal-auto-subtasks"   # repo → MasterProject2026/<name>, local → synthetic_datasets/<name>/
+FREEZE_FRAMES       = 20     # freeze frames appended at the end of each subtask recording
 
 TIMEOUT_STEPS = {
     "GRASP": 700,
@@ -310,10 +310,10 @@ reset_controller.start()
 recorder = None
 if RECORD_ENABLED:
     recorder = SubtaskRecorder.create(
-        RECORD_REPO_ID,
-        RECORD_LOCAL_PATH,
+        RECORD_DATASET_NAME,
         resume=RECORD_RESUME,
         overwrite=RECORD_OVERWRITE,
+        freeze_frames=FREEZE_FRAMES,
     )
 
 # Install our SIGINT/SIGTERM handler AFTER Isaac Sim has loaded, so it overrides

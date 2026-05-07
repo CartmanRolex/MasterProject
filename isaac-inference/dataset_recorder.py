@@ -54,7 +54,8 @@ DATASET_FEATURES = {
     "action":            {"dtype": "float32", "shape": (6,), "names": JOINT_NAMES},
 }
 
-FREEZE_FRAMES = 20
+HF_ORG = "MasterProject2026"
+SYNTHETIC_DATASETS_DIR = Path(__file__).parent / "synthetic_datasets"
 
 
 class SubtaskRecorder:
@@ -74,10 +75,11 @@ class SubtaskRecorder:
         recorder.push_to_hub()               # upload to HuggingFace
     """
 
-    def __init__(self, dataset: LeRobotDataset):
+    def __init__(self, dataset: LeRobotDataset, freeze_frames: int = 20):
         self._dataset = dataset
         self._buffer: list[dict] = []
         self._active = False
+        self._freeze_frames = freeze_frames
 
     # ------------------------------------------------------------------
     # Construction
@@ -86,22 +88,27 @@ class SubtaskRecorder:
     @classmethod
     def create(
         cls,
-        repo_id: str,
-        local_path: str,
+        dataset_name: str,
         fps: int = 30,
         resume: bool = False,
         overwrite: bool = False,
+        freeze_frames: int = 20,
     ) -> "SubtaskRecorder":
         """
         Open or create a LeRobot dataset for recording subtask episodes.
 
         Args:
-            resume:    If True and a dataset exists at local_path, append to it.
-                       If the dataset is corrupted, raises RuntimeError (no auto-delete).
-            overwrite: If True, delete any existing dataset and start fresh.
-                       Takes precedence over resume.
+            dataset_name: Short name (e.g. "Gal-auto-subtasks"). The HuggingFace
+                          repo id is derived as HF_ORG/dataset_name and the local
+                          path as SYNTHETIC_DATASETS_DIR/dataset_name.
+            resume:       If True and a dataset exists locally, append to it.
+                          If the dataset is corrupted, raises RuntimeError (no auto-delete).
+            overwrite:    If True, delete any existing dataset and start fresh.
+                          Takes precedence over resume.
+            freeze_frames: Number of freeze frames appended at the end of each episode.
         """
-        local_path = Path(local_path)
+        repo_id    = f"{HF_ORG}/{dataset_name}"
+        local_path = SYNTHETIC_DATASETS_DIR / dataset_name
         info_file = local_path / "meta" / "info.json"
         checkpoint_file = local_path / "checkpoint.json"
 
@@ -127,7 +134,7 @@ class SubtaskRecorder:
                 dataset.meta.metadata_buffer_size = 1
                 n = dataset.meta.total_episodes
                 print(f"  ▶ Resuming: {n} subtask recordings already saved — appending to {local_path}")
-                return cls(dataset)
+                return cls(dataset, freeze_frames=freeze_frames)
 
             except Exception as e:
                 raise RuntimeError(
@@ -150,7 +157,7 @@ class SubtaskRecorder:
             vcodec="libsvtav1",
             metadata_buffer_size=1,  # flush meta immediately after every subtask recording
         )
-        return cls(dataset)
+        return cls(dataset, freeze_frames=freeze_frames)
 
     # ------------------------------------------------------------------
     # Per-step recording
@@ -202,7 +209,7 @@ class SubtaskRecorder:
         #   others: set action = observation.state so the robot commands "stay here"
         #           with no movement (position control: target = current position).
         last_frame = self._buffer[-1]
-        if FREEZE_FRAMES > 0:
+        if self._freeze_frames > 0:
             last_state  = last_frame.get("observation.state")
             last_action = last_frame.get("action")
             # Build the freeze action: arm joints always hold their current state,
@@ -210,7 +217,7 @@ class SubtaskRecorder:
             freeze_action = np.asarray(last_state, dtype=np.float32).copy()
             if task.lower().startswith("grasp") and last_action is not None:
                 freeze_action[-1] = np.asarray(last_action, dtype=np.float32)[-1]  # gripper only
-            for _ in range(FREEZE_FRAMES):
+            for _ in range(self._freeze_frames):
                 freeze = dict(last_frame)
                 if last_state is not None:
                     freeze["observation.state"] = np.asarray(last_state, dtype=np.float32).copy()
