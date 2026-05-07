@@ -42,7 +42,7 @@ n_inference_runs = 100
 max_steps = 5000
 
 # --- Dataset recording ---
-RECORD_ENABLED    = True
+RECORD_ENABLED    = False
 RECORD_RESUME     = True   # True: append to existing dataset  |  False: start fresh (needs RECORD_OVERWRITE)
 RECORD_OVERWRITE  = False  # True: delete existing dataset and start fresh (DESTRUCTIVE — set intentionally)
 RECORD_REPO_ID    = "MasterProject2026/Gal-auto-subtasks"
@@ -424,6 +424,18 @@ try:
             policy_obs = obs["policy"]
             raw_front = policy_obs["front"][0].cpu().numpy()
             raw_wrist = policy_obs["wrist"][0].cpu().numpy()
+
+            # --- Debug snapshot (step 50 of run 0 only) ---
+            if run_idx == 0 and step_count == 50:
+                from pathlib import Path
+                from PIL import Image
+                debug_dir = Path(__file__).parent / "debug"
+                debug_dir.mkdir(exist_ok=True)
+                for name, img in [("front", raw_front), ("wrist", raw_wrist)]:
+                    arr = img.transpose(1, 2, 0) if img.shape[0] == 3 else img
+                    arr = (np.clip(arr, 0, 1) * 255).astype(np.uint8) if arr.dtype != np.uint8 else arr
+                    Image.fromarray(arr).save(debug_dir / f"camera_{name}.png")
+                print(f"  📸 Debug snapshots saved to {debug_dir}/")
 
             joint_pos_converted = convert_leisaac_action_to_lerobot(policy_obs["joint_pos"].cpu().numpy())
 

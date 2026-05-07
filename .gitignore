@@ -15,3 +15,6 @@ isaac-inference/synthetic_datasets/
 cluster-training/bash-out/
 cluster-training/outputs/
 
+# ── Debug snapshots ─────────────────────────────────────────────────────
+isaac-inference/debug/
+

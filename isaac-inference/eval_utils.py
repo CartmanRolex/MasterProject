@@ -241,17 +241,16 @@ class EvaluationTracker:
             self.successes += 1
             self.successful_episode_steps.append(step_count)
 
-        n_infer_calls   = len(self._infer_times)
-        avg_infer       = (sum(self._infer_times) / n_infer_calls) if n_infer_calls else float("nan")
-        steps_per_call  = (step_count / n_infer_calls) if n_infer_calls else float("nan")
-        avg_step        = (sum(self._step_times) / len(self._step_times)) if self._step_times else float("nan")
-        outcome         = "TERMINATED" if is_terminated else "TRUNCATED"
+        n_infer_calls  = len(self._infer_times)
+        last_infer     = self._infer_times[-1] if self._infer_times else float("nan")
+        avg_step       = (sum(self._step_times) / len(self._step_times)) if self._step_times else float("nan")
+        outcome        = "TERMINATED" if is_terminated else "TRUNCATED"
 
         tqdm.write(
             f"  Episode {episode:>3d} | {outcome:<10s} | "
             f"Oranges: {oranges_in_plate}/3 | "
             f"Steps: {step_count:>4d} | "
-            f"Infer: {n_infer_calls} calls (~{steps_per_call:.0f} steps/call, {avg_infer:.0f} ms avg) | "
+            f"Infer: {n_infer_calls} real calls, last {last_infer:.0f} ms | "
             f"Avg step: {avg_step:>6.1f} ms"
         )
         self._pbar.update(1)
