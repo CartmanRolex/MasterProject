@@ -35,6 +35,7 @@ n_episodes = 1000
 max_steps = 5000
 
 RECORD_ENABLED    = True
+RECORD_RESUME     = True   # append to existing partial dataset; False = always start fresh
 RECORD_REPO_ID    = "MasterProject2026/Gal-auto-subtasks"
 RECORD_LOCAL_PATH = "/home/gal/Documents/MasterProject/isaac-inference/synthetic_datasets/recorded_dataset"
 
@@ -268,7 +269,7 @@ home_checker     = HomeChecker()
 reset_controller = ResetController()
 reset_controller.start()
 
-recorder = SubtaskRecorder.create(RECORD_REPO_ID, RECORD_LOCAL_PATH) if RECORD_ENABLED else None
+recorder = SubtaskRecorder.create(RECORD_REPO_ID, RECORD_LOCAL_PATH, resume=RECORD_RESUME) if RECORD_ENABLED else None
 
 logging.getLogger("omni").setLevel(logging.ERROR)
 logging.getLogger("carb").setLevel(logging.ERROR)
