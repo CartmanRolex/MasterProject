@@ -205,12 +205,11 @@ class SubtaskRecorder:
         if FREEZE_FRAMES > 0:
             last_state  = last_frame.get("observation.state")
             last_action = last_frame.get("action")
-            is_grasp    = task.lower().startswith("grasp")
-            freeze_action = (
-                np.asarray(last_action, dtype=np.float32).copy()  # keep gripper force
-                if is_grasp
-                else np.asarray(last_state,  dtype=np.float32).copy()  # hold pose
-            )
+            # Build the freeze action: arm joints always hold their current state,
+            # gripper holds last_action only for GRASP (to maintain closing force).
+            freeze_action = np.asarray(last_state, dtype=np.float32).copy()
+            if task.lower().startswith("grasp") and last_action is not None:
+                freeze_action[-1] = np.asarray(last_action, dtype=np.float32)[-1]  # gripper only
             for _ in range(FREEZE_FRAMES):
                 freeze = dict(last_frame)
                 if last_state is not None:
