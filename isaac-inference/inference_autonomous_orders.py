@@ -101,10 +101,9 @@ class OrderController:
         # The inference loop transitions to HOME first (to record the return movement),
         # then resets the episode once home_checker fires.
         self._needs_episode_reset: bool = False
-        # Set to True when HOME was entered because of a reset (all timed out), not
-        # because all oranges were placed. The inference loop breaks after the HOME
-        # commit instead of continuing to the next subtask.
-        self._end_after_home: bool = False
+        # Set to True on the final GRASP timeout (all oranges tried). The RECOVERY that
+        # follows is recorded as "Go back to start position" instead of being discarded.
+        self._is_final_recovery: bool = False
 
     def reset_episode(self):
         self.phase = "SELECT_TARGET"
@@ -115,7 +114,7 @@ class OrderController:
         self._avoid_target = None
         self._grasp_timed_out = set()
         self._needs_episode_reset = False
-        self._end_after_home = False
+        self._is_final_recovery = False
 
     def _set_phase(self, phase: str):
         self.phase = phase
@@ -187,7 +186,8 @@ class OrderController:
                 if untried:
                     print(f"  🔄 {len(untried)} orange(s) still untried — will try another after recovery")
                 else:
-                    print("  ⚠️  All oranges have been tried — episode will reset after recovery")
+                    print("  ⚠️  All oranges have been tried — recording final recovery")
+                    self._is_final_recovery = True
             tracker.reset_grasp_state()
             self.target_name  = None
             self.target_label = None
@@ -399,22 +399,24 @@ try:
                     sub_tracker.initial_orange_z[name] = pos[2].item()
             if controller.phase == "SELECT_TARGET":
                 if controller._needs_episode_reset:
-                    # All oranges timed out — go HOME first to record the return movement,
-                    # then the episode resets once home_checker fires.
-                    print("\n🏠 All oranges tried — returning home before episode reset")
-                    controller._set_phase("HOME")
-                    controller._end_after_home = True
-                    home_checker.reset()   # allow home_checker to fire fresh for this HOME
+                    # All oranges timed out. The RECOVERY already moved the robot home and
+                    # was recorded — commit it now as "Go back to start position" and reset.
+                    sub_tracker.reset_display()
+                    print("\n🔄 All oranges tried — resetting episode.")
                     if recorder:
-                        recorder.start()
-                else:
-                    controller._select_target(sub_tracker, orange_positions)
-                    # Arm the recorder for the GRASP that just started. This must happen here
-                    # because the SELECT_TARGET→GRASP transition occurs in the pre-step, so
-                    # phase_before == phase_after == "GRASP" by the time the post-step recording
-                    # check runs — the normal recorder.start() path would never fire.
-                    if recorder and controller.phase == "GRASP":
-                        recorder.start()
+                        recorder.commit("Go back to start position")
+                    oranges_in_plate = count_oranges_in_plate(last_positions)
+                    tracker.end_episode(run_idx, step_count, False, oranges_in_plate)
+                    torch.cuda.empty_cache()
+                    done = True
+                    break
+                controller._select_target(sub_tracker, orange_positions)
+                # Arm the recorder for the GRASP that just started. This must happen here
+                # because the SELECT_TARGET→GRASP transition occurs in the pre-step, so
+                # phase_before == phase_after == "GRASP" by the time the post-step recording
+                # check runs — the normal recorder.start() path would never fire.
+                if recorder and controller.phase == "GRASP":
+                    recorder.start()
 
             # --- Build prompt ---
             task_prompt = controller.current_prompt()
@@ -522,17 +524,14 @@ try:
                     recorder.commit(task="Place it into plate")
                 elif phase_before == "HOME" and not home_fired_before and home_checker._fired:
                     recorder.commit(task="Go back to start position")
-                    if controller._end_after_home:
-                        # HOME was entered because all oranges timed out — reset episode now.
-                        sub_tracker.reset_display()
-                        print("\n🔄 Home reached — resetting episode.")
-                        oranges_in_plate = count_oranges_in_plate(last_positions)
-                        tracker.end_episode(run_idx, step_count, False, oranges_in_plate)
-                        torch.cuda.empty_cache()
-                        done = True
-                        break
                 elif phase_after == "RECOVERY":
-                    recorder.discard()
+                    if controller._is_final_recovery:
+                        # Last GRASP timeout — record the RECOVERY movement as
+                        # "Go back to start position" instead of discarding it.
+                        recorder.discard()  # drop the failed GRASP frames
+                        recorder.start()    # arm fresh for RECOVERY frames
+                    else:
+                        recorder.discard()
 
                 if phase_before != phase_after and phase_after in ("GRASP", "LIFT", "PLACE", "HOME"):
                     recorder.start()
