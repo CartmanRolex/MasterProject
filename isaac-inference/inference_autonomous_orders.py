@@ -1,5 +1,7 @@
 import logging
 import random
+import signal
+import sys
 import threading
 import time
 from typing import Optional
@@ -313,6 +315,23 @@ if RECORD_ENABLED:
         resume=RECORD_RESUME,
         overwrite=RECORD_OVERWRITE,
     )
+
+# Install our SIGINT/SIGTERM handler AFTER Isaac Sim has loaded, so it overrides
+# Isaac Sim's C++ handler. Isaac Sim may call os._exit() on Ctrl+C which bypasses
+# Python's finally block entirely — this handler ensures the parquet writers are
+# always flushed before exit, preventing corrupted files.
+_writers_closed = False
+def _shutdown_handler(_sig, _frame):
+    global _writers_closed
+    if not _writers_closed:
+        _writers_closed = True
+        print("\n⚠️  Interrupted — flushing dataset to disk before exit...")
+        if recorder:
+            recorder.close_writers()
+    sys.exit(0)
+
+signal.signal(signal.SIGINT,  _shutdown_handler)
+signal.signal(signal.SIGTERM, _shutdown_handler)
 
 logging.getLogger("omni").setLevel(logging.ERROR)
 logging.getLogger("carb").setLevel(logging.ERROR)
