@@ -45,7 +45,7 @@ max_steps = 5000
 RECORD_ENABLED      = True
 RECORD_RESUME       = True   # True: append to existing dataset  |  False: start fresh (needs RECORD_OVERWRITE)
 RECORD_OVERWRITE    = False  # True: delete existing dataset and start fresh (DESTRUCTIVE — set intentionally)
-RECORD_DATASET_NAME = "Gal-auto-subtasks"   # repo → MasterProject2026/<name>, local → synthetic_datasets/<name>/
+RECORD_DATASET_NAME = "Gal-auto-subtasks_test2"   # repo → MasterProject2026/<name>, local → synthetic_datasets/<name>/
 FREEZE_FRAMES       = 20     # freeze frames appended at the end of each subtask recording
 
 TIMEOUT_STEPS = {
@@ -98,8 +98,13 @@ class OrderController:
         # LIFT or PLACE do NOT go into this set.
         self._grasp_timed_out: set = set()
         # Set to True when all available oranges have been tried and timed out.
-        # The inference loop detects this in the pre-step and resets the episode.
+        # The inference loop transitions to HOME first (to record the return movement),
+        # then resets the episode once home_checker fires.
         self._needs_episode_reset: bool = False
+        # Set to True when HOME was entered because of a reset (all timed out), not
+        # because all oranges were placed. The inference loop breaks after the HOME
+        # commit instead of continuing to the next subtask.
+        self._end_after_home: bool = False
 
     def reset_episode(self):
         self.phase = "SELECT_TARGET"
@@ -110,6 +115,7 @@ class OrderController:
         self._avoid_target = None
         self._grasp_timed_out = set()
         self._needs_episode_reset = False
+        self._end_after_home = False
 
     def _set_phase(self, phase: str):
         self.phase = phase
@@ -392,24 +398,23 @@ try:
                 for name, pos in orange_positions.items():
                     sub_tracker.initial_orange_z[name] = pos[2].item()
             if controller.phase == "SELECT_TARGET":
-                # All oranges have timed out during GRASP — reset this episode.
                 if controller._needs_episode_reset:
-                    sub_tracker.reset_display()
-                    print("\n🔄 All oranges timed out — resetting episode.")
+                    # All oranges timed out — go HOME first to record the return movement,
+                    # then the episode resets once home_checker fires.
+                    print("\n🏠 All oranges tried — returning home before episode reset")
+                    controller._set_phase("HOME")
+                    controller._end_after_home = True
+                    home_checker.reset()   # allow home_checker to fire fresh for this HOME
                     if recorder:
-                        recorder.discard()
-                    oranges_in_plate = count_oranges_in_plate(last_positions)
-                    tracker.end_episode(run_idx, step_count, False, oranges_in_plate)
-                    torch.cuda.empty_cache()
-                    done = True
-                    break
-                controller._select_target(sub_tracker, orange_positions)
-                # Arm the recorder for the GRASP that just started. This must happen here
-                # because the SELECT_TARGET→GRASP transition occurs in the pre-step, so
-                # phase_before == phase_after == "GRASP" by the time the post-step recording
-                # check runs — the normal recorder.start() path would never fire.
-                if recorder and controller.phase == "GRASP":
-                    recorder.start()
+                        recorder.start()
+                else:
+                    controller._select_target(sub_tracker, orange_positions)
+                    # Arm the recorder for the GRASP that just started. This must happen here
+                    # because the SELECT_TARGET→GRASP transition occurs in the pre-step, so
+                    # phase_before == phase_after == "GRASP" by the time the post-step recording
+                    # check runs — the normal recorder.start() path would never fire.
+                    if recorder and controller.phase == "GRASP":
+                        recorder.start()
 
             # --- Build prompt ---
             task_prompt = controller.current_prompt()
@@ -517,6 +522,15 @@ try:
                     recorder.commit(task="Place it into plate")
                 elif phase_before == "HOME" and not home_fired_before and home_checker._fired:
                     recorder.commit(task="Go back to start position")
+                    if controller._end_after_home:
+                        # HOME was entered because all oranges timed out — reset episode now.
+                        sub_tracker.reset_display()
+                        print("\n🔄 Home reached — resetting episode.")
+                        oranges_in_plate = count_oranges_in_plate(last_positions)
+                        tracker.end_episode(run_idx, step_count, False, oranges_in_plate)
+                        torch.cuda.empty_cache()
+                        done = True
+                        break
                 elif phase_after == "RECOVERY":
                     recorder.discard()
 
