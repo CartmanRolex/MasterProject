@@ -31,11 +31,18 @@ from dataset_recorder import SubtaskRecorder
 # ==========================================
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model_id = "MasterProject2026/Gal-pick-orange-tailedCH20"
-n_episodes = 1000
+
+# Number of full robot sessions to run.
+# One inference run = env reset → robot picks all oranges → done.
+# Each successful subtask within a run produces one subtask recording
+# in the dataset (what LeRobot calls an "episode").
+n_inference_runs = 5
 max_steps = 5000
 
+# --- Dataset recording ---
 RECORD_ENABLED    = True
-RECORD_RESUME     = True   # append to existing partial dataset; False = always start fresh
+RECORD_RESUME     = True   # True: append to existing dataset  |  False: start fresh (needs RECORD_OVERWRITE)
+RECORD_OVERWRITE  = False  # True: delete existing dataset and start fresh (DESTRUCTIVE — set intentionally)
 RECORD_REPO_ID    = "MasterProject2026/Gal-auto-subtasks"
 RECORD_LOCAL_PATH = "/home/gal/Documents/MasterProject/isaac-inference/synthetic_datasets/recorded_dataset"
 
@@ -262,14 +269,21 @@ preprocess, postprocess = make_pre_post_processors(
 # ==========================================
 # 3. Evaluation Loop
 # ==========================================
-tracker = EvaluationTracker(n_episodes)
+tracker = EvaluationTracker(n_inference_runs)
 sub_tracker = SubtaskTracker(block=False)
 controller = OrderController(sub_tracker.orange_names)
 home_checker     = HomeChecker()
 reset_controller = ResetController()
 reset_controller.start()
 
-recorder = SubtaskRecorder.create(RECORD_REPO_ID, RECORD_LOCAL_PATH, resume=RECORD_RESUME) if RECORD_ENABLED else None
+recorder = None
+if RECORD_ENABLED:
+    recorder = SubtaskRecorder.create(
+        RECORD_REPO_ID,
+        RECORD_LOCAL_PATH,
+        resume=RECORD_RESUME,
+        overwrite=RECORD_OVERWRITE,
+    )
 
 logging.getLogger("omni").setLevel(logging.ERROR)
 logging.getLogger("carb").setLevel(logging.ERROR)
@@ -280,14 +294,27 @@ try:
 except ImportError:
     pass
 
-print(f"\n--- STARTING AUTONOMOUS EVALUATION: {n_episodes} EPISODES ---")
+_recorded_so_far = recorder._dataset.meta.total_episodes if recorder else 0
+print(f"""
+{'━' * 52}
+  AUTONOMOUS EVALUATION
+  Model:                {model_id}
+  Inference runs:       {n_inference_runs}
+  Recording:            {'enabled' if recorder else 'disabled'}
+  Subtask recordings:   {_recorded_so_far} already saved
+{'━' * 52}
+""")
 
 try:
-    for episode in range(n_episodes):
+    for run_idx in range(n_inference_runs):
+        print(f"\n{'─' * 52}")
+        print(f"  Inference run {run_idx + 1} / {n_inference_runs}")
+        print(f"{'─' * 52}")
+
         obs, _ = env.reset()
         policy.reset()
 
-        tracker.start_episode(episode)
+        tracker.start_episode(run_idx)
         sub_tracker.reset()
         home_checker.reset()
         controller.reset_episode()
@@ -307,7 +334,7 @@ try:
                 if recorder:
                     recorder.discard()
                 oranges_in_plate = count_oranges_in_plate(last_positions)
-                tracker.end_episode(episode, step_count, False, oranges_in_plate)
+                tracker.end_episode(run_idx, step_count, False, oranges_in_plate)
                 done = True
                 break
 
@@ -422,19 +449,23 @@ try:
                 if recorder:
                     recorder.discard()
                 oranges_in_plate = count_oranges_in_plate(last_positions)
-                tracker.end_episode(episode, step_count, is_terminated, oranges_in_plate)
+                tracker.end_episode(run_idx, step_count, is_terminated, oranges_in_plate)
 
     tracker.print_final_summary(model_id)
+    # All runs completed cleanly — push the dataset to HuggingFace Hub
+    if recorder:
+        recorder.push_to_hub()
 
 except KeyboardInterrupt:
-    print("\nForce quitting Isaac Sim...")
+    print("\nInterrupted — closing writers and exiting (dataset NOT pushed to Hub).")
 except Exception as exc:
     print(f"\n❌ CRASH DETECTED: {exc}")
     import traceback
-
     traceback.print_exc()
 finally:
+    # Always close parquet writers so every file gets a valid footer,
+    # regardless of how the script exits (Ctrl+C, crash, or clean finish).
     if recorder:
-        recorder.finalize()
+        recorder.close_writers()
     print("Closing environment...")
     env.close()
