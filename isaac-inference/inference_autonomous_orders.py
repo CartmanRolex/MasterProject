@@ -36,7 +36,7 @@ model_id = "MasterProject2026/Gal-pick-orange-tailedCH20"
 # One inference run = env reset → robot picks all oranges → done.
 # Each successful subtask within a run produces one subtask recording
 # in the dataset (what LeRobot calls an "episode").
-n_inference_runs = 5
+n_inference_runs = 1
 max_steps = 5000
 
 # --- Dataset recording ---
@@ -452,9 +452,6 @@ try:
                 tracker.end_episode(run_idx, step_count, is_terminated, oranges_in_plate)
 
     tracker.print_final_summary(model_id)
-    # All runs completed cleanly — push the dataset to HuggingFace Hub
-    if recorder:
-        recorder.push_to_hub()
 
 except KeyboardInterrupt:
     print("\nInterrupted — closing writers and exiting (dataset NOT pushed to Hub).")
@@ -469,3 +466,9 @@ finally:
         recorder.close_writers()
     print("Closing environment...")
     env.close()
+
+# Push outside the Isaac Sim try/finally so Hub upload errors are visible
+# and Isaac Sim shutdown logs don't bury them.
+if recorder and RECORD_ENABLED:
+    print("\n📤 Pushing dataset to HuggingFace Hub (this may take a few minutes for video data)...")
+    recorder.push_to_hub()
