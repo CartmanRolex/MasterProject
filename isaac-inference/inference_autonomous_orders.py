@@ -345,6 +345,12 @@ try:
                     sub_tracker.initial_orange_z[name] = pos[2].item()
             if controller.phase == "SELECT_TARGET":
                 controller._select_target(sub_tracker, orange_positions)
+                # Arm the recorder for the GRASP that just started. This must happen here
+                # because the SELECT_TARGET→GRASP transition occurs in the pre-step, so
+                # phase_before == phase_after == "GRASP" by the time the post-step recording
+                # check runs — the normal recorder.start() path would never fire.
+                if recorder and controller.phase == "GRASP":
+                    recorder.start()
 
             # --- Build prompt ---
             task_prompt = controller.current_prompt()
@@ -416,7 +422,8 @@ try:
                 pass
 
             sub_tracker.draw_debug(gripper_tip, jaw_tip, orange_positions)
-            phase_before     = controller.phase
+            phase_before      = controller.phase
+            target_before     = controller.target_name   # capture before update (needed for PLACE check)
             home_fired_before = home_checker._fired
             controller.update_after_step(sub_tracker, orange_positions, step_count)
             phase_after = controller.phase
@@ -427,7 +434,11 @@ try:
                     recorder.commit(task=f"Grasp {controller.target_label} orange")
                 elif phase_before == "LIFT" and phase_after == "PLACE":
                     recorder.commit(task="Pick it up")
-                elif phase_before == "PLACE" and phase_after in ("SELECT_TARGET", "HOME"):
+                elif phase_before == "PLACE" and target_before in sub_tracker.placed_oranges:
+                    # Commit whenever the tracked orange was successfully placed, regardless of
+                    # what phase comes next. When more oranges remain, update_after_step() calls
+                    # _select_target() inline and jumps straight to GRASP (skipping SELECT_TARGET),
+                    # so checking phase_after in ("SELECT_TARGET", "HOME") misses those cases.
                     recorder.commit(task="Place it into plate")
                 elif phase_before == "HOME" and not home_fired_before and home_checker._fired:
                     recorder.commit(task="Go back to start position")
