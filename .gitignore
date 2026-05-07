@@ -1,6 +1,19 @@
-# Byte-compiled / optimized / DLL files
+# ── Python byte-compiled files ─────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *$py.class
-trained-models/train/
+
+# ── Isaac Sim streaming logs (NvStreamer output, auto-generated) ────────
+isaac-inference/${data}/
+*.etli
+
+# ── Isaac Sim / LeRobot large datasets ─────────────────────────────────
 isaac-inference/teleop-datasets/
+synthetic_datasets/
+
+# ── Cluster training outputs ────────────────────────────────────────────
+cluster-training/bash-out/
+cluster-training/outputs/
+
+# ── Legacy ──────────────────────────────────────────────────────────────
+trained-models/train/

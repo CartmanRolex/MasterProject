@@ -8,9 +8,12 @@ Provides:
   - SubtaskTracker                          : fine-grained phase tracker (multi-object pick-and-place)
 """
 
-import os
 import sys
 import datetime
+from pathlib import Path
+
+# Always write results next to this file, regardless of working directory.
+_RESULTS_DIR = Path(__file__).parent / "results"
 
 # Rest-pose range for SO101 (degrees). Mirrors SO101_FOLLOWER_REST_POSE_RANGE in leisaac.
 _SO101_REST_POSE_DEG = {
@@ -43,7 +46,7 @@ def save_camera_snapshots(raw_front, raw_wrist, episode, step_count,
             img = (img * 255).clip(0, 255).astype(np.uint8)
         if img.shape[0] == 3:  # CHW -> HWC
             img = img.transpose(1, 2, 0)
-        Image.fromarray(img).save(f"camera_check_{name}.png")
+        Image.fromarray(img).save(Path(__file__).parent / f"camera_check_{name}.png")
         print(f"  Saved camera_check_{name}.png")
 
 
@@ -283,10 +286,10 @@ class EvaluationTracker:
         )
         print(summary_text)
 
-        os.makedirs("results", exist_ok=True)
+        _RESULTS_DIR.mkdir(exist_ok=True)
         timestamp        = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         short_model_name = model_id.rstrip("/").split("/")[-1]
-        filename         = f"results/eval_{short_model_name}_{timestamp}.txt"
+        filename         = _RESULTS_DIR / f"eval_{short_model_name}_{timestamp}.txt"
 
         with open(filename, "w") as f:
             f.write(summary_text)
