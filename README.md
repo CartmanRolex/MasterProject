@@ -18,9 +18,10 @@ MasterProject/
 │   └── results/        ← All eval logs (git-tracked) + plot.py
 ├── cluster-training/   ← SLURM train/resume scripts
 ├── dataset-editor/     ← GUI editor + lerobot_editor package + check_scripts
-├── leisaac-mods/       ← Git patch and custom modules for LeIsaac
-└── trained-models/     ← Model index (weights on HuggingFace Hub)
+└── leisaac-mods/       ← Git patch and custom modules for LeIsaac
 ```
+
+Model weights are on HuggingFace Hub under [`MasterProject2026`](https://huggingface.co/MasterProject2026), not in this repo.
 
 See the `CLAUDE.md` in each subdirectory for machine-specific setup and known issues.
 
@@ -45,6 +46,3 @@ cd dataset-editor
 python editor.py MasterProject2026/my-dataset
 ```
 
-## HuggingFace
-
-All datasets and model weights: [`MasterProject2026`](https://huggingface.co/MasterProject2026)

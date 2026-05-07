@@ -1,15 +1,8 @@
 import logging
-import os
 import random
-import tempfile
 import threading
 import time
 from typing import Optional
-
-# Redirect temp files to tmpfs so LeRobot video encoding intermediates don't
-# hit ext4, which can trigger a kernel soft lockup during large-file eviction.
-os.environ["TMPDIR"] = "/dev/shm"
-tempfile.tempdir = "/dev/shm"
 
 import numpy as np
 import torch
@@ -43,7 +36,7 @@ max_steps = 5000
 
 RECORD_ENABLED    = True
 RECORD_REPO_ID    = "MasterProject2026/Gal-auto-subtasks"
-RECORD_LOCAL_PATH = "/home/gal/Documents/MasterProject/synthetic_datasets/recorded_dataset"
+RECORD_LOCAL_PATH = "/home/gal/Documents/MasterProject/isaac-inference/synthetic_datasets/recorded_dataset"
 
 TIMEOUT_STEPS = {
     "GRASP": 700,
@@ -429,8 +422,6 @@ try:
                     recorder.discard()
                 oranges_in_plate = count_oranges_in_plate(last_positions)
                 tracker.end_episode(episode, step_count, is_terminated, oranges_in_plate)
-
-        torch.cuda.empty_cache()
 
     tracker.print_final_summary(model_id)
 
