@@ -1,8 +1,15 @@
 import logging
+import os
 import random
+import tempfile
 import threading
 import time
 from typing import Optional
+
+# Redirect temp files to tmpfs so LeRobot video encoding intermediates don't
+# hit ext4, which can trigger a kernel soft lockup during large-file eviction.
+os.environ["TMPDIR"] = "/dev/shm"
+tempfile.tempdir = "/dev/shm"
 
 import numpy as np
 import torch
@@ -31,7 +38,7 @@ from dataset_recorder import SubtaskRecorder
 # ==========================================
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model_id = "MasterProject2026/Gal-pick-orange-tailedCH20"
-n_episodes = 5
+n_episodes = 1000
 max_steps = 5000
 
 RECORD_ENABLED    = True
@@ -423,9 +430,9 @@ try:
                 oranges_in_plate = count_oranges_in_plate(last_positions)
                 tracker.end_episode(episode, step_count, is_terminated, oranges_in_plate)
 
+        torch.cuda.empty_cache()
+
     tracker.print_final_summary(model_id)
-    if recorder:
-        recorder.finalize()
 
 except KeyboardInterrupt:
     print("\nForce quitting Isaac Sim...")
@@ -435,5 +442,7 @@ except Exception as exc:
 
     traceback.print_exc()
 finally:
+    if recorder:
+        recorder.finalize()
     print("Closing environment...")
     env.close()
