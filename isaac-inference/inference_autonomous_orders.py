@@ -90,6 +90,14 @@ class OrderController:
         self._phase_steps = 0
         self._recovery_remaining = 0
         self._avoid_target = None
+        # Oranges that timed out during GRASP this inference run.
+        # Used to avoid wasting time retrying the same orange when the model
+        # is deterministic. Only GRASP timeouts count — oranges falling during
+        # LIFT or PLACE do NOT go into this set.
+        self._grasp_timed_out: set = set()
+        # Set to True when all available oranges have been tried and timed out.
+        # The inference loop detects this in the pre-step and resets the episode.
+        self._needs_episode_reset: bool = False
 
     def reset_episode(self):
         self.phase = "SELECT_TARGET"
@@ -98,6 +106,8 @@ class OrderController:
         self._phase_steps = 0
         self._recovery_remaining = 0
         self._avoid_target = None
+        self._grasp_timed_out = set()
+        self._needs_episode_reset = False
 
     def _set_phase(self, phase: str):
         self.phase = phase
@@ -115,14 +125,22 @@ class OrderController:
             print("\n🏠 All oranges placed — returning to start position")
             return None
 
-        if self._avoid_target and self._avoid_target not in remaining:
-            self._avoid_target = None
+        # Only pick from oranges that haven't already timed out during GRASP.
+        selectable = [name for name in remaining if name not in self._grasp_timed_out]
+        if not selectable:
+            # Every unplaced orange has been tried and timed out — flag for reset.
+            # The inference loop pre-step will detect this and end the episode.
+            self._needs_episode_reset = True
+            print("\n⚠️  All oranges have timed out — episode will reset after recovery")
+            return None
 
-        selectable = remaining
-        if self._avoid_target in remaining and len(remaining) > 1:
-            selectable = [name for name in remaining if name != self._avoid_target]
-        elif self._avoid_target in remaining and len(remaining) == 1:
-            self._avoid_target = None
+        # Short-term single-step avoidance for non-timeout failures (e.g. after a
+        # fall during LIFT that sends us back to GRASP on the same orange).
+        if self._avoid_target and self._avoid_target not in self._grasp_timed_out:
+            if self._avoid_target in selectable and len(selectable) > 1:
+                selectable = [name for name in selectable if name != self._avoid_target]
+            elif self._avoid_target not in selectable:
+                self._avoid_target = None
 
         labels = classify_orange_positions(orange_positions)
         self.target_name = random.choice(selectable)
@@ -150,7 +168,18 @@ class OrderController:
         if timeout is not None and self._phase_steps >= timeout:
             print(f"\n⏱  {self.phase} timed out after {self._phase_steps} steps — recovering")
             if self.phase == "GRASP" and self.target_name:
+                self._grasp_timed_out.add(self.target_name)
                 self._avoid_target = self.target_name
+                untried = [
+                    name for name in self.orange_names
+                    if name not in tracker.placed_oranges
+                    and name not in self._grasp_timed_out
+                    and name in orange_positions
+                ]
+                if untried:
+                    print(f"  🔄 {len(untried)} orange(s) still untried — will try another after recovery")
+                else:
+                    print("  ⚠️  All oranges have been tried — episode will reset after recovery")
             tracker.reset_grasp_state()
             self.target_name  = None
             self.target_label = None
@@ -344,6 +373,17 @@ try:
                 for name, pos in orange_positions.items():
                     sub_tracker.initial_orange_z[name] = pos[2].item()
             if controller.phase == "SELECT_TARGET":
+                # All oranges have timed out during GRASP — reset this episode.
+                if controller._needs_episode_reset:
+                    sub_tracker.reset_display()
+                    print("\n🔄 All oranges timed out — resetting episode.")
+                    if recorder:
+                        recorder.discard()
+                    oranges_in_plate = count_oranges_in_plate(last_positions)
+                    tracker.end_episode(run_idx, step_count, False, oranges_in_plate)
+                    torch.cuda.empty_cache()
+                    done = True
+                    break
                 controller._select_target(sub_tracker, orange_positions)
                 # Arm the recorder for the GRASP that just started. This must happen here
                 # because the SELECT_TARGET→GRASP transition occurs in the pre-step, so
