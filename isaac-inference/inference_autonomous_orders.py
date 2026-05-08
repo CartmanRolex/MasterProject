@@ -45,7 +45,7 @@ max_steps = 5000
 RECORD_ENABLED      = False
 RECORD_RESUME       = True   # True: append to existing dataset  |  False: start fresh (needs RECORD_OVERWRITE)
 RECORD_OVERWRITE    = False  # True: delete existing dataset and start fresh (DESTRUCTIVE — set intentionally)
-RECORD_DATASET_NAME = "Gal-auto-subtasks_test2"   # repo → MasterProject2026/<name>, local → synthetic_datasets/<name>/
+RECORD_DATASET_NAME = "Gal-auto-subtasks"   # repo → MasterProject2026/<name>, local → synthetic_datasets/<name>/
 FREEZE_FRAMES       = 20     # freeze frames appended at the end of each subtask recording
 
 TIMEOUT_STEPS = {
@@ -119,6 +119,8 @@ def build_task_prompt(phase: str, label: Optional[str]) -> str:
         return "Go back to start position"
     if phase == "RECOVERY":
         return "Go back to start position"
+    if phase == "HOME_END":
+        return "Go back to start position"
     return "Pick it up"
 
 
@@ -140,9 +142,6 @@ class OrderController:
         # The inference loop transitions to HOME first (to record the return movement),
         # then resets the episode once home_checker fires.
         self._needs_episode_reset: bool = False
-        # Set to True on the final GRASP timeout (all oranges tried). The RECOVERY that
-        # follows is recorded as "Go back to start position" instead of being discarded.
-        self._is_final_recovery: bool = False
 
     def reset_episode(self):
         self.phase = "SELECT_TARGET"
@@ -153,7 +152,6 @@ class OrderController:
         self._avoid_target = None
         self._grasp_timed_out = set()
         self._needs_episode_reset = False
-        self._is_final_recovery = False
 
     def _set_phase(self, phase: str):
         self.phase = phase
@@ -177,7 +175,7 @@ class OrderController:
             # Every unplaced orange has been tried and timed out — flag for reset.
             # The inference loop pre-step will detect this and end the episode.
             self._needs_episode_reset = True
-            print("\n⚠️  All oranges have timed out — episode will reset after recovery")
+            print("\n⚠️  All oranges have timed out — ending episode")
             return None
 
         # Short-term single-step avoidance for non-timeout failures (e.g. after a
@@ -206,6 +204,13 @@ class OrderController:
                 self._set_phase("SELECT_TARGET")
             return
 
+        if self.phase == "HOME_END":
+            self._recovery_remaining -= 1
+            if self._recovery_remaining <= 0:
+                self._needs_episode_reset = True
+                self._set_phase("SELECT_TARGET")
+            return
+
         if self.phase == "HOME":
             return
 
@@ -224,14 +229,24 @@ class OrderController:
                 ]
                 if untried:
                     print(f"  🔄 {len(untried)} orange(s) still untried — will try another after recovery")
+                    tracker.reset_grasp_state()
+                    self.target_name  = None
+                    self.target_label = None
+                    self._set_phase("RECOVERY")
+                    self._recovery_remaining = RECOVERY_STEPS
                 else:
-                    print("  ⚠️  All oranges have been tried — recording final recovery")
-                    self._is_final_recovery = True
-            tracker.reset_grasp_state()
-            self.target_name  = None
-            self.target_label = None
-            self._set_phase("RECOVERY")
-            self._recovery_remaining = RECOVERY_STEPS
+                    print("  ⚠️  All oranges have been tried — returning home to end episode")
+                    tracker.reset_grasp_state()
+                    self.target_name  = None
+                    self.target_label = None
+                    self._set_phase("HOME_END")
+                    self._recovery_remaining = RECOVERY_STEPS
+            else:
+                tracker.reset_grasp_state()
+                self.target_name  = None
+                self.target_label = None
+                self._set_phase("RECOVERY")
+                self._recovery_remaining = RECOVERY_STEPS
             return
 
         if self.target_name is None or self.target_name not in orange_positions or self.target_name in tracker.placed_oranges:
@@ -542,7 +557,7 @@ try:
                 sub_tracker._check_place(plate_pos, orange_positions, gripper_pos, step_count)
             elif controller.phase == "HOME":
                 home_checker.check(env, step_count)
-            elif controller.phase == "RECOVERY":
+            elif controller.phase in ("RECOVERY", "HOME_END"):
                 pass
 
             sub_tracker.draw_debug(gripper_tip, jaw_tip, orange_positions)
@@ -563,14 +578,11 @@ try:
                     recorder.commit(task="Place it into plate")
                 elif phase_before == "HOME" and not home_fired_before and home_checker._fired:
                     recorder.commit(task="Go back to start position")
-                elif phase_after == "RECOVERY":
-                    if controller._is_final_recovery:
-                        # Last GRASP timeout — record the RECOVERY movement as
-                        # "Go back to start position" instead of discarding it.
-                        recorder.discard()  # drop the failed GRASP frames
-                        recorder.start()    # arm fresh for RECOVERY frames
-                    else:
-                        recorder.discard()
+                elif phase_before != "RECOVERY" and phase_after == "RECOVERY":
+                    recorder.discard()
+                elif phase_before != "HOME_END" and phase_after == "HOME_END":
+                    recorder.discard()  # drop the failed GRASP frames
+                    recorder.start()    # arm fresh for the episode-ending home movement
 
                 if phase_before != phase_after and phase_after in ("GRASP", "LIFT", "PLACE", "HOME"):
                     recorder.start()
