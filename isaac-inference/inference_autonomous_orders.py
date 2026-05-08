@@ -38,11 +38,11 @@ model_id = "MasterProject2026/Gal-pick-orange-tailedCH20"
 # One inference run = env reset → robot picks all oranges → done.
 # Each successful subtask within a run produces one subtask recording
 # in the dataset (what LeRobot calls an "episode").
-n_inference_runs = 2
+n_inference_runs = 10
 max_steps = 5000
 
 # --- Dataset recording ---
-RECORD_ENABLED      = False
+RECORD_ENABLED      = True
 RECORD_RESUME       = True   # True: append to existing dataset  |  False: start fresh (needs RECORD_OVERWRITE)
 RECORD_OVERWRITE    = False  # True: delete existing dataset and start fresh (DESTRUCTIVE — set intentionally)
 RECORD_DATASET_NAME = "Gal-auto-subtasks"   # repo → MasterProject2026/<name>, local → synthetic_datasets/<name>/

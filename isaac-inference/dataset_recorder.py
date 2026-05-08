@@ -203,9 +203,9 @@ class SubtaskRecorder:
         #
         # observation.state: always copies the last joint state (robot holds its pose).
         # action: depends on the subtask —
-        #   GRASP : keep the last commanded action so the gripper maintains its closing
-        #           force on the orange (action ≠ state because the gripper is still
-        #           being driven closed).
+        #   GRASP / LIFT ("Pick it up"): keep the last commanded action so the gripper
+        #           maintains its closing force on the orange (action ≠ state because
+        #           the gripper is still being driven closed).
         #   others: set action = observation.state so the robot commands "stay here"
         #           with no movement (position control: target = current position).
         last_frame = self._buffer[-1]
@@ -215,7 +215,7 @@ class SubtaskRecorder:
             # Build the freeze action: arm joints always hold their current state,
             # gripper holds last_action only for GRASP (to maintain closing force).
             freeze_action = np.asarray(last_state, dtype=np.float32).copy()
-            if task.lower().startswith("grasp") and last_action is not None:
+            if (task.lower().startswith("grasp") or task.lower().startswith("pick it up")) and last_action is not None:
                 freeze_action[-1] = np.asarray(last_action, dtype=np.float32)[-1]  # gripper only
             for _ in range(self._freeze_frames):
                 freeze = dict(last_frame)
