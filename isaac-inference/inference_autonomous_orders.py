@@ -42,7 +42,7 @@ n_inference_runs = 2
 max_steps = 5000
 
 # --- Dataset recording ---
-RECORD_ENABLED      = True
+RECORD_ENABLED      = False
 RECORD_RESUME       = True   # True: append to existing dataset  |  False: start fresh (needs RECORD_OVERWRITE)
 RECORD_OVERWRITE    = False  # True: delete existing dataset and start fresh (DESTRUCTIVE — set intentionally)
 RECORD_DATASET_NAME = "Gal-auto-subtasks_test2"   # repo → MasterProject2026/<name>, local → synthetic_datasets/<name>/
@@ -61,6 +61,45 @@ dataset_features = {
     "observation.state": {"dtype": "float32", "shape": (6,), "names": ["state"]},
     "action": {"dtype": "float32", "shape": (6,), "names": ["action"]},
 }
+
+
+class DryRunRecorder:
+    """Mimics SubtaskRecorder interface but only prints what would be recorded."""
+
+    def __init__(self, freeze_frames: int):
+        self._freeze_frames = freeze_frames
+        self._armed = False
+        self._frame_count = 0
+
+    # Stub so the startup banner line works unchanged.
+    class _dataset:
+        class meta:
+            total_episodes = 0
+
+    def start(self):
+        self._armed = True
+        self._frame_count = 0
+
+    def record(self, _data):
+        if self._armed:
+            self._frame_count += 1
+
+    def commit(self, task: str = ""):
+        if self._armed:
+            print(f"  [dry-run] would record subtask \"{task}\" — "
+                  f"{self._frame_count} frames + {self._freeze_frames} frozen frames")
+        self._armed = False
+        self._frame_count = 0
+
+    def discard(self):
+        self._armed = False
+        self._frame_count = 0
+
+    def close_writers(self):
+        pass
+
+    def push_to_hub(self):
+        pass
 
 
 def tensor_to_bool(value):
@@ -313,7 +352,7 @@ home_checker     = HomeChecker()
 reset_controller = ResetController()
 reset_controller.start()
 
-recorder = None
+recorder = DryRunRecorder(FREEZE_FRAMES)
 if RECORD_ENABLED:
     recorder = SubtaskRecorder.create(
         RECORD_DATASET_NAME,
