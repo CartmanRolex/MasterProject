@@ -282,8 +282,14 @@ class SubtaskRecorder:
 
     def push_to_hub(self):
         """Push the completed dataset to HuggingFace Hub."""
+        from huggingface_hub import HfApi
         self._dataset.finalize()
-        self._dataset.push_to_hub()
+        HfApi().upload_large_folder(
+            repo_id=self._dataset.repo_id,
+            repo_type="dataset",
+            folder_path=self._dataset.root,
+            ignore_patterns=["checkpoint.json"],
+        )
         print(f"  📤 Dataset pushed to Hub: {self._dataset.repo_id}")
 
     # ------------------------------------------------------------------
