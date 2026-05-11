@@ -12,4 +12,4 @@ mkdir -p "$LOG_DIR"
 LOG_FILE="$LOG_DIR/$(date +%Y%m%d_%H%M%S)_$(basename "${1%.py}").log"
 echo "Logging to $LOG_FILE"
 
-python "$@" 2>&1 | tee "$LOG_FILE"
+script -q -e -f "$LOG_FILE" -c "python $(printf '%q ' "$@")"
