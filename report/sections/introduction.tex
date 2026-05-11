@@ -1,13 +1,3 @@
 \section{Introduction}
 \label{sec:introduction}
 
-Manipulation tasks such as grasping and placing objects remain challenging for autonomous robots because they require precise perception, planning, and control under real-world variability. Imitation learning has emerged as an effective paradigm: a policy is trained from human (or simulated) demonstrations without hand-crafted reward engineering~\cite{}.
-
-In this project we study the pick-and-place of oranges using a \textbf{SO-101} 6-DOF robot arm. Demonstrations are generated inside \textbf{NVIDIA Isaac Sim}, edited with a custom annotation tool, and policies are trained with the \textbf{LeRobot} framework. We evaluate two architectures:
-
-\begin{itemize}
-    \item \textbf{ACT}~\cite{} -- Action Chunking with Transformers, a purely visuomotor policy.
-    \item \textbf{SmolVLA}~\cite{} -- a compact Vision-Language-Action model that conditions on a natural-language task description.
-\end{itemize}
-
-The remainder of this report is structured as follows. \Cref{sec:related} reviews related work. \Cref{sec:methodology} describes the experimental setup. \Cref{sec:experiments} details training procedures. \Cref{sec:results} presents quantitative and qualitative results. \Cref{sec:conclusion} concludes.

@@ -1,24 +1,3 @@
-\section{Methodology}
-\label{sec:methodology}
+\section{Methods}
+\label{sec:methods}
 
-\subsection{Robot and Simulation Setup}
-
-We use the \textbf{SO-101} arm simulated in \textbf{NVIDIA Isaac Sim}. The task is defined as picking a randomly placed orange from a table and placing it on a plate.
-
-\subsection{Dataset Collection}
-
-Demonstrations are recorded with \texttt{dataset\_recorder.py}. Each episode stores RGB observations from two cameras and joint-position actions at \SI{30}{\hertz}.
-
-\subsection{Dataset Editing}
-
-A custom GUI (\texttt{dataset-editor/}) allows manual episode inspection, trimming, and re-labelling. Episodes with failures or annotation errors are removed before training.
-
-\subsection{Policy Architectures}
-
-\subsubsection{ACT}
-
-\subsubsection{SmolVLA}
-
-\subsection{Training Infrastructure}
-
-Models are trained on the EPFL SCITAS cluster using SLURM. Training scripts are located in \texttt{cluster-training/}.
