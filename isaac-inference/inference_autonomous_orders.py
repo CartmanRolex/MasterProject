@@ -39,6 +39,7 @@ model_id = "MasterProject2026/Gal-pick-orange-tailedCH20"
 # Each successful subtask within a run produces one subtask recording
 # in the dataset (what LeRobot calls an "episode").
 n_inference_runs = 1000
+
 max_steps = 5000
 
 # --- Dataset recording ---
@@ -625,15 +626,17 @@ try:
         if reset_controller.stop_requested:
             break
 
-    tracker.print_final_summary(model_id)
-
 except KeyboardInterrupt:
-    print("\nInterrupted — closing writers and exiting (dataset NOT pushed to Hub).")
+    print("\nInterrupted — saving evaluation summary and closing writers.")
 except Exception as exc:
     print(f"\n❌ CRASH DETECTED: {exc}")
     import traceback
     traceback.print_exc()
 finally:
+    # Always print and save the evaluation summary, regardless of how the script exits.
+    # (finally runs for normal completion, KeyboardInterrupt, Exception, and sys.exit()
+    # from the SIGINT handler — only os._exit()/SIGKILL can bypass this.)
+    tracker.print_final_summary(model_id)
     # Always close parquet writers so every file gets a valid footer,
     # regardless of how the script exits (Ctrl+C, crash, or clean finish).
     if recorder:

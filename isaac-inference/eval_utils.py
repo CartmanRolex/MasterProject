@@ -266,14 +266,15 @@ class EvaluationTracker:
         count_1      = self.total_oranges_placed.count(1)
         count_0      = self.total_oranges_placed.count(0)
         mean_steps   = (sum(self.successful_episode_steps) / len(self.successful_episode_steps)) if self.successful_episode_steps else float("nan")
-        success_rate = (self.successes / self.n_episodes * 100) if self.n_episodes else 0
+        success_rate = (self.successes / n_eval * 100) if n_eval else 0
         avg_oranges  = sum(self.total_oranges_placed) / n_eval if n_eval else 0
+        header       = "EVALUATION COMPLETE" if n_eval == self.n_episodes else f"EVALUATION SUMMARY (stopped after {n_eval}/{self.n_episodes} runs)"
 
         summary_text = (
             f"\n========================================\n"
-            f"EVALUATION COMPLETE\n"
+            f"{header}\n"
             f"Model ID:             {model_id}\n"
-            f"Success Rate:         {self.successes}/{self.n_episodes} ({success_rate:.2f}%)\n"
+            f"Success Rate:         {self.successes}/{n_eval} ({success_rate:.2f}%)\n"
             f"Avg oranges in plate: {avg_oranges:.2f}/3\n"
             f"Mean steps (success): {mean_steps:.1f}\n"
             f"3/3 oranges:          {count_3}/{n_eval} ({pct(count_3):.1f}%)\n"
