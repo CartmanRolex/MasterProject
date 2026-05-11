@@ -132,10 +132,6 @@ class SubtaskRecorder:
                 # Flush metadata immediately after every episode (not batched)
                 # so the open meta writer is always up to date on disk.
                 dataset.meta.metadata_buffer_size = 1
-                n = dataset.meta.total_episodes
-                print(f"  ▶ Resuming: {n} subtask recordings already saved — appending to {local_path}")
-                return cls(dataset, freeze_frames=freeze_frames)
-
             except Exception as e:
                 raise RuntimeError(
                     f"\n⚠  Dataset at {local_path} is corrupted and cannot be resumed.\n"
@@ -145,6 +141,25 @@ class SubtaskRecorder:
                     f"     - Manually delete {local_path} and restart\n"
                     f"   Original error: {type(e).__name__}: {e}"
                 ) from e
+
+            n = dataset.meta.total_episodes
+            # A SIGKILL crash can leave the meta parquet without a valid footer,
+            # causing load_episodes() to fail and total_episodes to reset to 0.
+            # If that happens, resumed episodes would get wrong episode_index values
+            # and create duplicate indices in the data parquet — the exact failure
+            # that corrupted episodes 0-3. The checkpoint is the ground truth.
+            if checkpoint_file.exists() and saved_count != n:
+                raise RuntimeError(
+                    f"\n⚠  Checkpoint/metadata mismatch — dataset was likely corrupted by a hard crash.\n"
+                    f"   checkpoint.json says {saved_count} episode(s) were committed.\n"
+                    f"   Loaded metadata reports {n} episode(s).\n"
+                    f"   Resuming now would assign wrong episode_index values and corrupt the dataset.\n"
+                    f"   Options:\n"
+                    f"     - Set RECORD_OVERWRITE=True to wipe and start fresh (deletes data)\n"
+                    f"     - Manually delete {local_path} and restart"
+                )
+            print(f"  ▶ Resuming: {n} subtask recordings already saved — appending to {local_path}")
+            return cls(dataset, freeze_frames=freeze_frames)
 
         # Create a brand-new dataset
         dataset = LeRobotDataset.create(
@@ -263,15 +278,11 @@ class SubtaskRecorder:
         crash that reaches the finally block (i.e. any non-SIGKILL exit).
         """
         self.discard()
-        self._dataset._close_writer()
-        self._dataset.meta._close_writer()
+        self._dataset.finalize()
 
     def push_to_hub(self):
         """Push the completed dataset to HuggingFace Hub."""
-        if hasattr(self._dataset, "consolidate"):
-            self._dataset.consolidate()
-        elif hasattr(self._dataset, "finalize"):
-            self._dataset.finalize()
+        self._dataset.finalize()
         self._dataset.push_to_hub()
         print(f"  📤 Dataset pushed to Hub: {self._dataset.repo_id}")
 
