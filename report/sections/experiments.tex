@@ -1,0 +1,20 @@
+\section{Experiments}
+\label{sec:experiments}
+
+\subsection{Evaluation Protocol}
+
+Each policy is evaluated over 20 rollouts per condition. A trial is counted as a success if the orange is placed on the plate within the episode time limit. Results are reported as success rate (\%).
+
+\subsection{Baselines}
+
+\begin{itemize}
+    \item Pretrained SmolVLA (zero-shot, no fine-tuning).
+    \item ACT trained from scratch on the full dataset.
+\end{itemize}
+
+\subsection{Ablations}
+
+\begin{itemize}
+    \item Dataset size: 20 / 50 / 100 demonstrations.
+    \item Tailed vs.\ standard dataset splits.
+\end{itemize}
