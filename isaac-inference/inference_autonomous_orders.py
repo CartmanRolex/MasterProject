@@ -38,14 +38,14 @@ model_id = "MasterProject2026/Gal-pick-orange-tailedCH20"
 # One inference run = env reset → robot picks all oranges → done.
 # Each successful subtask within a run produces one subtask recording
 # in the dataset (what LeRobot calls an "episode").
-n_inference_runs = 10
+n_inference_runs = 1000
 max_steps = 5000
 
 # --- Dataset recording ---
 RECORD_ENABLED      = True
 RECORD_RESUME       = True   # True: append to existing dataset  |  False: start fresh (needs RECORD_OVERWRITE)
 RECORD_OVERWRITE    = False  # True: delete existing dataset and start fresh (DESTRUCTIVE — set intentionally)
-RECORD_DATASET_NAME = "Gal-auto-subtasks"   # repo → MasterProject2026/<name>, local → synthetic_datasets/<name>/
+RECORD_DATASET_NAME = "Gal-auto-subtasks2"   # repo → MasterProject2026/<name>, local → synthetic_datasets/<name>/
 FREEZE_FRAMES       = 20     # freeze frames appended at the end of each subtask recording
 
 TIMEOUT_STEPS = {
@@ -314,6 +314,7 @@ class ResetController:
     def __init__(self):
         self._lock = threading.Lock()
         self._reset_requested = False
+        self._stop_requested = False
         self._thread = threading.Thread(target=self._listen, daemon=True)
 
     def start(self):
@@ -324,6 +325,11 @@ class ResetController:
             flag = self._reset_requested
             self._reset_requested = False
             return flag
+
+    @property
+    def stop_requested(self) -> bool:
+        with self._lock:
+            return self._stop_requested
 
     def _listen(self):
         while True:
@@ -336,6 +342,10 @@ class ResetController:
             if raw in ("r", "reset"):
                 with self._lock:
                     self._reset_requested = True
+            elif raw in ("stop", "s"):
+                with self._lock:
+                    self._stop_requested = True
+                print("\n🛑 Stop requested — will save and push after this episode.")
 
 
 # ==========================================
@@ -435,6 +445,17 @@ try:
         last_positions = save_positions(env)
 
         while not done:
+            # --- Stop check ---
+            if reset_controller.stop_requested:
+                sub_tracker.reset_display()
+                print("\n🛑 Stopping — discarding current episode buffer.")
+                if recorder:
+                    recorder.discard()
+                oranges_in_plate = count_oranges_in_plate(last_positions)
+                tracker.end_episode(run_idx, step_count, False, oranges_in_plate)
+                done = True
+                break
+
             # --- Reset check ---
             if reset_controller.get_and_clear_reset():
                 sub_tracker.reset_display()
@@ -600,6 +621,9 @@ try:
                     recorder.discard()
                 oranges_in_plate = count_oranges_in_plate(last_positions)
                 tracker.end_episode(run_idx, step_count, is_terminated, oranges_in_plate)
+
+        if reset_controller.stop_requested:
+            break
 
     tracker.print_final_summary(model_id)
 
