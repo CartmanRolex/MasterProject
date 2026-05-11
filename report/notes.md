@@ -6,65 +6,132 @@ Internal scratch pad. Do not copy directly into the report.
 
 ## Setup
 
-- **Robot:** SO-101 arm
-- **Environment:** Kitchen scene in Isaac Sim (privileged state information available)
+- **Robot:** SO-101 arm (6 DOF)
+- **Environment:** Kitchen scene in Isaac Sim — privileged state information available (joint positions, gripper force, object positions)
 - **Task:** Pick 3 oranges from the scene and place them in a plate
 - **Base policy:** SmolVLA, fine-tuned per experiment
+- **HuggingFace org:** `MasterProject2026`
+
+---
+
+## Code Paths
+
+| Component | File |
+|-----------|------|
+| Main orchestrator / autonomous eval loop | `isaac-inference/inference_autonomous_orders.py` |
+| Subtask dataset recorder (crash-safe) | `isaac-inference/dataset_recorder.py` |
+| SubtaskTracker, EvaluationTracker, HomeChecker | `isaac-inference/eval_utils.py` |
+| Joint-space conversion (LeIsaac rad ↔ LeRobot deg) | `isaac-inference/robot_utils.py` |
+| Eval result logs + plot script | `isaac-inference/results/` |
+| Xbox gamepad teleoperation (v3, current) | `leisaac-mods/so101_gamepad_v3.py` |
+| Dataset annotation GUI (frame-by-frame editor) | `dataset-editor/editor.py` |
+| Trailing-frame fixer for Place episodes | `dataset-editor/tailer.py` |
+| SLURM training scripts (1 GPU / 4 GPU) | `cluster-training/train.sh`, `cluster-training/train_xl.sh` |
+| Determinism / state-checkpoint test | `isaac-inference/inference_explore.py` |
+
+---
+
+## Subtask Phases & Prompts
+
+The autonomous orchestrator sequences four phases per orange, each with a step timeout:
+
+| Phase | Prompt sent to SmolVLA | Timeout (steps) |
+|-------|------------------------|-----------------|
+| GRASP | `"Grasp <left/middle/right> orange"` | 700 |
+| LIFT | `"Pick it up"` | 400 |
+| PLACE | `"Place it into plate"` | 500 |
+| HOME / RECOVERY | `"Go back to start position"` | 150 |
+
+Prompts are defined in `inference_autonomous_orders.py::build_task_prompt()`.
+
+### Freeze frames
+At the end of every recorded subtask episode, **20 freeze frames** are appended so the policy has a clear "hold this pose" signal at the boundary. The freeze action differs by phase (`dataset_recorder.py` lines 217–241):
+
+- **GRASP and LIFT** (`"Grasp …"` / `"Pick it up"`): arm joints freeze at their current state, but the **gripper joint keeps its last commanded action value** — this maintains the closing force on the orange (action ≠ state here because the gripper is still being driven closed).
+- **All other phases** (PLACE, HOME, RECOVERY): `action = observation.state`, commanding "stay exactly here" with no net movement.
 
 ---
 
 ## Phase 1 — Baseline fine-tuning on public dataset
 
-- Fine-tuned SmolVLA on a public HuggingFace dataset: 60 episodes, each a full 3-orange pick-and-place sequence.
-- **Success rate ~30%**, comparable to ACT trained on the same data.
-- Takeaway: scaling to a VLA without exploiting language conditioning yields no meaningful gain over ACT. The monolithic full-task framing leaves the language-conditioning capability unused.
+- **Dataset:** `LightwheelAI/leisaac-pick-orange-mimic-v0` — 60 episodes, each a full 3-orange pick-and-place sequence (monolithic, no subtask structure).
+- **Models trained:**
+  - SmolVLA → `MasterProject2026/pick-orange-mimic`
+  - ACT → `MasterProject2026/ACT-pick-orange`
+- **Measured success rates (100-episode eval, full task):**
+  - ACT: **26/100 (26%)**
+  - SmolVLA (checkpoint 035000): **20/100 (20%)**; (checkpoint 040000): **28/100 (28%)**
+- **Training hyperparameters:**
+  - SmolVLA: batch_size=32, steps=40000, chunk_size=20, n_action_steps=20
+  - ACT: batch_size=8, steps=100000
+- **Takeaway:** Near-identical performance between ACT and SmolVLA suggests the VLA's language-conditioning capability is not being exploited under a monolithic full-task framing. Scaling the policy class alone yields no gain.
 
 ---
 
 ## Phase 2 — Subtask decomposition on public dataset
 
-- **Motivation:** A VLA's value is language conditioning. Decompose into subtasks ("grasp orange", "place in plate") so a higher-level orchestrator can sequence and interrupt on failure. Key failure mode: *phantom grasp* — gripper closes on air, then proceeds to place as if holding an orange.
+- **Motivation:** Decompose into language-specified subtasks so a higher-level orchestrator can sequence them and interrupt on failure. Key failure mode: *phantom grasp* — gripper closes on air, then proceeds to PLACE as if holding an orange.
 - **Method:** Re-sliced 60 episodes → ~600 subtask episodes. Retrained SmolVLA.
-- **Result:** No clear improvement (qualitative only — no formal success rate measured). Subtask mode is significantly slower per rollout, making evaluation expensive.
-- **Diagnosed limitation:** Public dataset always picks oranges in the same order → no signal tying a language instruction to a specific orange → policy cannot be conditioned to target a particular orange. This is a prerequisite for the orchestrator vision in Phase 5.
+- **Result:** No clear qualitative improvement. No formal success rate measured — subtask mode is significantly slower per rollout, making large-scale eval expensive for what appeared by eye to be no real gain.
+- **Diagnosed limitation:** The public dataset always picks oranges in the **same order** → no signal tying a language instruction to a specific orange. The policy cannot be conditioned to target a particular orange, which is a prerequisite for the orchestrator-driven recovery envisioned later.
 
 ---
 
 ## Phase 3 — Custom teleoperated dataset
 
-- **Motivation:** Need a dataset that supports (1) targeted-grasp conditioning by relative position, (2) subtask-level episodes from the start, (3) diverse pick orders.
-- **Teleoperation pipeline:** Built from scratch — Xbox controller → SO-101 in Isaac kitchen. Substantial engineering deliverable in its own right.
-- **Dataset design:**
-  - Each episode = one subtask (not full task). Advantages: easy to exclude failed teleoperation attempts; easy to annotate with relative-position instructions ("grasp the left orange", "grasp the middle orange", "grasp the right orange").
-  - Pick order randomized across episodes → breaks spurious order correlation from public dataset.
-- **Final size:** 921 subtask episodes.
-- **Result:** SmolVLA fine-tuned on this dataset follows relative-position instructions and can target a specific orange. However, robustness is limited: in unseen configurations where it fails, retrying the same orange does not generally succeed (out-of-distribution, not noise). Redirecting to a different orange typically works. No formal success rate measured.
+- **Motivation:** Build a dataset that explicitly supports (1) targeted-grasp conditioning by relative position, (2) subtask-level episodes from the start, (3) diverse pick orders.
+
+### Teleoperation pipeline
+- Built from scratch: Xbox controller → SO-101 arm in Isaac kitchen scene.
+- Implementation: `leisaac-mods/so101_gamepad_v3.py` (v3 is current; v2 superseded). Roll-lock toggle: press **X** on the controller.
+- Substantial engineering deliverable in its own right.
+
+### Dataset design
+- Each episode = **one subtask** (not full task).
+  - Advantages: easy to exclude failed teleop attempts; easy to annotate with relative-position instructions.
+  - Instructions: `"Grasp left orange"`, `"Grasp middle orange"`, `"Grasp right orange"`, `"Place it into plate"`, `"Go back to start position"`.
+- Pick order randomized across episodes → breaks spurious order correlation from public dataset.
+- Trailing frozen frames fixed with `dataset-editor/tailer.py` before training.
+- **"tailed"** in the model name = dataset processed with `tailer.py`; **"CH20"** = chunk_size / n_action_steps = 20.
+- **Final size: 921 subtask episodes.**
+
+### Model
+- `MasterProject2026/Gal-pick-orange-tailedCH20`
+
+### Result
+- SmolVLA fine-tuned on this dataset follows relative-position instructions and can target a specific orange.
+- **Full-task standalone eval (no orchestrator): 0–1/100** — expected, because this is a subtask model not designed to run monolithically.
+- With orchestrator: qualitative improvement observed; robustness still limited in OOD configurations. Retrying the same orange in a failed configuration rarely helps (out-of-distribution, not noise). Redirecting to a different orange typically works.
+- No formal orchestrated success rate measured at this stage.
 
 ---
 
 ## Phase 4 — Orchestrator and success detection (current state)
 
-- **Implementation:** Algorithmic orchestrator reading **privileged Isaac state** (not a VLM). Detects gripper occupancy after grasp and orange-in-plate after placement. Can later be swapped for a VLM, but privileged state avoids perception noise at this stage.
+- **Implementation:** Algorithmic orchestrator reading **privileged Isaac state** — not a VLM. Detects: gripper occupancy post-grasp (force vectors), orange-in-plate post-placement (position check). Can later be replaced by a VLM, but privileged state avoids introducing perception noise at this stage.
+- **Key code:** `isaac-inference/eval_utils.py` (SubtaskTracker, EvaluationTracker, HomeChecker) + `inference_autonomous_orders.py` (OrderController class).
 - **Capabilities:**
-  1. **Phantom-grasp detection:** prevents proceeding to placement if gripper is empty after a grasp attempt.
-  2. **Targeted redirection:** if a specific orange is repeatedly ungraspable, re-issue instruction pointing to a different orange.
-- **Important framing:** Redirecting to a *different* orange is **not recovery** of the original goal. It is (a) a way to avoid getting stuck and improve task completion, and (b) a mechanism for diverse autonomous data collection (Phase 5).
+  1. **Phantom-grasp detection:** prevents advancing to LIFT/PLACE if gripper is empty after GRASP.
+  2. **Targeted redirection:** if a specific orange is repeatedly ungraspable (GRASP timeout), re-issue instruction targeting a different orange.
+- **Important framing:** Redirecting to a *different* orange is **not recovery** of the original goal. It is (a) a mechanism to avoid getting stuck and improve overall task completion rate, and (b) a key enabler for diverse autonomous data collection in Phase 5.
 
 ---
 
 ## Phase 5 — Autonomous data generation (next step)
 
-- **Motivation:** Manual teleoperation is the bottleneck on dataset size and diversity. Current model + orchestrator can run fully autonomous rollouts, including in unseen configurations.
-- **Pipeline:** Fully autonomous. Orchestrator labels each subtask attempt as success/failure via Isaac privileged state. Only successful subtask trajectories are stored.
-- **Why redirection matters here:** Without targeted-grasp control, an ungraspable orange forces an episode reset (wasted configuration). With redirection, the system pivots to a different orange in the same scene and continues collecting — improving data yield from otherwise-wasted configurations.
-- **Goal:** Use auto-generated data to retrain SmolVLA for better generalization to out-of-distribution configurations, without further manual annotation.
+- **Motivation:** Manual teleoperation is the bottleneck on dataset size and diversity. The current targeted-grasp model + orchestrator can run fully autonomous rollouts.
+- **Recording target:** `MasterProject2026/Gal-auto-subtasks2` (configured in `inference_autonomous_orders.py` as `RECORD_DATASET_NAME`).
+- **Pipeline:** Fully autonomous. Isaac privileged state labels each subtask attempt as success/failure. Only **successful** subtask trajectories are stored (`dataset_recorder.py` → commit on success, discard on failure).
+- **Crash safety:** `checkpoint.json` tracks total committed recordings; parquet writer is closed after every commit so a hard crash leaves valid data.
+- **Why redirection matters here:** Without targeted-grasp control, an ungraspable orange forces a full episode reset (wasted configuration). With redirection, the system pivots to a different orange in the same scene — extracting useful successful subtask data from configurations that would otherwise be discarded.
+- **Goal:** Use auto-generated data to retrain SmolVLA for better generalization to OOD configurations, without further manual annotation.
 
 ---
 
 ## Deliverables to Date
 
-1. Xbox-controller teleoperation pipeline for SO-101 in Isaac, with subtask segmentation and relative-position annotation.
-2. 921-episode subtask-level dataset with relative-position language annotations and randomized pick orders.
-3. SmolVLA fine-tuned on this dataset that follows relative-position instructions.
-4. Algorithmic orchestrator (Isaac privileged state) that sequences subtasks, detects phantom grasps, and redirects targeting.
-5. Fully autonomous data-generation pipeline that filters for successful subtasks.
+1. Xbox-controller teleoperation pipeline for SO-101 in Isaac (`leisaac-mods/so101_gamepad_v3.py`), with subtask segmentation and relative-position annotation.
+2. 921-episode subtask-level dataset (`MasterProject2026/Gal-pick-orange-tailedCH20` training data) with relative-position language annotations and randomized pick orders.
+3. SmolVLA fine-tuned to follow relative-position instructions (`MasterProject2026/Gal-pick-orange-tailedCH20`).
+4. Algorithmic orchestrator (Isaac privileged state) that sequences subtasks, detects phantom grasps, and redirects targeting (`isaac-inference/inference_autonomous_orders.py` + `eval_utils.py`).
+5. Fully autonomous data-generation pipeline that filters for successful subtasks (`isaac-inference/dataset_recorder.py`).
