@@ -48,8 +48,8 @@ JOINT_NAMES = [
 ]
 
 DATASET_FEATURES = {
-    "observation.images.front": {"dtype": "video", "shape": (480, 640, 3), "names": None},
-    "observation.images.wrist": {"dtype": "video", "shape": (480, 640, 3), "names": None},
+    "observation.images.front": {"dtype": "video", "shape": (480, 640, 3), "names": ["height", "width", "channels"]},
+    "observation.images.wrist": {"dtype": "video", "shape": (480, 640, 3), "names": ["height", "width", "channels"]},
     "observation.state": {"dtype": "float32", "shape": (6,), "names": JOINT_NAMES},
     "action":            {"dtype": "float32", "shape": (6,), "names": JOINT_NAMES},
 }
