@@ -30,12 +30,13 @@ Set RECORD_OVERWRITE=True to explicitly wipe and start fresh.
 """
 
 import datetime
+import contextlib
 import json
 import shutil
 from pathlib import Path
 
 import numpy as np
-from lerobot.datasets.lerobot_dataset import LeRobotDataset
+from lerobot.datasets.lerobot_dataset import CODEBASE_VERSION, LeRobotDataset
 
 
 JOINT_NAMES = [
@@ -293,9 +294,11 @@ class SubtaskRecorder:
     def push_to_hub(self):
         """Push the completed dataset to HuggingFace Hub."""
         from huggingface_hub import HfApi
+        from huggingface_hub.errors import RevisionNotFoundError
         self.close_writers()
         self._validate_metadata_before_upload()
-        HfApi().upload_large_folder(
+        hub_api = HfApi()
+        hub_api.upload_large_folder(
             repo_id=self._dataset.repo_id,
             repo_type="dataset",
             folder_path=self._dataset.root,
@@ -307,7 +310,13 @@ class SubtaskRecorder:
                 "**/*.tmp",
             ],
         )
-        print(f"  📤 Dataset pushed to Hub: {self._dataset.repo_id}")
+        # LeRobot loads datasets from the codebase-version tag by default
+        # (for this install, v3.0). Keep that tag aligned with the uploaded
+        # default branch so training does not read an old snapshot.
+        with contextlib.suppress(RevisionNotFoundError):
+            hub_api.delete_tag(self._dataset.repo_id, tag=CODEBASE_VERSION, repo_type="dataset")
+        hub_api.create_tag(self._dataset.repo_id, tag=CODEBASE_VERSION, revision="main", repo_type="dataset")
+        print(f"  📤 Dataset pushed to Hub: {self._dataset.repo_id} ({CODEBASE_VERSION} -> main)")
 
     # ------------------------------------------------------------------
     # Internal
