@@ -80,6 +80,7 @@ class SubtaskRecorder:
         self._buffer: list[dict] = []
         self._active = False
         self._freeze_frames = freeze_frames
+        self._closed = False
 
     # ------------------------------------------------------------------
     # Construction
@@ -180,12 +181,14 @@ class SubtaskRecorder:
 
     def start(self):
         """Arm the recorder for a new subtask. Any previous unfinished buffer is dropped."""
+        if self._closed:
+            return
         self._buffer = []
         self._active = True
 
     def record(self, frame: dict):
         """Buffer one frame. No-op if not armed."""
-        if self._active:
+        if self._active and not self._closed:
             self._buffer.append({
                 k: v.astype(np.float32) if isinstance(v, np.ndarray) and np.issubdtype(v.dtype, np.floating) and v.dtype != np.float32 else v
                 for k, v in frame.items()
@@ -209,6 +212,10 @@ class SubtaskRecorder:
           - metadata      : flushed to the open meta writer (closed on close_writers())
           - checkpoint.json: written atomically with the updated count
         """
+        if self._closed:
+            self._active = False
+            self._buffer = []
+            return
         if not self._active or not self._buffer:
             self._active = False
             self._buffer = []
@@ -277,13 +284,16 @@ class SubtaskRecorder:
         data and metadata parquets are readable even after Ctrl+C or a
         crash that reaches the finally block (i.e. any non-SIGKILL exit).
         """
+        if self._closed:
+            return
         self.discard()
         self._dataset.finalize()
+        self._closed = True
 
     def push_to_hub(self):
         """Push the completed dataset to HuggingFace Hub."""
         from huggingface_hub import HfApi
-        self._dataset.finalize()
+        self.close_writers()
         HfApi().upload_large_folder(
             repo_id=self._dataset.repo_id,
             repo_type="dataset",

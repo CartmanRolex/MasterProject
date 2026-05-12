@@ -8,8 +8,9 @@ Provides:
   - SubtaskTracker                          : fine-grained phase tracker (multi-object pick-and-place)
 """
 
-import sys
 import datetime
+import json
+import sys
 from pathlib import Path
 
 # Always write results next to this file, regardless of working directory.
@@ -200,8 +201,12 @@ class EvaluationTracker:
     # select_action calls below this threshold are queue-replay pops, not real model inference.
     INFER_THRESHOLD_MS = 5.0
 
-    def __init__(self, n_episodes):
+    def __init__(self, n_episodes, model_id=None, checkpoint_path=None, resume=True):
         self.n_episodes = n_episodes
+        self.model_id = model_id
+        self.checkpoint_path = Path(checkpoint_path) if checkpoint_path else self._default_checkpoint_path(model_id)
+        self.summary_path = self._default_summary_path(model_id) if self.checkpoint_path else None
+        self.episode_records = []
         self.successes = 0
         self.total_oranges_placed = []
         self.successful_episode_steps = []
@@ -210,8 +215,133 @@ class EvaluationTracker:
         self._infer_times = []   # only real inference calls (above INFER_THRESHOLD_MS)
         self._step_times = []
 
-        # Progress bar advances once per episode
-        self._pbar = tqdm(total=n_episodes, desc="Episodes", unit="ep")
+        if resume and self.checkpoint_path:
+            self._load_checkpoint()
+
+        # Progress bar advances once per completed episode.
+        self._pbar = tqdm(
+            total=n_episodes,
+            initial=min(len(self.episode_records), n_episodes),
+            desc="Episodes",
+            unit="ep",
+        )
+
+    @staticmethod
+    def _short_model_name(model_id):
+        return model_id.rstrip("/").split("/")[-1] if model_id else None
+
+    @classmethod
+    def _default_checkpoint_path(cls, model_id):
+        short_model_name = cls._short_model_name(model_id)
+        if not short_model_name:
+            return None
+        return _RESULTS_DIR / f"eval_{short_model_name}_checkpoint.json"
+
+    @classmethod
+    def _default_summary_path(cls, model_id):
+        short_model_name = cls._short_model_name(model_id)
+        if not short_model_name:
+            return None
+        return _RESULTS_DIR / f"eval_{short_model_name}_latest.txt"
+
+    @property
+    def next_episode_index(self):
+        """Return the next unfinished episode index for resume-aware loops."""
+        if not self.episode_records:
+            return 0
+        return max(record["episode"] for record in self.episode_records) + 1
+
+    def _load_checkpoint(self):
+        if not self.checkpoint_path.exists():
+            return
+
+        try:
+            with open(self.checkpoint_path) as f:
+                checkpoint = json.load(f)
+        except Exception as exc:
+            tqdm.write(f"  ⚠ Could not read evaluation checkpoint {self.checkpoint_path}: {exc}")
+            return
+
+        checkpoint_model = checkpoint.get("model_id")
+        if checkpoint_model and self.model_id and checkpoint_model != self.model_id:
+            tqdm.write(
+                f"  ⚠ Ignoring evaluation checkpoint for {checkpoint_model}; "
+                f"current model is {self.model_id}"
+            )
+            return
+
+        records = checkpoint.get("episodes", [])
+        self.episode_records = sorted(
+            (record for record in records if isinstance(record.get("episode"), int)),
+            key=lambda record: record["episode"],
+        )
+        self._recompute_from_records()
+        if self.episode_records:
+            tqdm.write(
+                f"  ▶ Resuming evaluation metrics: {len(self.episode_records)} "
+                f"completed run(s) loaded from {self.checkpoint_path}"
+            )
+
+    def _recompute_from_records(self):
+        self.total_oranges_placed = [record["oranges_in_plate"] for record in self.episode_records]
+        self.successes = sum(1 for record in self.episode_records if record["is_terminated"])
+        self.successful_episode_steps = [
+            record["step_count"] for record in self.episode_records if record["is_terminated"]
+        ]
+
+    def _summary_text(self, model_id):
+        n_eval       = len(self.total_oranges_placed)
+        pct          = lambda n: (n / n_eval * 100) if n_eval else 0
+        count_3      = self.total_oranges_placed.count(3)
+        count_2      = self.total_oranges_placed.count(2)
+        count_1      = self.total_oranges_placed.count(1)
+        count_0      = self.total_oranges_placed.count(0)
+        mean_steps   = (sum(self.successful_episode_steps) / len(self.successful_episode_steps)) if self.successful_episode_steps else float("nan")
+        success_rate = (self.successes / n_eval * 100) if n_eval else 0
+        avg_oranges  = sum(self.total_oranges_placed) / n_eval if n_eval else 0
+        header       = "EVALUATION COMPLETE" if n_eval == self.n_episodes else f"EVALUATION SUMMARY (stopped after {n_eval}/{self.n_episodes} runs)"
+
+        return (
+            f"\n========================================\n"
+            f"{header}\n"
+            f"Model ID:             {model_id}\n"
+            f"Success Rate:         {self.successes}/{n_eval} ({success_rate:.2f}%)\n"
+            f"Avg oranges in plate: {avg_oranges:.2f}/3\n"
+            f"Mean steps (success): {mean_steps:.1f}\n"
+            f"3/3 oranges:          {count_3}/{n_eval} ({pct(count_3):.1f}%)\n"
+            f"2/3 oranges:          {count_2}/{n_eval} ({pct(count_2):.1f}%)\n"
+            f"1/3 oranges:          {count_1}/{n_eval} ({pct(count_1):.1f}%)\n"
+            f"0/3 oranges:          {count_0}/{n_eval} ({pct(count_0):.1f}%)\n"
+            f"Per-episode oranges:  {self.total_oranges_placed}\n"
+            f"========================================\n"
+        )
+
+    def save_checkpoint(self):
+        """Atomically save completed episode metrics so crashes only lose the active run."""
+        if not self.checkpoint_path:
+            return
+
+        _RESULTS_DIR.mkdir(exist_ok=True)
+        checkpoint = {
+            "model_id": self.model_id,
+            "target_n_episodes": self.n_episodes,
+            "completed_episodes": len(self.episode_records),
+            "last_update": datetime.datetime.now().isoformat(timespec="seconds"),
+            "episodes": self.episode_records,
+        }
+        tmp = self.checkpoint_path.with_suffix(self.checkpoint_path.suffix + ".tmp")
+        with open(tmp, "w") as f:
+            json.dump(checkpoint, f, indent=2)
+        tmp.replace(self.checkpoint_path)
+
+    def write_partial_summary(self, model_id=None):
+        if not self.summary_path:
+            return
+        _RESULTS_DIR.mkdir(exist_ok=True)
+        tmp = self.summary_path.with_suffix(self.summary_path.suffix + ".tmp")
+        with open(tmp, "w") as f:
+            f.write(self._summary_text(model_id or self.model_id))
+        tmp.replace(self.summary_path)
 
     def start_episode(self, episode):
         """Reset per-episode timing buffers."""
@@ -236,15 +366,26 @@ class EvaluationTracker:
 
     def end_episode(self, episode, step_count, is_terminated, oranges_in_plate):
         """Record episode result, print a summary line, and advance the progress bar."""
-        self.total_oranges_placed.append(oranges_in_plate)
-        if is_terminated:
-            self.successes += 1
-            self.successful_episode_steps.append(step_count)
-
         n_infer_calls  = len(self._infer_times)
         last_infer     = self._infer_times[-1] if self._infer_times else float("nan")
         avg_step       = (sum(self._step_times) / len(self._step_times)) if self._step_times else float("nan")
         outcome        = "TERMINATED" if is_terminated else "TRUNCATED"
+        was_new_episode = all(record["episode"] != episode for record in self.episode_records)
+
+        record = {
+            "episode": episode,
+            "step_count": step_count,
+            "is_terminated": bool(is_terminated),
+            "oranges_in_plate": int(oranges_in_plate),
+            "n_infer_calls": n_infer_calls,
+            "last_infer_ms": last_infer,
+            "avg_step_ms": avg_step,
+            "ended_at": datetime.datetime.now().isoformat(timespec="seconds"),
+        }
+        self.episode_records = [r for r in self.episode_records if r["episode"] != episode]
+        self.episode_records.append(record)
+        self.episode_records.sort(key=lambda r: r["episode"])
+        self._recompute_from_records()
 
         tqdm.write(
             f"  Episode {episode:>3d} | {outcome:<10s} | "
@@ -253,37 +394,15 @@ class EvaluationTracker:
             f"Infer: {n_infer_calls} real calls, last {last_infer:.0f} ms | "
             f"Avg step: {avg_step:>6.1f} ms"
         )
-        self._pbar.update(1)
+        if was_new_episode:
+            self._pbar.update(1)
+        self.save_checkpoint()
+        self.write_partial_summary()
 
     def print_final_summary(self, model_id):
         """Print and save the evaluation summary to results/."""
         self._pbar.close()
-
-        n_eval       = len(self.total_oranges_placed)
-        pct          = lambda n: (n / n_eval * 100) if n_eval else 0
-        count_3      = self.total_oranges_placed.count(3)
-        count_2      = self.total_oranges_placed.count(2)
-        count_1      = self.total_oranges_placed.count(1)
-        count_0      = self.total_oranges_placed.count(0)
-        mean_steps   = (sum(self.successful_episode_steps) / len(self.successful_episode_steps)) if self.successful_episode_steps else float("nan")
-        success_rate = (self.successes / n_eval * 100) if n_eval else 0
-        avg_oranges  = sum(self.total_oranges_placed) / n_eval if n_eval else 0
-        header       = "EVALUATION COMPLETE" if n_eval == self.n_episodes else f"EVALUATION SUMMARY (stopped after {n_eval}/{self.n_episodes} runs)"
-
-        summary_text = (
-            f"\n========================================\n"
-            f"{header}\n"
-            f"Model ID:             {model_id}\n"
-            f"Success Rate:         {self.successes}/{n_eval} ({success_rate:.2f}%)\n"
-            f"Avg oranges in plate: {avg_oranges:.2f}/3\n"
-            f"Mean steps (success): {mean_steps:.1f}\n"
-            f"3/3 oranges:          {count_3}/{n_eval} ({pct(count_3):.1f}%)\n"
-            f"2/3 oranges:          {count_2}/{n_eval} ({pct(count_2):.1f}%)\n"
-            f"1/3 oranges:          {count_1}/{n_eval} ({pct(count_1):.1f}%)\n"
-            f"0/3 oranges:          {count_0}/{n_eval} ({pct(count_0):.1f}%)\n"
-            f"Per-episode oranges:  {self.total_oranges_placed}\n"
-            f"========================================\n"
-        )
+        summary_text = self._summary_text(model_id)
         print(summary_text)
 
         _RESULTS_DIR.mkdir(exist_ok=True)

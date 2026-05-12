@@ -1,7 +1,6 @@
 import logging
 import random
 import signal
-import sys
 import threading
 import time
 from typing import Optional
@@ -48,6 +47,10 @@ RECORD_RESUME       = True   # True: append to existing dataset  |  False: start
 RECORD_OVERWRITE    = False  # True: delete existing dataset and start fresh (DESTRUCTIVE — set intentionally)
 RECORD_DATASET_NAME = "Gal-auto-subtasks2"   # repo → MasterProject2026/<name>, local → synthetic_datasets/<name>/
 FREEZE_FRAMES       = 20     # freeze frames appended at the end of each subtask recording
+
+# --- Evaluation metrics ---
+EVAL_RESUME          = True   # True: resume completed-run metrics from results/eval_<model>_checkpoint.json
+EVAL_CHECKPOINT_PATH = None   # None: use model-specific default in results/
 
 TIMEOUT_STEPS = {
     "GRASP": 700,
@@ -371,7 +374,12 @@ preprocess, postprocess = make_pre_post_processors(
 # ==========================================
 # 3. Evaluation Loop
 # ==========================================
-tracker = EvaluationTracker(n_inference_runs)
+tracker = EvaluationTracker(
+    n_inference_runs,
+    model_id=model_id,
+    checkpoint_path=EVAL_CHECKPOINT_PATH,
+    resume=EVAL_RESUME,
+)
 sub_tracker = SubtaskTracker(block=False)
 controller = OrderController(sub_tracker.orange_names)
 home_checker     = HomeChecker()
@@ -388,18 +396,17 @@ if RECORD_ENABLED:
     )
 
 # Install our SIGINT/SIGTERM handler AFTER Isaac Sim has loaded, so it overrides
-# Isaac Sim's C++ handler. Isaac Sim may call os._exit() on Ctrl+C which bypasses
-# Python's finally block entirely — this handler ensures the parquet writers are
-# always flushed before exit, preventing corrupted files.
+# Isaac Sim's C++ handler. The handler flushes the dataset and then raises
+# KeyboardInterrupt so the normal finally block still saves the evaluation summary.
 _writers_closed = False
 def _shutdown_handler(_sig, _frame):
     global _writers_closed
     if not _writers_closed:
         _writers_closed = True
-        print("\n⚠️  Interrupted — flushing dataset to disk before exit...")
+        print("\n⚠️  Interrupted — flushing dataset to disk before shutdown...")
         if recorder:
             recorder.close_writers()
-    sys.exit(0)
+    raise KeyboardInterrupt
 
 signal.signal(signal.SIGINT,  _shutdown_handler)
 signal.signal(signal.SIGTERM, _shutdown_handler)
@@ -414,18 +421,22 @@ except ImportError:
     pass
 
 _recorded_so_far = recorder._dataset.meta.total_episodes if recorder else 0
+_completed_so_far = len(tracker.episode_records)
 print(f"""
 {'━' * 52}
   AUTONOMOUS EVALUATION
   Model:                {model_id}
   Inference runs:       {n_inference_runs}
+  Completed runs:       {_completed_so_far} already tracked
   Recording:            {'enabled' if recorder else 'disabled'}
   Subtask recordings:   {_recorded_so_far} already saved
 {'━' * 52}
 """)
 
+upload_after_shutdown = False
+
 try:
-    for run_idx in range(n_inference_runs):
+    for run_idx in range(tracker.next_episode_index, n_inference_runs):
         print(f"\n{'─' * 52}")
         print(f"  Inference run {run_idx + 1} / {n_inference_runs}")
         print(f"{'─' * 52}")
@@ -626,6 +637,8 @@ try:
         if reset_controller.stop_requested:
             break
 
+    upload_after_shutdown = True
+
 except KeyboardInterrupt:
     print("\nInterrupted — saving evaluation summary and closing writers.")
 except Exception as exc:
@@ -634,8 +647,8 @@ except Exception as exc:
     traceback.print_exc()
 finally:
     # Always print and save the evaluation summary, regardless of how the script exits.
-    # (finally runs for normal completion, KeyboardInterrupt, Exception, and sys.exit()
-    # from the SIGINT handler — only os._exit()/SIGKILL can bypass this.)
+    # (finally runs for normal completion, KeyboardInterrupt, and Python exceptions;
+    # only os._exit()/SIGKILL can bypass this.)
     tracker.print_final_summary(model_id)
     # Always close parquet writers so every file gets a valid footer,
     # regardless of how the script exits (Ctrl+C, crash, or clean finish).
@@ -646,6 +659,6 @@ finally:
 
 # Push outside the Isaac Sim try/finally so Hub upload errors are visible
 # and Isaac Sim shutdown logs don't bury them.
-if recorder and RECORD_ENABLED:
+if recorder and RECORD_ENABLED and upload_after_shutdown:
     print("\n📤 Pushing dataset to HuggingFace Hub (this may take a few minutes for video data)...")
     recorder.push_to_hub()
