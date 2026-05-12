@@ -294,11 +294,18 @@ class SubtaskRecorder:
         """Push the completed dataset to HuggingFace Hub."""
         from huggingface_hub import HfApi
         self.close_writers()
+        self._validate_metadata_before_upload()
         HfApi().upload_large_folder(
             repo_id=self._dataset.repo_id,
             repo_type="dataset",
             folder_path=self._dataset.root,
-            ignore_patterns=["checkpoint.json"],
+            ignore_patterns=[
+                "checkpoint.json",
+                "checkpoint.json.tmp",
+                "meta/episodes.bak/**",
+                "meta/**/*.bak/**",
+                "**/*.tmp",
+            ],
         )
         print(f"  📤 Dataset pushed to Hub: {self._dataset.repo_id}")
 
@@ -317,3 +324,45 @@ class SubtaskRecorder:
         with open(tmp, "w") as f:
             json.dump(data, f)
         tmp.rename(root / "checkpoint.json")
+
+    def _validate_metadata_before_upload(self):
+        """Check active episode metadata counts before publishing the dataset."""
+        import pyarrow.parquet as pq
+
+        root = Path(self._dataset.root)
+        info_file = root / "meta" / "info.json"
+        episodes_dir = root / "meta" / "episodes"
+        checkpoint_file = root / "checkpoint.json"
+
+        with open(info_file) as f:
+            total_episodes = json.load(f)["total_episodes"]
+
+        episode_files = sorted(episodes_dir.glob("chunk-*/*.parquet"))
+        metadata_rows = sum(pq.ParquetFile(path).metadata.num_rows for path in episode_files)
+
+        mismatches = []
+        if metadata_rows != total_episodes:
+            mismatches.append(
+                f"active episode metadata rows={metadata_rows}, info.json total_episodes={total_episodes}"
+            )
+
+        if checkpoint_file.exists():
+            with open(checkpoint_file) as f:
+                checkpoint_total = json.load(f).get("total_subtask_recordings")
+            if checkpoint_total != total_episodes:
+                mismatches.append(
+                    f"checkpoint total_subtask_recordings={checkpoint_total}, info.json total_episodes={total_episodes}"
+                )
+
+        if mismatches:
+            raise RuntimeError(
+                "Dataset metadata validation failed before upload:\n  - "
+                + "\n  - ".join(mismatches)
+            )
+
+        backup_dirs = sorted(path for path in (root / "meta").glob("*.bak") if path.is_dir())
+        if backup_dirs:
+            names = ", ".join(path.name for path in backup_dirs)
+            print(f"  ⚠ Ignoring backup metadata directories during upload: {names}")
+
+        print(f"  ✅ Dataset metadata validated: {total_episodes} active episode(s)")
