@@ -265,7 +265,8 @@ class OrderController:
         if self.target_name is None or self.target_name not in orange_positions or self.target_name in tracker.placed_oranges:
             if self.phase != "SELECT_TARGET":
                 self._set_phase("SELECT_TARGET")
-            self._select_target(tracker, orange_positions)
+            if step_count > 1:
+                self._select_target(tracker, orange_positions)
             return
 
         target_z = orange_positions[self.target_name][2].item()
@@ -493,7 +494,7 @@ try:
             if step_count == 1:
                 for name, pos in orange_positions.items():
                     sub_tracker.initial_orange_z[name] = pos[2].item()
-            if controller.phase == "SELECT_TARGET" and step_count > 0:
+            if controller.phase == "SELECT_TARGET" and step_count > 1:
                 if controller._needs_episode_reset:
                     # All oranges timed out. The RECOVERY already moved the robot home and
                     # was recorded — commit it now as "Go back to start position" and reset.
