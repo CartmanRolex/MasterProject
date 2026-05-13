@@ -106,6 +106,28 @@ At the end of every recorded subtask episode, **20 freeze frames** are appended 
 
 ---
 
+## Key VLA Behavioral Finding
+
+**VLA language conditioning is spatially context-dependent.**
+
+When the gripper is close to orange A (during or after a failed grasp attempt), issuing a language instruction targeting a different orange ("Grasp right orange") is ignored — the VLA remains focused on the nearby orange. Language-based target switching only works reliably when the arm is spatially far from all oranges (i.e., near the start/home configuration).
+
+This was discovered empirically: after a GRASP timeout, issuing a new target prompt without first moving the arm away consistently fails.
+
+**Implication for the "Go back to start position" mechanism:**
+
+The RECOVERY phase was introduced to serve two conflated purposes:
+1. Environment episode-end constraint — the sim requires the arm to return to start to close an episode cleanly.
+2. Language conditioning precondition — the arm must be in a spatially neutral state before a new target instruction will take effect.
+
+Both were patched with the same "Go back to start position" VLA prompt. This is unreliable because:
+- The VLA is being asked to execute a return-to-home from arbitrary, out-of-distribution arm configurations (post-failed-grasp poses it was never trained on).
+- 150 steps is often insufficient for the VLA to complete the movement reliably.
+
+**Planned fix:** Replace the VLA-controlled RECOVERY/HOME phases with a scripted joint-space controller that directly interpolates to the known home configuration. The VLA is only responsible for the 5 core manipulation subtasks (Grasp, Lift, Place). Spatial resets are handled deterministically by the orchestrator. This turns the patch into a principled design decision: before issuing any new target instruction, the orchestrator ensures the arm is in a state where language conditioning is reliable.
+
+---
+
 ## Phase 4 — Orchestrator and success detection (current state)
 
 - **Implementation:** Algorithmic orchestrator reading **privileged Isaac state** — not a VLM. Detects: gripper occupancy post-grasp (force vectors), orange-in-plate post-placement (position check). Can later be replaced by a VLM, but privileged state avoids introducing perception noise at this stage.
@@ -114,6 +136,28 @@ At the end of every recorded subtask episode, **20 freeze frames** are appended 
   1. **Phantom-grasp detection:** prevents advancing to LIFT/PLACE if gripper is empty after GRASP.
   2. **Targeted redirection:** if a specific orange is repeatedly ungraspable (GRASP timeout), re-issue instruction targeting a different orange.
 - **Important framing:** Redirecting to a *different* orange is **not recovery** of the original goal. It is (a) a mechanism to avoid getting stuck and improve overall task completion rate, and (b) a key enabler for diverse autonomous data collection in Phase 5.
+
+---
+
+## Eval Infrastructure Updates (May 2026)
+
+- `EvaluationTracker` now supports checkpoint/resume: results persist across interruptions in `results/eval_<model>_checkpoint.json`.
+- Per-subtask success rates are now tracked broken down by how many oranges are already placed at subtask start (e.g. GRASP with 0 placed vs 1 placed vs 2 placed).
+- Eval and data recording are controlled independently: `RECORD_ENABLED` flag. These should be run separately — eval first (recording off), then data collection (recording on).
+- Current dataset target: `Gal-auto-subtasks3`.
+
+### First partial eval results — `Gal-pick-orange-tailedCH20` (3 runs, May 2026)
+
+```
+Success Rate:         0/3 (0%)
+Avg oranges in plate: 0.67/3
+
+GRASP:  0 placed → 2/5  (40%)    1 placed → 0/4  (0%)
+LIFT:   2/2  (100%)
+PLACE:  2/2  (100%)
+```
+
+**Key takeaway:** LIFT and PLACE are essentially solved — once the robot has the orange, it places it reliably. The entire failure chain bottleneck is **GRASP, specifically the 2nd and 3rd oranges** (0% success when 1 orange is already placed). This is a distribution problem: the scene state with an orange already in the plate is underrepresented in the training data. Need to run full 100-episode eval to confirm.
 
 ---
 
