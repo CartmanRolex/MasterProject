@@ -31,18 +31,18 @@ from dataset_recorder import SubtaskRecorder
 # 1. Configuration & Setup
 # ==========================================
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model_id = "MasterProject2026/Gal-pick-orange-tailedCH20"
+model_id = "MasterProject2026/Gal-auto-subtasks2"
 
 # Number of full robot sessions to run.
 # One inference run = env reset → robot picks all oranges → done.
 # Each successful subtask within a run produces one subtask recording
 # in the dataset (what LeRobot calls an "episode").
-n_inference_runs = 1000
+n_inference_runs = 100
 
 max_steps = 5000
 
 # --- Dataset recording ---
-RECORD_ENABLED      = True
+RECORD_ENABLED      = False
 RECORD_RESUME       = True   # True: append to existing dataset  |  False: start fresh (needs RECORD_OVERWRITE)
 RECORD_OVERWRITE    = False  # True: delete existing dataset and start fresh (DESTRUCTIVE — set intentionally)
 RECORD_DATASET_NAME = "Gal-auto-subtasks2"   # repo → MasterProject2026/<name>, local → synthetic_datasets/<name>/
@@ -166,6 +166,15 @@ class OrderController:
 
     def _select_target(self, tracker: SubtaskTracker, orange_positions: dict):
         remaining = self._remaining_targets(tracker, orange_positions)
+
+        # Detect oranges already physically in the plate that were never officially confirmed
+        # (e.g. dropped during a failed PLACE phase whose recording was discarded).
+        for name in list(remaining):
+            if tracker._is_orange_in_plate(orange_positions[name]):
+                print(f"  ⚠️  {name} already in plate (unrecorded) — excluding from selection")
+                tracker.placed_oranges.add(name)
+        remaining = [n for n in remaining if n not in tracker.placed_oranges]
+
         if not remaining:
             self.target_name = None
             self.target_label = None
