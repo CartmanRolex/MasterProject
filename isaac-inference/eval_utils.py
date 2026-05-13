@@ -430,19 +430,12 @@ class EvaluationTracker:
         self.write_partial_summary()
 
     def print_final_summary(self, model_id):
-        """Print and save the evaluation summary to results/."""
+        """Print the evaluation summary and update results/_latest.txt."""
         self._pbar.close()
-        summary_text = self._summary_text(model_id)
-        print(summary_text)
-
-        _RESULTS_DIR.mkdir(exist_ok=True)
-        timestamp        = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        short_model_name = model_id.rstrip("/").split("/")[-1]
-        filename         = _RESULTS_DIR / f"eval_{short_model_name}_{timestamp}.txt"
-
-        with open(filename, "w") as f:
-            f.write(summary_text)
-        print(f"Summary saved to: {filename}\n")
+        print(self._summary_text(model_id))
+        self.write_partial_summary(model_id)
+        if self.summary_path:
+            print(f"Summary saved to: {self.summary_path}\n")
 
 
 # ============================================================

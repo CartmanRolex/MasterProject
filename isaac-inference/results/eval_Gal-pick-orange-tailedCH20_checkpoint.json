@@ -1,0 +1,56 @@
+{
+  "model_id": "MasterProject2026/Gal-pick-orange-tailedCH20",
+  "target_n_episodes": 100,
+  "completed_episodes": 3,
+  "last_update": "2026-05-13T14:20:05",
+  "episodes": [
+    {
+      "episode": 0,
+      "step_count": 2217,
+      "is_terminated": false,
+      "oranges_in_plate": 1,
+      "n_infer_calls": 1404,
+      "last_infer_ms": 13.252220000140369,
+      "avg_step_ms": 36.16920203390272,
+      "ended_at": "2026-05-13T14:15:18"
+    },
+    {
+      "episode": 1,
+      "step_count": 2552,
+      "is_terminated": false,
+      "oranges_in_plate": 0,
+      "n_infer_calls": 1706,
+      "last_infer_ms": 7.066644029691815,
+      "avg_step_ms": 36.36670068976926,
+      "ended_at": "2026-05-13T14:17:38"
+    },
+    {
+      "episode": 2,
+      "step_count": 2226,
+      "is_terminated": false,
+      "oranges_in_plate": 1,
+      "n_infer_calls": 1591,
+      "last_infer_ms": 5.300287040881813,
+      "avg_step_ms": 35.42653635020915,
+      "ended_at": "2026-05-13T14:20:05"
+    }
+  ],
+  "subtask_stats": {
+    "GRASP_0": {
+      "attempts": 5,
+      "successes": 2
+    },
+    "LIFT_0": {
+      "attempts": 2,
+      "successes": 2
+    },
+    "PLACE_0": {
+      "attempts": 2,
+      "successes": 2
+    },
+    "GRASP_1": {
+      "attempts": 4,
+      "successes": 0
+    }
+  }
+}
