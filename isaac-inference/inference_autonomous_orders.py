@@ -31,7 +31,7 @@ from dataset_recorder import SubtaskRecorder
 # 1. Configuration & Setup
 # ==========================================
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model_id = "MasterProject2026/Gal-auto-subtasks2"
+model_id = "MasterProject2026/Gal-pick-orange-tailedCH20"
 
 # Number of full robot sessions to run.
 # One inference run = env reset → robot picks all oranges → done.
@@ -41,11 +41,11 @@ n_inference_runs = 100
 
 max_steps = 5000
 
-# --- Dataset recording ---
-RECORD_ENABLED      = False
+# --- Dataset recording ---ss
+RECORD_ENABLED      = True
 RECORD_RESUME       = True   # True: append to existing dataset  |  False: start fresh (needs RECORD_OVERWRITE)
 RECORD_OVERWRITE    = False  # True: delete existing dataset and start fresh (DESTRUCTIVE — set intentionally)
-RECORD_DATASET_NAME = "Gal-auto-subtasks2"   # repo → MasterProject2026/<name>, local → synthetic_datasets/<name>/
+RECORD_DATASET_NAME = "Gal-auto-subtasks3"   # repo → MasterProject2026/<name>, local → synthetic_datasets/<name>/
 FREEZE_FRAMES       = 20     # freeze frames appended at the end of each subtask recording
 
 # --- Evaluation metrics ---
@@ -634,6 +634,16 @@ try:
 
                 if phase_before != phase_after and phase_after in ("GRASP", "LIFT", "PLACE", "HOME"):
                     recorder.start()
+
+            # --- Subtask success metrics ---
+            _np = len(sub_tracker.placed_oranges)
+            if phase_before == "GRASP" and phase_after != "GRASP":
+                tracker.record_subtask_result("GRASP", _np, success=(phase_after == "LIFT"))
+            elif phase_before == "LIFT" and phase_after != "LIFT":
+                tracker.record_subtask_result("LIFT", _np, success=(phase_after == "PLACE"))
+            elif phase_before == "PLACE" and phase_after != "PLACE":
+                _ok = target_before in sub_tracker.placed_oranges
+                tracker.record_subtask_result("PLACE", _np - 1 if _ok else _np, success=_ok)
 
             # --- Bookkeeping ---
             tracker.record_timing(infer_time_ms, step_time_ms)

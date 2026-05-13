@@ -215,6 +215,10 @@ class EvaluationTracker:
         self._infer_times = []   # only real inference calls (above INFER_THRESHOLD_MS)
         self._step_times = []
 
+        # Per-subtask attempt/success counts, keyed by "<SUBTASK>_<n_placed>"
+        # e.g. "GRASP_0", "LIFT_1", "PLACE_2"
+        self._subtask_stats: dict[str, dict[str, int]] = {}
+
         if resume and self.checkpoint_path:
             self._load_checkpoint()
 
@@ -276,6 +280,7 @@ class EvaluationTracker:
             key=lambda record: record["episode"],
         )
         self._recompute_from_records()
+        self._subtask_stats = checkpoint.get("subtask_stats", {})
         if self.episode_records:
             tqdm.write(
                 f"  ▶ Resuming evaluation metrics: {len(self.episode_records)} "
@@ -301,6 +306,20 @@ class EvaluationTracker:
         avg_oranges  = sum(self.total_oranges_placed) / n_eval if n_eval else 0
         header       = "EVALUATION COMPLETE" if n_eval == self.n_episodes else f"EVALUATION SUMMARY (stopped after {n_eval}/{self.n_episodes} runs)"
 
+        def fmt(subtask, n):
+            s   = self._subtask_stats.get(f"{subtask}_{n}", {})
+            att = s.get("attempts", 0)
+            suc = s.get("successes", 0)
+            p   = suc / att * 100 if att else float("nan")
+            return f"{n} placed: {suc:>3}/{att:<3} ({p:5.1f}%)"
+
+        subtask_lines = (
+            f"Per-subtask success rates (by oranges in plate at subtask start):\n"
+            f"  GRASP:  {fmt('GRASP',0)}   {fmt('GRASP',1)}   {fmt('GRASP',2)}\n"
+            f"  LIFT:   {fmt('LIFT', 0)}   {fmt('LIFT', 1)}   {fmt('LIFT', 2)}\n"
+            f"  PLACE:  {fmt('PLACE',0)}   {fmt('PLACE',1)}   {fmt('PLACE',2)}\n"
+        )
+
         return (
             f"\n========================================\n"
             f"{header}\n"
@@ -313,6 +332,7 @@ class EvaluationTracker:
             f"1/3 oranges:          {count_1}/{n_eval} ({pct(count_1):.1f}%)\n"
             f"0/3 oranges:          {count_0}/{n_eval} ({pct(count_0):.1f}%)\n"
             f"Per-episode oranges:  {self.total_oranges_placed}\n"
+            f"{subtask_lines}"
             f"========================================\n"
         )
 
@@ -328,6 +348,7 @@ class EvaluationTracker:
             "completed_episodes": len(self.episode_records),
             "last_update": datetime.datetime.now().isoformat(timespec="seconds"),
             "episodes": self.episode_records,
+            "subtask_stats": self._subtask_stats,
         }
         tmp = self.checkpoint_path.with_suffix(self.checkpoint_path.suffix + ".tmp")
         with open(tmp, "w") as f:
@@ -342,6 +363,15 @@ class EvaluationTracker:
         with open(tmp, "w") as f:
             f.write(self._summary_text(model_id or self.model_id))
         tmp.replace(self.summary_path)
+
+    def record_subtask_result(self, subtask: str, n_placed: int, success: bool):
+        """Record one subtask attempt and whether it succeeded."""
+        key = f"{subtask}_{n_placed}"
+        if key not in self._subtask_stats:
+            self._subtask_stats[key] = {"attempts": 0, "successes": 0}
+        self._subtask_stats[key]["attempts"] += 1
+        if success:
+            self._subtask_stats[key]["successes"] += 1
 
     def start_episode(self, episode):
         """Reset per-episode timing buffers."""
