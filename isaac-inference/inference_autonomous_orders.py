@@ -88,7 +88,7 @@ class DryRunRecorder:
         if self._armed:
             self._frame_count += 1
 
-    def commit(self, task: str = ""):
+    def commit(self, task: str = "", **_):
         if self._armed:
             print(f"  [dry-run] would record subtask \"{task}\" — "
                   f"{self._frame_count} frames + {self._freeze_frames} frozen frames")
@@ -501,7 +501,8 @@ try:
                     sub_tracker.reset_display()
                     print("\n🔄 All oranges tried — resetting episode.")
                     if recorder:
-                        recorder.commit("Go back to start position")
+                        recorder.commit("Go back to start position",
+                                       n_placed=len(sub_tracker.placed_oranges))
                     oranges_in_plate = count_oranges_in_plate(last_positions)
                     tracker.end_episode(run_idx, step_count, False, oranges_in_plate)
                     torch.cuda.empty_cache()
@@ -610,17 +611,21 @@ try:
             # --- Dataset recording: commit, discard, or arm for next phase ---
             if recorder:
                 if phase_before == "GRASP" and phase_after == "LIFT":
-                    recorder.commit(task=f"Grasp {controller.target_label} orange")
+                    recorder.commit(task=f"Grasp {controller.target_label} orange",
+                                   n_placed=len(sub_tracker.placed_oranges))
                 elif phase_before == "LIFT" and phase_after == "PLACE":
-                    recorder.commit(task="Pick it up")
+                    recorder.commit(task="Pick it up",
+                                   n_placed=len(sub_tracker.placed_oranges))
                 elif phase_before == "PLACE" and target_before in sub_tracker.placed_oranges:
                     # Commit whenever the tracked orange was successfully placed, regardless of
                     # what phase comes next. When more oranges remain, update_after_step() calls
                     # _select_target() inline and jumps straight to GRASP (skipping SELECT_TARGET),
                     # so checking phase_after in ("SELECT_TARGET", "HOME") misses those cases.
-                    recorder.commit(task="Place it into plate")
+                    recorder.commit(task="Place it into plate",
+                                   n_placed=len(sub_tracker.placed_oranges))
                 elif phase_before == "HOME" and not home_fired_before and home_checker._fired:
-                    recorder.commit(task="Go back to start position")
+                    recorder.commit(task="Go back to start position",
+                                   n_placed=len(sub_tracker.placed_oranges))
                 elif phase_before != "RECOVERY" and phase_after == "RECOVERY":
                     recorder.discard()
                 elif phase_before != "HOME_END" and phase_after == "HOME_END":

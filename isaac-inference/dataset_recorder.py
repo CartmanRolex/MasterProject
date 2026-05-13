@@ -82,6 +82,7 @@ class SubtaskRecorder:
         self._active = False
         self._freeze_frames = freeze_frames
         self._closed = False
+        self._metadata_path = Path(dataset.root) / "subtask_metadata.jsonl"
 
     # ------------------------------------------------------------------
     # Construction
@@ -204,7 +205,7 @@ class SubtaskRecorder:
     # Committing a subtask recording
     # ------------------------------------------------------------------
 
-    def commit(self, task: str):
+    def commit(self, task: str, n_placed: int | None = None):
         """
         Flush the buffer as a new subtask recording (LeRobot episode).
 
@@ -212,6 +213,7 @@ class SubtaskRecorder:
           - data parquet  : writer closed (valid footer) and rotated to a new file
           - metadata      : flushed to the open meta writer (closed on close_writers())
           - checkpoint.json: written atomically with the updated count
+          - subtask_metadata.jsonl: one line appended with task + n_placed tag
         """
         if self._closed:
             self._active = False
@@ -271,6 +273,7 @@ class SubtaskRecorder:
         self._buffer = []
         self._active = False
         total = self._dataset.meta.total_episodes
+        self._append_metadata(task, n_placed)
         print(f"  📼 Subtask recording saved: \"{task}\" ({n} frames) — total: {total}")
 
     # ------------------------------------------------------------------
@@ -321,6 +324,17 @@ class SubtaskRecorder:
     # ------------------------------------------------------------------
     # Internal
     # ------------------------------------------------------------------
+
+    def _append_metadata(self, task: str, n_placed: int | None):
+        """Append one line to subtask_metadata.jsonl with the episode tag."""
+        entry = {
+            "episode_index": self._dataset.meta.total_episodes - 1,
+            "task": task,
+            "n_placed": n_placed,
+            "timestamp": datetime.datetime.now().isoformat(timespec="seconds"),
+        }
+        with open(self._metadata_path, "a") as f:
+            f.write(json.dumps(entry) + "\n")
 
     def _write_checkpoint(self):
         """Atomically write checkpoint.json with the current subtask recording count."""
