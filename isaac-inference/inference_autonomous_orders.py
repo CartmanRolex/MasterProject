@@ -490,10 +490,10 @@ try:
 
             # --- Pre-step: select target + init orange heights (prompt must be ready before inference) ---
             *_, orange_positions = sub_tracker._get_env_data(env)
-            if step_count == 0:
+            if step_count == 1:
                 for name, pos in orange_positions.items():
                     sub_tracker.initial_orange_z[name] = pos[2].item()
-            if controller.phase == "SELECT_TARGET":
+            if controller.phase == "SELECT_TARGET" and step_count > 0:
                 if controller._needs_episode_reset:
                     # All oranges timed out. The RECOVERY already moved the robot home and
                     # was recorded — commit it now as "Go back to start position" and reset.
