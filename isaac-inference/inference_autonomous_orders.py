@@ -57,7 +57,13 @@ TIMEOUT_STEPS = {
     "LIFT":  400,
     "PLACE": 500,
 }
-SPATIAL_RESET_STEPS = 150
+SPATIAL_RESET_STEPS = 40          # total steps for a spatial reset (scripted: reach home in
+                                  # SPATIAL_RESET_INTERP_STEPS then hold; VLA: prompt-driven)
+
+# --- Scripted spatial reset ---
+SCRIPTED_SPATIAL_RESET     = True  # False → fall back to VLA "Go back to start position" prompt
+SPATIAL_RESET_INTERP_STEPS = 20    # steps to interpolate from failure pose to episode-start pose
+                                   # (= action chunk size); arm holds at home for remaining steps
 
 dataset_features = {
     "observation.images.front": {"dtype": "video", "shape": (3, 480, 640), "names": ["front"]},
@@ -121,12 +127,8 @@ def build_task_prompt(phase: str, label: Optional[str]) -> str:
         return "Place it into plate"
     if phase == "HOME":
         return "Go back to start position"
-    # TODO: Replace SPATIAL_RESET and ABORT_HOME VLA prompts with scripted joint-space
-    # interpolation. The VLA is unreliable from post-failure arm configurations and
-    # SPATIAL_RESET_STEPS is often insufficient. When implemented:
-    #   - Remove SPATIAL_RESET_STEPS and _spatial_reset_remaining (use interpolation completion)
-    #   - Remove HomeChecker (completion will be deterministic)
-    #   - Remove these two build_task_prompt() cases
+    # These prompts are only reached when SCRIPTED_SPATIAL_RESET = False.
+    # When scripted reset is active the VLA is bypassed entirely for these phases.
     if phase == "SPATIAL_RESET":
         return "Go back to start position"
     if phase == "ABORT_HOME":
@@ -493,6 +495,8 @@ try:
         step_count = 0
         last_model_prompt = None
         last_positions = save_positions(env)
+        episode_start_joint_pos   = None  # arm pose at episode start (LeIsaac radians); scripted reset target
+        spatial_reset_start_joint = None  # arm pose when SPATIAL_RESET/ABORT_HOME begins
 
         while not done:
             # --- Stop check ---
@@ -569,6 +573,18 @@ try:
             raw_front = policy_obs["front"][0].cpu().numpy()
             raw_wrist = policy_obs["wrist"][0].cpu().numpy()
 
+            # Save episode-start joint pose (scripted reset target). Deferred to step 1
+            # for the same reason as height init: step 0 buffers are stale post-reset.
+            if step_count == 1 and SCRIPTED_SPATIAL_RESET:
+                episode_start_joint_pos = policy_obs["joint_pos"][0].cpu().numpy()
+
+            # Snapshot arm pose on the first step of a scripted spatial reset so the
+            # interpolation always starts from the actual failure configuration.
+            if (SCRIPTED_SPATIAL_RESET
+                    and controller.phase in ("SPATIAL_RESET", "ABORT_HOME")
+                    and controller._spatial_reset_remaining == SPATIAL_RESET_STEPS):
+                spatial_reset_start_joint = policy_obs["joint_pos"][0].cpu().numpy()
+
             # --- Debug snapshot (step 50 of run 0 only) ---
             if run_idx == 0 and step_count == 50:
                 from pathlib import Path
@@ -583,27 +599,37 @@ try:
 
             joint_pos_converted = convert_leisaac_action_to_lerobot(policy_obs["joint_pos"].cpu().numpy())
 
-            obs_frame = build_inference_frame(
-                observation={"front": raw_front, "wrist": raw_wrist, "state": joint_pos_converted[0]},
-                ds_features=dataset_features,
-                device=device,
-                task=task_prompt,
-            )
-
-            # --- Inference ---
-            batch = preprocess(obs_frame)
-            t_infer_start = time.perf_counter()
-            with torch.inference_mode():
-                action_output = policy.select_action(batch)
-            infer_time_ms = (time.perf_counter() - t_infer_start) * 1000
-
-            # --- Action ---
-            action_dict = postprocess(action_output)
-            final_action = action_dict.get("action", action_dict) if isinstance(action_dict, dict) else action_dict
-            action_np = final_action.cpu().numpy()
-            if action_np.ndim == 1:
-                action_np = action_np[None, :]
-            step_action = torch.from_numpy(convert_lerobot_action_to_leisaac(action_np)).to(device)
+            # --- Inference (VLA) or scripted spatial reset ---
+            if (SCRIPTED_SPATIAL_RESET
+                    and controller.phase in ("SPATIAL_RESET", "ABORT_HOME")
+                    and episode_start_joint_pos is not None
+                    and spatial_reset_start_joint is not None):
+                # Linearly interpolate from the failure pose to the episode-start pose
+                # over SPATIAL_RESET_INTERP_STEPS steps, then hold at home.
+                steps_elapsed = SPATIAL_RESET_STEPS - controller._spatial_reset_remaining
+                t = min(steps_elapsed / SPATIAL_RESET_INTERP_STEPS, 1.0)
+                scripted_joint = (1.0 - t) * spatial_reset_start_joint + t * episode_start_joint_pos
+                step_action = torch.from_numpy(scripted_joint[None, :]).to(device)
+                action_np   = convert_leisaac_action_to_lerobot(scripted_joint[None, :])
+                infer_time_ms = 0.0
+            else:
+                obs_frame = build_inference_frame(
+                    observation={"front": raw_front, "wrist": raw_wrist, "state": joint_pos_converted[0]},
+                    ds_features=dataset_features,
+                    device=device,
+                    task=task_prompt,
+                )
+                batch = preprocess(obs_frame)
+                t_infer_start = time.perf_counter()
+                with torch.inference_mode():
+                    action_output = policy.select_action(batch)
+                infer_time_ms = (time.perf_counter() - t_infer_start) * 1000
+                action_dict = postprocess(action_output)
+                final_action = action_dict.get("action", action_dict) if isinstance(action_dict, dict) else action_dict
+                action_np = final_action.cpu().numpy()
+                if action_np.ndim == 1:
+                    action_np = action_np[None, :]
+                step_action = torch.from_numpy(convert_lerobot_action_to_leisaac(action_np)).to(device)
 
             # --- Record frame ---
             if recorder:
@@ -646,6 +672,13 @@ try:
             sub_tracker.draw_debug(gripper_tip, jaw_tip, orange_positions)
             controller.update_after_step(sub_tracker, orange_positions, step_count)
             phase_after = controller.phase
+
+            # After a scripted spatial reset, flush the VLA action queue so stale
+            # pre-reset actions don't replay on the first GRASP step.
+            if (SCRIPTED_SPATIAL_RESET
+                    and phase_before in ("SPATIAL_RESET", "ABORT_HOME")
+                    and phase_after == "SELECT_TARGET"):
+                policy.reset()
 
             # --- Dataset recording: commit, discard, or arm for next phase ---
             if recorder:
