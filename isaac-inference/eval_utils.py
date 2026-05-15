@@ -320,6 +320,18 @@ class EvaluationTracker:
             f"  PLACE:  {fmt('PLACE',0)}   {fmt('PLACE',1)}   {fmt('PLACE',2)}\n"
         )
 
+        total_retries     = sum(r.get("n_local_retries",    0) for r in self.episode_records)
+        total_redirections= sum(r.get("n_redirections",     0) for r in self.episode_records)
+        total_abandoned   = sum(r.get("n_oranges_abandoned",0) for r in self.episode_records)
+        eps_with_retry    = sum(1 for r in self.episode_records if r.get("n_local_retries",    0) > 0)
+        eps_with_redirect = sum(1 for r in self.episode_records if r.get("n_redirections",     0) > 0)
+        mechanism_lines = (
+            f"Mechanism usage (local retry = same orange after slip; redirection = new orange after timeout):\n"
+            f"  Local retries:      {total_retries} total, fired in {eps_with_retry}/{n_eval} episodes\n"
+            f"  Target redirections:{total_redirections} total, fired in {eps_with_redirect}/{n_eval} episodes\n"
+            f"  Oranges abandoned:  {total_abandoned} total ({total_abandoned / n_eval:.2f} avg/episode)\n"
+        ) if n_eval else ""
+
         return (
             f"\n========================================\n"
             f"{header}\n"
@@ -333,6 +345,7 @@ class EvaluationTracker:
             f"0/3 oranges:          {count_0}/{n_eval} ({pct(count_0):.1f}%)\n"
             f"Per-episode oranges:  {self.total_oranges_placed}\n"
             f"{subtask_lines}"
+            f"{mechanism_lines}"
             f"========================================\n"
         )
 
@@ -394,7 +407,8 @@ class EvaluationTracker:
         if step_time_ms is not None:
             self._step_times.append(step_time_ms)
 
-    def end_episode(self, episode, step_count, is_terminated, oranges_in_plate):
+    def end_episode(self, episode, step_count, is_terminated, oranges_in_plate,
+                    n_local_retries=0, n_redirections=0, n_oranges_abandoned=0):
         """Record episode result, print a summary line, and advance the progress bar."""
         n_infer_calls  = len(self._infer_times)
         last_infer     = self._infer_times[-1] if self._infer_times else float("nan")
@@ -411,18 +425,24 @@ class EvaluationTracker:
             "last_infer_ms": last_infer,
             "avg_step_ms": avg_step,
             "ended_at": datetime.datetime.now().isoformat(timespec="seconds"),
+            "n_local_retries": int(n_local_retries),
+            "n_redirections": int(n_redirections),
+            "n_oranges_abandoned": int(n_oranges_abandoned),
         }
         self.episode_records = [r for r in self.episode_records if r["episode"] != episode]
         self.episode_records.append(record)
         self.episode_records.sort(key=lambda r: r["episode"])
         self._recompute_from_records()
 
+        mech = ""
+        if n_local_retries or n_redirections:
+            mech = f" | Retries: {n_local_retries}  Redirections: {n_redirections}"
         tqdm.write(
             f"  Episode {episode:>3d} | {outcome:<10s} | "
             f"Oranges: {oranges_in_plate}/3 | "
             f"Steps: {step_count:>4d} | "
             f"Infer: {n_infer_calls} real calls, last {last_infer:.0f} ms | "
-            f"Avg step: {avg_step:>6.1f} ms"
+            f"Avg step: {avg_step:>6.1f} ms{mech}"
         )
         if was_new_episode:
             self._pbar.update(1)
