@@ -1,40 +1,131 @@
-\documentclass[12pt,a4paper]{article}
+\documentclass[11pt,a4paper]{article}
 
-\usepackage[utf8]{inputenc}
+% -------- Encoding & language ----------
 \usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
 \usepackage{lmodern}
-\usepackage[margin=2.5cm]{geometry}
-\usepackage{hyperref}
+
+% -------- Core maths & symbols ---------
+\usepackage{amsmath,amssymb,gensymb}
+\usepackage{textcomp}
+\usepackage{siunitx}
+\usepackage{xcolor}
+\usepackage{pifont}
+\newcommand{\done}{\textcolor{green}{\ding{51}}}
+\newcommand{\notdone}{\textcolor{red}{\ding{55}}}
+
+% -------- Floats, graphics, tables -----
 \usepackage{graphicx}
-\usepackage{amsmath,amssymb}
-\usepackage{booktabs}
-\usepackage{cite}
-\usepackage{subcaption}
 \usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\captionsetup{justification=centering,singlelinecheck=false,labelfont=bf}
+\usepackage{booktabs,tabularx,array,makecell,multirow}
+\usepackage{ragged2e}
+\renewcommand\tabularxcolumn[1]{>{\Centering}m{#1}}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+
+% -------- Algorithms -------------------
+\usepackage[linesnumbered,ruled,vlined]{algorithm2e}
+
+% -------- Code listings ----------------
+% Enable minted later if code listings are needed; it requires compiling with -shell-escape.
+% \usepackage{minted}
+
+% -------- Miscellaneous ----------------
+\usepackage{hyperref}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=black,
+  citecolor=black,
+  urlcolor=blue,
+  pdftitle={Enabling Recovery in VLA Based Robotic Manipulation},
+  pdfpagemode=FullScreen,
+}
 \usepackage{cleveref}
+\usepackage{setspace,enumitem,fancyhdr,indentfirst}
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+\usepackage{csquotes}
+
+% -------- Bibliography -----------------
+\usepackage[sorting=none,backend=biber]{biblatex}
+\addbibresource{references.bib}
+
+% -------- Header / footer --------------
+\fancyhf{}
+\fancyhead[R]{Gal Pascual}
+\fancyfoot[L]{EPFL}
+\fancyfoot[C]{\thepage}
+\fancyfoot[R]{CREATE Lab / Sycamore Lab}
+\renewcommand{\footrulewidth}{0.4pt}
+\pagestyle{fancy}
+\setlength{\headheight}{14pt}
+
+% -------- Custom commands --------------
+\newcommand{\diff}{\mathrm{d}}
+\DeclareCaptionLabelFormat{andtable}{#1~#2  \&  \tablename~\thetable}
 
 \graphicspath{{figures/}}
-
-\title{Enabling Recovery in VLA Based Robotic Manipulation}
-\author{Gal Pascual\\
-        \small EPFL -- Master's Project 2026}
-\date{May 2026}
+\setlength{\parskip}{8pt}
+\setlength{\parindent}{0pt}
 
 \begin{document}
 
-\maketitle
+\pagenumbering{gobble}
+\begin{titlepage}
+    \newcommand{\HRule}{\rule{\linewidth}{0.2mm}}
+    \center
+    \includegraphics[scale=0.25]{figures/logo.png}\\[0.4cm]
+
+    \textsc{\Large Ecole Polytechnique Federale de Lausanne}\\[1.5cm]
+    \vfill
+
+    \HRule \\[0.4cm]
+    {\LARGE \bfseries Enabling Recovery in VLA Based Robotic Manipulation}\\
+    \HRule \\[0.5cm]
+
+    \textsc{\Large Master's Project}
+    \vfill
+
+    \centering
+    \bigskip
+    \textit{Author}: \\[0.2cm]
+
+    Gal \textsc{Pascual}\\
+
+    \bigskip
+    \bigskip
+
+    CREATE Lab, Prof. Josie Hughes\\
+    Sycamore Lab\\
+    \textit{Supervisors}: Andreas Schlaginhaufen, Cheng Pan, Tingting Ni\\[0.2cm]
+
+    \bigskip
+    \bigskip
+
+    {\large May 2026}\\[2cm]
+\end{titlepage}
+
+\pagenumbering{roman}
+\newpage
 \tableofcontents
 \newpage
 
+\pagenumbering{arabic}
 \input{sections/abstract}
 \input{sections/introduction}
 \input{sections/related_work}
 \input{sections/methodology}
 \input{sections/experiments}
 \input{sections/results}
-\input{sections/conclusion}
 
-\bibliographystyle{ieeetr}
-\bibliography{references}
+\newpage
+\section{References}
+\printbibliography[heading=none]
+
+\newpage
+\input{sections/conclusion}
 
 \end{document}

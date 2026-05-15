@@ -40,9 +40,10 @@ The autonomous orchestrator sequences four phases per orange, each with a step t
 | GRASP | `"Grasp <left/middle/right> orange"` | 700 |
 | LIFT | `"Pick it up"` | 400 |
 | PLACE | `"Place it into plate"` | 500 |
-| HOME / RECOVERY | `"Go back to start position"` | 150 |
 
-Prompts are defined in `inference_autonomous_orders.py::build_task_prompt()`.
+Spatial reset (HOME) is **not a VLA subtask**. It is a scripted joint-space interpolation to the known home configuration, executed deterministically by the orchestrator. It is a precondition for target changes, not a recovery mechanism. The old `"Go back to start position"` VLA prompt (150 steps) has been superseded by this scripted controller.
+
+VLA prompts are defined in `inference_autonomous_orders.py::build_task_prompt()`.
 
 ### Freeze frames
 At the end of every recorded subtask episode, **20 freeze frames** are appended so the policy has a clear "hold this pose" signal at the boundary. The freeze action differs by phase (`dataset_recorder.py` lines 217–241):
@@ -114,17 +115,16 @@ When the gripper is close to orange A (during or after a failed grasp attempt), 
 
 This was discovered empirically: after a GRASP timeout, issuing a new target prompt without first moving the arm away consistently fails.
 
-**Implication for the "Go back to start position" mechanism:**
+**Implemented design — scripted spatial reset:**
 
-The RECOVERY phase was introduced to serve two conflated purposes:
-1. Environment episode-end constraint — the sim requires the arm to return to start to close an episode cleanly.
-2. Language conditioning precondition — the arm must be in a spatially neutral state before a new target instruction will take effect.
+The early "Go back to start position" VLA prompt conflated two purposes: (1) sim episode-end constraint, and (2) language conditioning precondition. The VLA was unreliable for this because it was asked to return to home from out-of-distribution post-failure poses, and 150 steps was often insufficient.
 
-Both were patched with the same "Go back to start position" VLA prompt. This is unreliable because:
-- The VLA is being asked to execute a return-to-home from arbitrary, out-of-distribution arm configurations (post-failed-grasp poses it was never trained on).
-- 150 steps is often insufficient for the VLA to complete the movement reliably.
+The implemented fix replaces this with a scripted joint-space interpolation to the known home configuration. The VLA is responsible for exactly three subtasks: GRASP, LIFT, PLACE. Spatial resets are handled deterministically by the orchestrator. This is a principled design decision: before issuing any new target instruction, the orchestrator guarantees the arm is in a state where language conditioning is reliable.
 
-**Planned fix:** Replace the VLA-controlled RECOVERY/HOME phases with a scripted joint-space controller that directly interpolates to the known home configuration. The VLA is only responsible for the 5 core manipulation subtasks (Grasp, Lift, Place). Spatial resets are handled deterministically by the orchestrator. This turns the patch into a principled design decision: before issuing any new target instruction, the orchestrator ensures the arm is in a state where language conditioning is reliable.
+Terminology (do not conflate):
+- **Local retry** = true recovery; retries same orange after a slip; no spatial reset needed
+- **Spatial reset** = scripted HOME interpolation; precondition for any target change; not recovery
+- **Target redirection** = abandons current orange, pivots to different one; not recovery
 
 ---
 

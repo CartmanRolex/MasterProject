@@ -1,3 +1,42 @@
 \section{Methods}
 \label{sec:methods}
 
+This work studies orchestrated manipulation in a simulated pick-and-place task. The robot is an SO-101 arm operating in an Isaac Sim kitchen scene. Each episode contains three oranges and a plate. The objective is to place all three oranges into the plate. The scene provides privileged simulator state, which is used throughout to evaluate whether subtasks have achieved their intended physical outcome. This avoids confounding the orchestration problem with visual state-estimation errors.
+
+\subsection{Full-Episode Imitation Baseline}
+
+The first experimental setting treats the task as a single full-episode imitation-learning problem. A public HuggingFace dataset of 60 demonstrations is used, where each episode contains a complete sequence for picking the three oranges and placing them in the plate. The demonstrations are monolithic: they are not segmented into subtasks, and the learned policy is expected to execute the full task from the beginning of the episode to the end.
+
+Two policy classes are compared: ACT, a lightweight diffusion-based model, and SmolVLA, a Vision-Language-Action model. Both are trained on the same dataset. SmolVLA receives a single fixed instruction for the whole episode, so neither model exploits language conditioning in any meaningful way. The comparison serves as a sanity check: if SmolVLA performs no better than ACT under identical conditions, it confirms that the VLA model choice alone does not determine performance in this setting.
+
+\subsection{Subtask Decomposition}
+
+Detecting and responding to intermediate failures requires knowing when one behaviour has ended and whether it succeeded. For this reason, the full task is reformulated as a sequence of shorter subtasks. The main subtasks are grasping a selected orange, lifting it, and placing it into the plate. These subtasks create explicit checkpoints where the execution system can evaluate whether the expected physical outcome has been achieved before committing to the next step.
+
+In this formulation, a subtask failure is any case where the intended physical outcome is not reached within the allotted time. This includes failed grasps, an orange falling during lift, unsuccessful placement, or timeout.
+
+An intermediate attempt was made by slicing the public full-episode dataset into shorter subtask segments. This produced a subtask-style dataset, but the original demonstrations always follow the same object order. As a result, the sliced data does not provide a meaningful signal connecting a language instruction to a specific target object: target identity is entangled with progress through the fixed sequence rather than with the instruction itself. This limitation motivated the creation of a custom dataset.
+
+\subsection{Dataset Construction}
+
+A custom teleoperated dataset was collected to support orchestrated execution. Unlike the public full-episode dataset, each episode in this dataset corresponds to one subtask rather than one complete three-orange trajectory. This makes it possible to discard failed teleoperation attempts, annotate each successful attempt with a subtask instruction, and train the policy on behaviours that can be sequenced by a higher-level controller.
+
+The dataset contains instructions such as ``Grasp left orange'', ``Grasp middle orange'', ``Grasp right orange'', ``Pick it up'', and ``Place it into plate''. The pick order is randomised across episodes. This breaks the fixed-order correlation in the original demonstrations and makes relative-position instructions meaningful: the policy cannot infer the target from task progress alone and must instead learn to associate the instruction with the specified orange.
+
+The final dataset contains 921 subtask episodes. The resulting SmolVLA model is trained as a subtask executor rather than as a monolithic full-task policy. Its role is to execute the current language-conditioned behaviour requested by the orchestrator.
+
+\subsection{Orchestrator Design}
+
+The VLA is responsible for three manipulation subtasks: GRASP(\textit{target}), LIFT, and PLACE. The orchestrator is responsible for subtask sequencing and outcome evaluation. It reads privileged simulator state to verify whether each subtask achieved its intended physical effect before advancing: it checks whether the gripper is holding the orange after GRASP, and whether the orange is in the plate after PLACE.
+
+The core recovery mechanism is \textbf{local retry}: when the orange slips during LIFT or PLACE, the orchestrator returns to GRASP for the same target orange without changing the language instruction. The original sub-goal is preserved.
+
+Beyond recovery, the orchestrator implements two additional strategies to improve overall task completion. When GRASP fails repeatedly on a given orange, it abandons that target and issues a new instruction for a different available orange (\textbf{target redirection}). This is goal abandonment rather than recovery: the original sub-goal is dropped in favour of making progress on the global task. Because the training dataset was collected following a canonical pick order and never contains examples of redirecting from a position close to one orange to a different orange, the model only follows target-change instructions reliably when the arm is far from all oranges. The orchestrator therefore performs a \textbf{scripted joint-space interpolation} to the home configuration before any target change. This is a deterministic controller rather than a VLA prompt, since the VLA is unreliable from out-of-distribution post-failure arm configurations.
+
+\subsection{Autonomous Data Generation}
+
+The current phase of the project uses the orchestrated execution system for autonomous data generation. Manual teleoperation is expensive, and a full autonomous rollout can contain both failed and successful subtasks. Rather than discarding an entire rollout after a local failure, the system records successful subtask trajectories and discards failed ones.
+
+This produces an automatically generated dataset of successful subtasks collected under the current policy's own execution distribution. Target redirection plays an important role here: without the ability to pivot to a different orange after a local failure, the system would need to discard the entire rollout. Redirection allows the system to continue collecting successful subtask data from scenes that would otherwise be wasted.
+
+The autonomous data generation phase is ongoing. The final number of generated subtask episodes is FILLME: number of generated autonomous subtask episodes.

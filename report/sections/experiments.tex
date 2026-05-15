@@ -1,3 +1,36 @@
 \section{Results}
 \label{sec:experiments}
 
+This section reports the experimental evidence collected so far. The first result establishes a monolithic full-episode baseline. The later results characterise the subtask model and identify the formal metrics that remain to be collected once orchestrated evaluation completes.
+
+\subsection{Full-Episode Imitation Baseline}
+
+The first experiment evaluates whether changing the policy class is sufficient to improve the complete pick-and-place task when the task is treated as one monolithic episode. ACT and SmolVLA are trained on the same public HuggingFace dataset of 60 full-task demonstrations. In this setting, SmolVLA receives a single instruction for the whole episode, so the experiment does not evaluate meaningful language-conditioned control. Both policies are asked to solve the full task without any subtask-level monitoring.
+
+\begin{table}[H]
+    \centering
+    \caption{Full-episode imitation results on the public dataset. Success means completing the full three-orange task.}
+    \label{tab:full_episode_baseline}
+    \begin{tabular}{lccc}
+        \toprule
+        Policy & Episodes & Success rate & Avg. oranges in plate \\
+        \midrule
+        ACT & 100 & 26\% & 1.62 / 3 \\
+        SmolVLA & 100 & 28\% & 1.47 / 3 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+ACT and SmolVLA achieve comparable performance. This confirms that, under identical training conditions and with a single fixed instruction, the VLA model choice does not determine outcome. Selecting SmolVLA is therefore not a claim about its superiority as a policy class, but a choice motivated by its language conditioning capability --- which this experiment does not exercise and the subsequent subtask formulation is designed to exploit.
+
+\subsection{Manual Subtask Dataset}
+
+The dataset contains 921 successful subtask episodes, each annotated with a relative-position instruction and collected in a randomised pick order. The resulting SmolVLA model qualitatively follows target-specific grasp instructions — the enabling capability for the orchestrator: after a subtask failure, the system can issue a corrective instruction rather than aborting the full episode.
+
+The model is not intended to solve the whole task as a monolithic policy. The formal metric of interest is its performance inside the orchestrated execution loop. FILLME: formal orchestrated success rate. FILLME: average oranges placed with orchestrator.
+
+\subsection{Autonomous Data Generation}
+
+Autonomous data generation is currently in progress. The orchestrated execution system is being used to collect successful subtask trajectories while filtering out failed subtask attempts. This is expected to produce a dataset that better reflects states encountered during autonomous execution than the manually teleoperated dataset alone.
+
+The final results of this phase are pending. The following values should be reported once data generation and retraining are complete: FILLME: number of generated autonomous subtask episodes. FILLME: ratio of successful committed subtasks to failed attempts. FILLME: retraining result after autonomous data generation. FILLME: OOD evaluation protocol and result.
