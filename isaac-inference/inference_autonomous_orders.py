@@ -37,12 +37,12 @@ model_id = "MasterProject2026/Gal-pick-orange-tailedCH20"
 # One inference run = env reset → robot picks all oranges → done.
 # Each successful subtask within a run produces one subtask recording
 # in the dataset (what LeRobot calls an "episode").
-n_inference_runs = 100
+n_inference_runs = 200
 
 max_steps = 5000
 
 # --- Dataset recording ---ss
-RECORD_ENABLED      = True
+RECORD_ENABLED      = False
 RECORD_RESUME       = True   # True: append to existing dataset  |  False: start fresh (needs RECORD_OVERWRITE)
 RECORD_OVERWRITE    = False  # True: delete existing dataset and start fresh (DESTRUCTIVE — set intentionally)
 RECORD_DATASET_NAME = "Gal-auto-subtasks3"   # repo → MasterProject2026/<name>, local → synthetic_datasets/<name>/
@@ -142,19 +142,17 @@ class OrderController:
         self.target_label = None
         self._phase_steps = 0
         self._spatial_reset_remaining = 0
-        self._avoid_target = None
-        # Oranges that timed out during GRASP this inference run.
-        # Used to avoid wasting time retrying the same orange when the model
-        # is deterministic. Only GRASP timeouts count — oranges falling during
-        # LIFT or PLACE do NOT go into this set.
-        self._grasp_timed_out: set = set()
-        # Set to True when all available oranges have been tried and timed out.
-        # The inference loop transitions to HOME first (to record the return movement),
-        # then resets the episode once home_checker fires.
+        # Per-orange timeout counts (any phase). An orange is retried once (spatial reset +
+        # GRASP from scratch) after its first timeout; abandoned after the second.
+        self._timeout_count: dict = {}
+        # Orange queued for a retry GRASP after the current spatial reset completes.
+        # Set on first timeout; cleared once _select_target force-selects it.
+        self._retry_target: Optional[str] = None
+        # Set to True when all oranges are exhausted. The inference loop ends the episode.
         self._needs_episode_reset: bool = False
         # Mechanism counters — reset each episode, passed to EvaluationTracker.end_episode().
-        self.n_local_retries = 0   # orange slipped during LIFT/PLACE → retry same orange
-        self.n_redirections  = 0   # target abandoned (timeout) → spatial reset → new target
+        self.n_local_retries = 0   # orange slipped during LIFT/PLACE → retry same orange (no spatial reset)
+        self.n_redirections  = 0   # target abandoned after 2nd timeout → spatial reset → new orange
 
     def reset_episode(self):
         self.phase = "SELECT_TARGET"
@@ -162,8 +160,8 @@ class OrderController:
         self.target_label = None
         self._phase_steps = 0
         self._spatial_reset_remaining = 0
-        self._avoid_target = None
-        self._grasp_timed_out = set()
+        self._timeout_count = {}
+        self._retry_target = None
         self._needs_episode_reset = False
         self.n_local_retries = 0
         self.n_redirections  = 0
@@ -193,24 +191,29 @@ class OrderController:
             print("\n🏠 All oranges placed — returning to start position")
             return None
 
-        # Only pick from oranges that haven't already timed out during GRASP.
-        selectable = [name for name in remaining if name not in self._grasp_timed_out]
+        # Oranges that have exhausted both attempts (2 timeouts on any phase).
+        exhausted = {name for name, count in self._timeout_count.items() if count >= 2}
+        selectable = [name for name in remaining if name not in exhausted]
         if not selectable:
-            # Every unplaced orange has been tried and timed out — flag for reset.
-            # The inference loop pre-step will detect this and end the episode.
             self._needs_episode_reset = True
-            print("\n⚠️  All oranges have timed out — ending episode")
+            print("\n⚠️  All oranges exhausted — ending episode")
             return None
 
-        # Short-term single-step avoidance for non-timeout failures (e.g. after a
-        # fall during LIFT that sends us back to GRASP on the same orange).
-        if self._avoid_target and self._avoid_target not in self._grasp_timed_out:
-            if self._avoid_target in selectable and len(selectable) > 1:
-                selectable = [name for name in selectable if name != self._avoid_target]
-            elif self._avoid_target not in selectable:
-                self._avoid_target = None
-
         labels = classify_orange_positions(orange_positions)
+
+        # If a retry is queued (first timeout → spatial reset → retry same orange),
+        # force-select that orange rather than picking randomly.
+        if self._retry_target and self._retry_target in selectable:
+            retry = self._retry_target
+            self._retry_target = None
+            self.target_name = retry
+            self.target_label = labels.get(retry, retry)
+            self._set_phase("GRASP")
+            tracker.reset_display()
+            print(f"\n🎯 Retrying target: {retry} ({self.target_label}) after spatial reset")
+            return retry
+        self._retry_target = None  # clear if the queued orange is no longer selectable
+
         self.target_name = random.choice(selectable)
         self.target_label = labels.get(self.target_name, self.target_name)
         self._set_phase("GRASP")
@@ -241,49 +244,55 @@ class OrderController:
         self._phase_steps += 1
         timeout = TIMEOUT_STEPS.get(self.phase)
         if timeout is not None and self._phase_steps >= timeout:
-            print(f"\n⏱  {self.phase} timed out after {self._phase_steps} steps")
-            if self.phase == "GRASP" and self.target_name:
-                self._grasp_timed_out.add(self.target_name)
-                self._avoid_target = self.target_name
-                untried = [
+            timed_out_orange = self.target_name
+            if timed_out_orange:
+                count = self._timeout_count.get(timed_out_orange, 0) + 1
+                self._timeout_count[timed_out_orange] = count
+            else:
+                count = 2  # no active target → treat as exhausted, go straight to redirect
+
+            tracker.reset_grasp_state()
+            self.target_name  = None
+            self.target_label = None
+
+            if count == 1:
+                # First timeout on this orange: spatial reset then retry GRASP from scratch.
+                print(f"\n⏱  {self.phase} timed out after {self._phase_steps} steps")
+                print(f"  🔁 Local retry — spatial reset then retry GRASP for {timed_out_orange}")
+                self._retry_target = timed_out_orange
+                self.n_local_retries += 1
+                self._set_phase("SPATIAL_RESET")
+                self._spatial_reset_remaining = SPATIAL_RESET_STEPS
+            else:
+                # Second timeout: permanently abandon this orange, redirect to another.
+                exhausted = {name for name, c in self._timeout_count.items() if c >= 2}
+                available = [
                     name for name in self.orange_names
                     if name not in tracker.placed_oranges
-                    and name not in self._grasp_timed_out
+                    and name not in exhausted
                     and name in orange_positions
                 ]
-                if untried:
-                    print(f"  🔀 Target redirection — abandoning {self.target_name}, {len(untried)} orange(s) still available")
+                if timed_out_orange:
+                    print(f"\n⏱  {self.phase} timed out after {self._phase_steps} steps (2nd attempt — abandoning {timed_out_orange})")
+                else:
+                    print(f"\n⏱  {self.phase} timed out after {self._phase_steps} steps")
+                if available:
+                    print(f"  🔀 Target redirection — {len(available)} orange(s) still available")
                     print(f"  🏠 Spatial reset — moving to home (precondition for target change)")
-                    tracker.reset_grasp_state()
-                    self.target_name  = None
-                    self.target_label = None
                     self.n_redirections += 1
                     self._set_phase("SPATIAL_RESET")
                     self._spatial_reset_remaining = SPATIAL_RESET_STEPS
                 else:
-                    print("  ⚠️  All oranges have been tried — initiating spatial reset before episode abort")
-                    tracker.reset_grasp_state()
-                    self.target_name  = None
-                    self.target_label = None
+                    print("  ⚠️  All oranges exhausted — initiating spatial reset before episode abort")
                     self.n_redirections += 1
                     self._set_phase("ABORT_HOME")
                     self._spatial_reset_remaining = SPATIAL_RESET_STEPS
-            else:
-                print(f"  🔀 Target redirection — abandoning {self.target_name or 'current target'} after timeout")
-                print(f"  🏠 Spatial reset — moving to home (precondition for target change)")
-                tracker.reset_grasp_state()
-                self.target_name  = None
-                self.target_label = None
-                self.n_redirections += 1
-                self._set_phase("SPATIAL_RESET")
-                self._spatial_reset_remaining = SPATIAL_RESET_STEPS
             return
 
         if self.target_name is None or self.target_name not in orange_positions or self.target_name in tracker.placed_oranges:
             if self.phase != "SELECT_TARGET":
                 self._set_phase("SELECT_TARGET")
-            if step_count > 1:
-                self._select_target(tracker, orange_positions)
+            self._select_target(tracker, orange_positions)
             return
 
         target_z = orange_positions[self.target_name][2].item()
@@ -496,7 +505,7 @@ try:
                 tracker.end_episode(run_idx, step_count, False, oranges_in_plate,
                                     n_local_retries=controller.n_local_retries,
                                     n_redirections=controller.n_redirections,
-                                    n_oranges_abandoned=len(controller._grasp_timed_out))
+                                    n_oranges_abandoned=sum(1 for c in controller._timeout_count.values() if c >= 2))
                 done = True
                 break
 
@@ -510,16 +519,16 @@ try:
                 tracker.end_episode(run_idx, step_count, False, oranges_in_plate,
                                     n_local_retries=controller.n_local_retries,
                                     n_redirections=controller.n_redirections,
-                                    n_oranges_abandoned=len(controller._grasp_timed_out))
+                                    n_oranges_abandoned=sum(1 for c in controller._timeout_count.values() if c >= 2))
                 done = True
                 break
 
             # --- Pre-step: select target + init orange heights (prompt must be ready before inference) ---
             *_, orange_positions = sub_tracker._get_env_data(env)
-            if step_count == 1:
+            if step_count == 0:
                 for name, pos in orange_positions.items():
                     sub_tracker.initial_orange_z[name] = pos[2].item()
-            if controller.phase == "SELECT_TARGET" and step_count > 1:
+            if controller.phase == "SELECT_TARGET":
                 if controller._needs_episode_reset:
                     # All oranges timed out. The RECOVERY already moved the robot home and
                     # was recorded — commit it now as "Go back to start position" and reset.
@@ -532,7 +541,7 @@ try:
                     tracker.end_episode(run_idx, step_count, False, oranges_in_plate,
                                         n_local_retries=controller.n_local_retries,
                                         n_redirections=controller.n_redirections,
-                                        n_oranges_abandoned=len(controller._grasp_timed_out))
+                                        n_oranges_abandoned=sum(1 for c in controller._timeout_count.values() if c >= 2))
                     torch.cuda.empty_cache()
                     done = True
                     break
@@ -688,7 +697,7 @@ try:
                 tracker.end_episode(run_idx, step_count, is_terminated, oranges_in_plate,
                                     n_local_retries=controller.n_local_retries,
                                     n_redirections=controller.n_redirections,
-                                    n_oranges_abandoned=len(controller._grasp_timed_out))
+                                    n_oranges_abandoned=sum(1 for c in controller._timeout_count.values() if c >= 2))
 
         if reset_controller.stop_requested:
             break
