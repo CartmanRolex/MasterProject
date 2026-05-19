@@ -19,7 +19,7 @@ from eval_utils import SubtaskTracker, HomeChecker
 # 1. Configuration & Setup
 # ==========================================
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model_id = "MasterProject2026/Gal-pick-orange-tailedCH20"
+model_id = "MasterProject2026/pick-orange-mimic-subepisoded-tailed"
 n_episodes = 100
 MAX_STEPS = 5000
 

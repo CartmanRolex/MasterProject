@@ -57,6 +57,7 @@ DATASET_FEATURES = {
 
 HF_ORG = "MasterProject2026"
 SYNTHETIC_DATASETS_DIR = Path(__file__).parent / "synthetic_datasets"
+INCREMENTAL_PUSH_EVERY = 25
 
 
 class SubtaskRecorder:
@@ -83,6 +84,7 @@ class SubtaskRecorder:
         self._freeze_frames = freeze_frames
         self._closed = False
         self._metadata_path = Path(dataset.root) / "subtask_metadata.jsonl"
+        self._commits_since_push: int = 0
 
     # ------------------------------------------------------------------
     # Construction
@@ -276,6 +278,10 @@ class SubtaskRecorder:
         self._append_metadata(task, n_placed)
         print(f"  📼 Subtask recording saved: \"{task}\" ({n} frames) — total: {total}")
 
+        self._commits_since_push += 1
+        if self._commits_since_push >= INCREMENTAL_PUSH_EVERY:
+            self.push_incremental()
+
     # ------------------------------------------------------------------
     # Shutdown
     # ------------------------------------------------------------------
@@ -320,6 +326,45 @@ class SubtaskRecorder:
             hub_api.delete_tag(self._dataset.repo_id, tag=CODEBASE_VERSION, repo_type="dataset")
         hub_api.create_tag(self._dataset.repo_id, tag=CODEBASE_VERSION, revision="main", repo_type="dataset")
         print(f"  📤 Dataset pushed to Hub: {self._dataset.repo_id} ({CODEBASE_VERSION} -> main)")
+
+    def push_incremental(self):
+        """
+        Flush all writers, push current state to HF, then reopen for continued recording.
+
+        Called automatically every INCREMENTAL_PUSH_EVERY commits. Uses
+        upload_large_folder which is incremental — only new/changed files are sent.
+        """
+        from huggingface_hub import HfApi
+
+        # finalize() writes valid parquet footers for all open writers
+        # (data parquet is already rotated per commit; this closes the meta writer).
+        self._dataset.finalize()
+        self._validate_metadata_before_upload()
+
+        hub_api = HfApi()
+        hub_api.upload_large_folder(
+            repo_id=self._dataset.repo_id,
+            repo_type="dataset",
+            folder_path=self._dataset.root,
+            ignore_patterns=[
+                "checkpoint.json",
+                "checkpoint.json.tmp",
+                "meta/episodes.bak/**",
+                "meta/**/*.bak/**",
+                "**/*.tmp",
+            ],
+        )
+        total = self._dataset.meta.total_episodes
+        print(f"  📤 Incremental push: {total} subtask recordings on Hub. Reopening dataset...")
+
+        # Reopen in resume mode so recording continues with correct episode indices.
+        self._dataset = LeRobotDataset(
+            repo_id=self._dataset.repo_id,
+            root=self._dataset.root,
+            vcodec="libsvtav1",
+        )
+        self._dataset.meta.metadata_buffer_size = 1
+        self._commits_since_push = 0
 
     # ------------------------------------------------------------------
     # Internal

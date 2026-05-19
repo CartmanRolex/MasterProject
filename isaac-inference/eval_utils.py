@@ -289,9 +289,9 @@ class EvaluationTracker:
 
     def _recompute_from_records(self):
         self.total_oranges_placed = [record["oranges_in_plate"] for record in self.episode_records]
-        self.successes = sum(1 for record in self.episode_records if record["is_terminated"])
+        self.successes = sum(1 for record in self.episode_records if record["oranges_in_plate"] == 3)
         self.successful_episode_steps = [
-            record["step_count"] for record in self.episode_records if record["is_terminated"]
+            record["step_count"] for record in self.episode_records if record["oranges_in_plate"] == 3
         ]
 
     def _summary_text(self, model_id):

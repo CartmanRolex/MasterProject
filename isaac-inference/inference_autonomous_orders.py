@@ -37,12 +37,12 @@ model_id = "MasterProject2026/Gal-pick-orange-tailedCH20"
 # One inference run = env reset → robot picks all oranges → done.
 # Each successful subtask within a run produces one subtask recording
 # in the dataset (what LeRobot calls an "episode").
-n_inference_runs = 200
+n_inference_runs = 500
 
 max_steps = 5000
 
 # --- Dataset recording ---ss
-RECORD_ENABLED      = False
+RECORD_ENABLED      = True
 RECORD_RESUME       = True   # True: append to existing dataset  |  False: start fresh (needs RECORD_OVERWRITE)
 RECORD_OVERWRITE    = False  # True: delete existing dataset and start fresh (DESTRUCTIVE — set intentionally)
 RECORD_DATASET_NAME = "Gal-auto-subtasks3"   # repo → MasterProject2026/<name>, local → synthetic_datasets/<name>/
@@ -63,7 +63,7 @@ SPATIAL_RESET_STEPS = 40          # total steps for a spatial reset (scripted: r
 # --- Scripted spatial reset ---
 SCRIPTED_SPATIAL_RESET     = True  # False → fall back to VLA "Go back to start position" prompt
 SPATIAL_RESET_INTERP_STEPS = 20    # steps to interpolate from failure pose to episode-start pose
-                                   # (= action chunk size); arm holds at home for remaining steps
+                                   # (= action tm size); arm holds at home for remaining steps
 
 dataset_features = {
     "observation.images.front": {"dtype": "video", "shape": (3, 480, 640), "names": ["front"]},
