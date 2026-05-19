@@ -3,11 +3,17 @@
 balance_dataset.py — Create a balanced LeRobot dataset subset.
 
 Balance criterion: each of the 9 subtask slots in a fully successful 3-orange
-episode gets equal representation:
+episode gets equal representation. n_placed is expressed at the START of each
+subtask (matching the eval-file convention):
 
-  (Grasp orange, n_placed=0)     (Pick it up,        n_placed=0)  (Place into plate, n_placed=1)
-  (Grasp orange, n_placed=1)     (Pick it up,        n_placed=1)  (Place into plate, n_placed=2)
-  (Grasp orange, n_placed=2)     (Pick it up,        n_placed=2)  (Place into plate, n_placed=3)
+  (Grasp orange, n_placed=0)     (Pick it up,        n_placed=0)  (Place into plate, n_placed=0)
+  (Grasp orange, n_placed=1)     (Pick it up,        n_placed=1)  (Place into plate, n_placed=1)
+  (Grasp orange, n_placed=2)     (Pick it up,        n_placed=2)  (Place into plate, n_placed=2)
+
+Note: subtask_metadata.jsonl stores n_placed for Place at END of subtask (+1),
+so the raw stored values for Place are 1/2/3 — SLOTS uses those raw values for
+filtering, but the description above uses the normalised start-of-subtask view.
+The bottleneck is (Place, n_placed=2 at start) = stored n_placed=3 ≈ 35 episodes.
 
 N = min count across all 9 buckets.  Total output = 9 * N episodes.
 "Go back to start position" is excluded (scripted primitive, not VLA).
@@ -56,9 +62,14 @@ def select_episodes(records: list[dict], seed: int) -> list[dict]:
         if slot in buckets:
             buckets[slot].append(rec)
 
-    print("Bucket sizes:")
+    # Display using start-of-subtask n_placed (matching eval convention).
+    # For Place, stored n_placed is end-of-subtask (+1), so subtract 1 for display only.
+    def display_n(task_group: str, stored_n: int) -> int:
+        return stored_n - 1 if task_group == "Place it into plate" else stored_n
+
+    print("Bucket sizes (n_placed = start-of-subtask):")
     for slot in SLOTS:
-        print(f"  ({slot[0]!r:30s}, n_placed={slot[1]}): {len(buckets[slot])}")
+        print(f"  ({slot[0]!r:30s}, n_placed={display_n(*slot)}): {len(buckets[slot])}")
 
     n = min(len(buckets[slot]) for slot in SLOTS)
     if n == 0:
