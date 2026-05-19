@@ -33,6 +33,19 @@ def _replace_col(t: pa.Table, name: str, values: list, typ: pa.DataType) -> pa.T
     return t.set_column(t.schema.get_field_index(name), name, pa.array(values, type=typ))
 
 
+def _probe_frame_pts(video_path: Path) -> list[float]:
+    """Return the actual PTS (seconds) of every frame in display order via ffprobe."""
+    res = subprocess.run(
+        ["ffprobe", "-v", "quiet", "-select_streams", "v:0",
+         "-show_entries", "frame=best_effort_timestamp_time",
+         "-of", "csv=p=0", str(video_path)],
+        capture_output=True, text=True,
+    )
+    if res.returncode != 0:
+        raise RuntimeError(f"ffprobe failed: {res.stderr}")
+    return [float(x) for x in res.stdout.splitlines() if x.strip()]
+
+
 def _ffmpeg_concat(src_paths: list[Path], dst: Path) -> None:
     dst.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
@@ -113,26 +126,41 @@ def consolidate(dataset_path: Path, episodes_per_file: int = 0) -> None:
                     if p.resolve() != dst.resolve():
                         p.unlink(missing_ok=True)
 
-        # Compute which batch each episode lands in, and its timestamp offset within that batch
-        # A batch covers the episodes whose source file was in unique_srcs[lo:hi]
-        src_key_to_batch = {}
+        # Determine which batch each episode belongs to
+        src_key_to_batch: dict[tuple, int] = {}
         for batch_idx in range(n_batches):
             for src in unique_srcs[batch_idx * batch_size : (batch_idx + 1) * batch_size]:
-                # recover the (chunk, file) key from the path
-                parts = src.parts
-                c  = int(parts[-2].replace("chunk-", ""))
+                c  = int(src.parts[-2].replace("chunk-", ""))
                 fi = int(src.stem.replace("file-", ""))
                 src_key_to_batch[(c, fi)] = batch_idx
 
-        batch_offsets: dict[int, float] = {b: 0.0 for b in range(n_batches)}
         for i in range(N):
-            key       = (src_chunk_col[i], src_file_col[i])
-            b         = src_key_to_batch[key]
             new_vid_chunk[i] = 0
-            new_vid_file[i]  = b
-            new_from_ts[cam][i] = batch_offsets[b]
-            batch_offsets[b]   += ep_lengths[i] / fps
-            new_to_ts[cam][i]   = batch_offsets[b]
+            new_vid_file[i]  = src_key_to_batch[(src_chunk_col[i], src_file_col[i])]
+
+        # Use actual frame PTS from the concatenated video — analytical n/fps accumulation
+        # drifts due to H264 timebase rounding and causes FrameTimestampError in training.
+        for batch_idx in range(n_batches):
+            dst = dataset_path / f"videos/{cam}/chunk-000/file-{batch_idx:03d}.mp4"
+            print(f"  [video/{cam}] probing frame timestamps in {dst.name} ...")
+            all_pts = _probe_frame_pts(dst)
+
+            # Map cumulative frame index → episode boundary
+            frame_cursor = 0
+            for i in range(N):
+                if new_vid_file[i] != batch_idx:
+                    continue
+                ep_start_frame = frame_cursor
+                ep_end_frame   = frame_cursor + ep_lengths[i] - 1
+                new_from_ts[cam][i] = all_pts[ep_start_frame]
+                # to_timestamp = start of the next frame after this episode
+                if ep_end_frame + 1 < len(all_pts):
+                    new_to_ts[cam][i] = all_pts[ep_end_frame + 1]
+                else:
+                    # last frame of the file: estimate from frame duration
+                    frame_dur = all_pts[-1] - all_pts[-2] if len(all_pts) > 1 else 1.0 / fps
+                    new_to_ts[cam][i] = all_pts[ep_end_frame] + frame_dur
+                frame_cursor += ep_lengths[i]
 
         # Clean up empty non-chunk-000 video directories
         for d in sorted((dataset_path / f"videos/{cam}").iterdir()):
