@@ -505,6 +505,7 @@ class SubtaskRecorder:
         upload_large_folder which is incremental — only new/changed files are sent.
         """
         from huggingface_hub import HfApi
+        from huggingface_hub.errors import RevisionNotFoundError
 
         # finalize() writes valid parquet footers for all open writers
         # (data parquet is already rotated per commit; this closes the meta writer).
@@ -524,8 +525,11 @@ class SubtaskRecorder:
                 "**/*.tmp",
             ],
         )
+        with contextlib.suppress(RevisionNotFoundError):
+            hub_api.delete_tag(self._dataset.repo_id, tag=CODEBASE_VERSION, repo_type="dataset")
+        hub_api.create_tag(self._dataset.repo_id, tag=CODEBASE_VERSION, revision="main", repo_type="dataset")
         total = self._dataset.meta.total_episodes
-        print(f"  📤 Incremental push: {total} subtask recordings on Hub. Reopening dataset...")
+        print(f"  📤 Incremental push: {total} subtask recordings on Hub ({CODEBASE_VERSION} → main). Reopening dataset...")
 
         # Reopen in resume mode so recording continues with correct episode indices.
         self._dataset = LeRobotDataset(

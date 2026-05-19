@@ -176,6 +176,32 @@ def consolidate(dataset_path: Path, episodes_per_file: int = 0) -> None:
     print("  Done.")
 
 
+def push_to_hub(dataset_path: Path, repo_id: str) -> None:
+    """Upload the consolidated dataset to HuggingFace Hub and update the v3.0 tag."""
+    import contextlib
+    from huggingface_hub import HfApi
+    from huggingface_hub.errors import RevisionNotFoundError
+    from lerobot.datasets.lerobot_dataset import CODEBASE_VERSION
+
+    api = HfApi()
+    api.create_repo(repo_id=repo_id, repo_type="dataset", exist_ok=True)
+
+    print(f"  Uploading to {repo_id} ...")
+    api.upload_large_folder(
+        repo_id=repo_id,
+        repo_type="dataset",
+        folder_path=str(dataset_path),
+        ignore_patterns=["checkpoint.json", "checkpoint.json.tmp", "**/*.tmp"],
+    )
+
+    # Move the CODEBASE_VERSION tag (e.g. v3.0) to the new commit so LeRobot
+    # downloads the correct files (it always fetches from this tag, not main).
+    with contextlib.suppress(RevisionNotFoundError):
+        api.delete_tag(repo_id, tag=CODEBASE_VERSION, repo_type="dataset")
+    api.create_tag(repo_id, tag=CODEBASE_VERSION, revision="main", repo_type="dataset")
+    print(f"  Tag {CODEBASE_VERSION} → main  ✓")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Consolidate per-episode files into chunk files for fast training."
@@ -183,6 +209,8 @@ def main() -> None:
     parser.add_argument("dataset", help="Path to LeRobot dataset folder")
     parser.add_argument("--episodes-per-file", type=int, default=0,
                         help="Max episodes per output file (0 = all in one, default: 0)")
+    parser.add_argument("--push", metavar="REPO_ID",
+                        help="After consolidation, upload to this HuggingFace repo and update the v3.0 tag")
     args = parser.parse_args()
 
     path = Path(args.dataset)
@@ -191,6 +219,10 @@ def main() -> None:
 
     print(f"Consolidating: {path.name}")
     consolidate(path, args.episodes_per_file)
+
+    if args.push:
+        push_to_hub(path, args.push)
+
     print("All done.")
 
 
