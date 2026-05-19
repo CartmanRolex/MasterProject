@@ -91,12 +91,14 @@ In order. Do not start item N+1 until N is done and acknowledged.
 
 ## Legacy / alternative entry points (do not modify without reason)
 
+Moved to `legacy/` to keep root clean.
+
 | File | Purpose |
 |------|---------|
-| `inference_prompts.py` | SmolVLA with 3 fixed prompts cycling through phases. |
-| `inference_smolvla.py` | Baseline — single SmolVLA policy, fixed instruction, no subtasks. |
-| `inference_act.py` | ACT policy evaluation. |
-| `policy_inference.py` | Legacy server-mode via `lerobot.async_inference.policy_server`. |
+| `legacy/inference_prompts.py` | SmolVLA with 3 fixed prompts cycling through phases. |
+| `legacy/inference_smolvla.py` | Baseline — single SmolVLA policy, fixed instruction, no subtasks. |
+| `legacy/inference_act.py` | ACT policy evaluation. |
+| `legacy/policy_inference.py` | Legacy server-mode via `lerobot.async_inference.policy_server`. |
 
 ## Running
 
