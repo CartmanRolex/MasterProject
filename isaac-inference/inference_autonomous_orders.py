@@ -24,7 +24,7 @@ from eval_utils import (
     count_oranges_in_plate,
     save_positions,
 )
-from dataset_recorder import SubtaskRecorder
+from dataset_recorder import SubtaskRecorder, SYNTHETIC_DATASETS_DIR, merge_staging_into
 
 
 # ==========================================
@@ -47,6 +47,15 @@ RECORD_RESUME       = True   # True: append to existing dataset  |  False: start
 RECORD_OVERWRITE    = False  # True: delete existing dataset and start fresh (DESTRUCTIVE — set intentionally)
 RECORD_DATASET_NAME = "Gal-auto-subtasks3"   # repo → MasterProject2026/<name>, local → synthetic_datasets/<name>/
 FREEZE_FRAMES       = 20     # freeze frames appended at the end of each subtask recording
+
+# --- Full-success data generation ---
+# When True: only record episodes where all 3 oranges are successfully placed.
+#   - n_inference_runs counts fully successful episodes (not attempts).
+#   - Subtasks are written to a staging dataset and merged into the real dataset
+#     only on full success — failed attempts produce zero disk writes.
+#   - On the 2nd grasp failure for any orange the episode aborts immediately.
+#   - EvaluationTracker is not used (evaluation stats are unaffected).
+FULL_SUCCESS_DATA_GENERATION = False
 
 # --- Evaluation metrics ---
 EVAL_RESUME          = True   # True: resume completed-run metrics from results/eval_<model>_checkpoint.json
@@ -266,6 +275,19 @@ class OrderController:
                 self._set_phase("SPATIAL_RESET")
                 self._spatial_reset_remaining = SPATIAL_RESET_STEPS
             else:
+                if timed_out_orange:
+                    print(f"\n⏱  {self.phase} timed out after {self._phase_steps} steps (2nd attempt — abandoning {timed_out_orange})")
+                else:
+                    print(f"\n⏱  {self.phase} timed out after {self._phase_steps} steps")
+
+                # In full-success mode any exhausted orange means we can never place
+                # all 3 — abort the episode immediately without ABORT_HOME.
+                if FULL_SUCCESS_DATA_GENERATION:
+                    print("  ⛔ Full-success mode — aborting episode immediately")
+                    self._needs_episode_reset = True
+                    self._set_phase("SELECT_TARGET")
+                    return
+
                 # Second timeout: permanently abandon this orange, redirect to another.
                 exhausted = {name for name, c in self._timeout_count.items() if c >= 2}
                 available = [
@@ -274,10 +296,6 @@ class OrderController:
                     and name not in exhausted
                     and name in orange_positions
                 ]
-                if timed_out_orange:
-                    print(f"\n⏱  {self.phase} timed out after {self._phase_steps} steps (2nd attempt — abandoning {timed_out_orange})")
-                else:
-                    print(f"\n⏱  {self.phase} timed out after {self._phase_steps} steps")
                 if available:
                     print(f"  🔀 Target redirection — {len(available)} orange(s) still available")
                     print(f"  🏠 Spatial reset — moving to home (precondition for target change)")
@@ -428,12 +446,23 @@ reset_controller.start()
 
 recorder = DryRunRecorder(FREEZE_FRAMES)
 if RECORD_ENABLED:
-    recorder = SubtaskRecorder.create(
-        RECORD_DATASET_NAME,
-        resume=RECORD_RESUME,
-        overwrite=RECORD_OVERWRITE,
-        freeze_frames=FREEZE_FRAMES,
-    )
+    if FULL_SUCCESS_DATA_GENERATION:
+        # Ensure the main dataset exists; staging is created fresh per episode attempt.
+        _main_recorder = SubtaskRecorder.create(
+            RECORD_DATASET_NAME,
+            resume=RECORD_RESUME,
+            overwrite=RECORD_OVERWRITE,
+            freeze_frames=FREEZE_FRAMES,
+        )
+        _main_recorder.close_writers()
+        # recorder is reassigned at the start of each episode attempt in the loop below
+    else:
+        recorder = SubtaskRecorder.create(
+            RECORD_DATASET_NAME,
+            resume=RECORD_RESUME,
+            overwrite=RECORD_OVERWRITE,
+            freeze_frames=FREEZE_FRAMES,
+        )
 
 # Install our SIGINT/SIGTERM handler AFTER Isaac Sim has loaded, so it overrides
 # Isaac Sim's C++ handler. The handler flushes the dataset and then raises
@@ -460,9 +489,20 @@ try:
 except ImportError:
     pass
 
-_recorded_so_far = recorder._dataset.meta.total_episodes if recorder else 0
-_completed_so_far = len(tracker.episode_records)
-print(f"""
+if FULL_SUCCESS_DATA_GENERATION:
+    _recorded_so_far = _main_recorder._dataset.meta.total_episodes if RECORD_ENABLED else 0
+    print(f"""
+{'━' * 52}
+  FULL-SUCCESS DATA GENERATION
+  Model:                {model_id}
+  Target successes:     {n_inference_runs}
+  Subtask recordings:   {_recorded_so_far} already saved
+{'━' * 52}
+""")
+else:
+    _recorded_so_far = recorder._dataset.meta.total_episodes if RECORD_ENABLED else 0
+    _completed_so_far = len(tracker.episode_records)
+    print(f"""
 {'━' * 52}
   AUTONOMOUS EVALUATION
   Model:                {model_id}
@@ -476,20 +516,41 @@ print(f"""
 upload_after_shutdown = False
 
 try:
-    for run_idx in range(tracker.next_episode_index, n_inference_runs):
-        print(f"\n{'─' * 52}")
-        print(f"  Inference run {run_idx + 1} / {n_inference_runs}")
-        print(f"{'─' * 52}")
+    _fs_successes = 0   # full-success mode counter
+    _fs_attempts  = 0
+
+    _fs_active = FULL_SUCCESS_DATA_GENERATION  # shorthand used throughout the loop
+
+    # In full-success mode run_idx is an unlimited attempt counter; the real
+    # termination condition is _fs_successes >= n_inference_runs checked below.
+    for run_idx in (range(10 ** 9) if _fs_active else range(tracker.next_episode_index, n_inference_runs)):
+        if _fs_active:
+            _fs_attempts += 1
+            print(f"\n{'─' * 52}")
+            print(f"  Attempt {_fs_attempts}  |  successes {_fs_successes} / {n_inference_runs}")
+            print(f"{'─' * 52}")
+            if RECORD_ENABLED:
+                recorder = SubtaskRecorder.create(
+                    RECORD_DATASET_NAME + "_staging",
+                    resume=False, overwrite=True, freeze_frames=FREEZE_FRAMES,
+                )
+        else:
+            print(f"\n{'─' * 52}")
+            print(f"  Inference run {run_idx + 1} / {n_inference_runs}")
+            print(f"{'─' * 52}")
 
         obs, _ = env.reset()
         policy.reset()
 
-        tracker.start_episode(run_idx)
+        if not _fs_active:
+            tracker.start_episode(run_idx)
         sub_tracker.reset()
         home_checker.reset()
         controller.reset_episode()
         if recorder:
             recorder.discard()
+
+        episode_succeeded = False  # full-success mode only
 
         done = False
         step_count = 0
@@ -505,11 +566,12 @@ try:
                 print("\n🛑 Stopping — discarding current episode buffer.")
                 if recorder:
                     recorder.discard()
-                oranges_in_plate = count_oranges_in_plate(last_positions)
-                tracker.end_episode(run_idx, step_count, False, oranges_in_plate,
-                                    n_local_retries=controller.n_local_retries,
-                                    n_redirections=controller.n_redirections,
-                                    n_oranges_abandoned=sum(1 for c in controller._timeout_count.values() if c >= 2))
+                if not _fs_active:
+                    oranges_in_plate = count_oranges_in_plate(last_positions)
+                    tracker.end_episode(run_idx, step_count, False, oranges_in_plate,
+                                        n_local_retries=controller.n_local_retries,
+                                        n_redirections=controller.n_redirections,
+                                        n_oranges_abandoned=sum(1 for c in controller._timeout_count.values() if c >= 2))
                 done = True
                 break
 
@@ -519,11 +581,12 @@ try:
                 print("\n🔄 Episode reset requested.")
                 if recorder:
                     recorder.discard()
-                oranges_in_plate = count_oranges_in_plate(last_positions)
-                tracker.end_episode(run_idx, step_count, False, oranges_in_plate,
-                                    n_local_retries=controller.n_local_retries,
-                                    n_redirections=controller.n_redirections,
-                                    n_oranges_abandoned=sum(1 for c in controller._timeout_count.values() if c >= 2))
+                if not _fs_active:
+                    oranges_in_plate = count_oranges_in_plate(last_positions)
+                    tracker.end_episode(run_idx, step_count, False, oranges_in_plate,
+                                        n_local_retries=controller.n_local_retries,
+                                        n_redirections=controller.n_redirections,
+                                        n_oranges_abandoned=sum(1 for c in controller._timeout_count.values() if c >= 2))
                 done = True
                 break
 
@@ -536,18 +599,23 @@ try:
                     sub_tracker.initial_orange_z[name] = pos[2].item()
             if controller.phase == "SELECT_TARGET" and step_count > 0:
                 if controller._needs_episode_reset:
-                    # All oranges timed out. The RECOVERY already moved the robot home and
-                    # was recorded — commit it now as "Go back to start position" and reset.
                     sub_tracker.reset_display()
-                    print("\n🔄 All oranges tried — resetting episode.")
-                    if recorder:
-                        recorder.commit("Go back to start position",
-                                       n_placed=len(sub_tracker.placed_oranges))
-                    oranges_in_plate = count_oranges_in_plate(last_positions)
-                    tracker.end_episode(run_idx, step_count, False, oranges_in_plate,
-                                        n_local_retries=controller.n_local_retries,
-                                        n_redirections=controller.n_redirections,
-                                        n_oranges_abandoned=sum(1 for c in controller._timeout_count.values() if c >= 2))
+                    if _fs_active:
+                        # Immediate abort — discard staging, no HOME commit.
+                        print("\n⛔ Aborting episode (full-success mode).")
+                        if recorder:
+                            recorder.discard()
+                    else:
+                        # Normal mode: commit HOME movement then end episode.
+                        print("\n🔄 All oranges tried — resetting episode.")
+                        if recorder:
+                            recorder.commit("Go back to start position",
+                                           n_placed=len(sub_tracker.placed_oranges))
+                        oranges_in_plate = count_oranges_in_plate(last_positions)
+                        tracker.end_episode(run_idx, step_count, False, oranges_in_plate,
+                                            n_local_retries=controller.n_local_retries,
+                                            n_redirections=controller.n_redirections,
+                                            n_oranges_abandoned=sum(1 for c in controller._timeout_count.values() if c >= 2))
                     torch.cuda.empty_cache()
                     done = True
                     break
@@ -695,6 +763,11 @@ try:
                     # so checking phase_after in ("SELECT_TARGET", "HOME") misses those cases.
                     recorder.commit(task="Place it into plate",
                                    n_placed=len(sub_tracker.placed_oranges))
+                    # Full-success: all oranges placed → merge staging and end episode.
+                    if (_fs_active
+                            and len(sub_tracker.placed_oranges) == len(controller.orange_names)):
+                        episode_succeeded = True
+                        done = True
                 elif phase_before == "HOME" and not home_fired_before and home_checker._fired:
                     recorder.commit(task="Go back to start position",
                                    n_placed=len(sub_tracker.placed_oranges))
@@ -707,34 +780,53 @@ try:
                 if phase_before != phase_after and phase_after in ("GRASP", "LIFT", "PLACE", "HOME"):
                     recorder.start()
 
-            # --- Subtask success metrics ---
-            _np = len(sub_tracker.placed_oranges)
-            if phase_before == "GRASP" and phase_after != "GRASP":
-                tracker.record_subtask_result("GRASP", _np, success=(phase_after == "LIFT"))
-            elif phase_before == "LIFT" and phase_after != "LIFT":
-                tracker.record_subtask_result("LIFT", _np, success=(phase_after == "PLACE"))
-            elif phase_before == "PLACE" and phase_after != "PLACE":
-                _ok = target_before in sub_tracker.placed_oranges
-                tracker.record_subtask_result("PLACE", _np - 1 if _ok else _np, success=_ok)
+            # --- Subtask success metrics (eval mode only) ---
+            if not _fs_active:
+                _np = len(sub_tracker.placed_oranges)
+                if phase_before == "GRASP" and phase_after != "GRASP":
+                    tracker.record_subtask_result("GRASP", _np, success=(phase_after == "LIFT"))
+                elif phase_before == "LIFT" and phase_after != "LIFT":
+                    tracker.record_subtask_result("LIFT", _np, success=(phase_after == "PLACE"))
+                elif phase_before == "PLACE" and phase_after != "PLACE":
+                    _ok = target_before in sub_tracker.placed_oranges
+                    tracker.record_subtask_result("PLACE", _np - 1 if _ok else _np, success=_ok)
 
-            # --- Bookkeeping ---
-            tracker.record_timing(infer_time_ms, step_time_ms)
-            tracker.update_step(step_count)
+                tracker.record_timing(infer_time_ms, step_time_ms)
+                tracker.update_step(step_count)
 
             is_terminated = tensor_to_bool(terminated)
             is_truncated  = tensor_to_bool(truncated)
-            done = is_terminated or is_truncated
+            done = done or is_terminated or is_truncated
 
             if done:
-                if recorder:
+                if recorder and not episode_succeeded:
                     recorder.discard()
-                oranges_in_plate = count_oranges_in_plate(last_positions)
-                tracker.end_episode(run_idx, step_count, is_terminated, oranges_in_plate,
-                                    n_local_retries=controller.n_local_retries,
-                                    n_redirections=controller.n_redirections,
-                                    n_oranges_abandoned=sum(1 for c in controller._timeout_count.values() if c >= 2))
+                if not _fs_active:
+                    oranges_in_plate = count_oranges_in_plate(last_positions)
+                    tracker.end_episode(run_idx, step_count, is_terminated, oranges_in_plate,
+                                        n_local_retries=controller.n_local_retries,
+                                        n_redirections=controller.n_redirections,
+                                        n_oranges_abandoned=sum(1 for c in controller._timeout_count.values() if c >= 2))
+
+        # --- Post-episode: merge staging on full success ---
+        if _fs_active and RECORD_ENABLED:
+            recorder.close_writers()
+            if episode_succeeded:
+                n_merged = merge_staging_into(
+                    SYNTHETIC_DATASETS_DIR / (RECORD_DATASET_NAME + "_staging"),
+                    SYNTHETIC_DATASETS_DIR / RECORD_DATASET_NAME,
+                )
+                _fs_successes += 1
+                print(f"\n  ✅ Full success {_fs_successes}/{n_inference_runs}"
+                      f"  ({n_merged} subtasks merged, attempt {_fs_attempts})")
+            else:
+                print(f"\n  ❌ Attempt {_fs_attempts} failed — staging discarded")
+            torch.cuda.empty_cache()
 
         if reset_controller.stop_requested:
+            break
+
+        if _fs_active and _fs_successes >= n_inference_runs:
             break
 
     upload_after_shutdown = True
@@ -746,19 +838,34 @@ except Exception as exc:
     import traceback
     traceback.print_exc()
 finally:
-    # Always print and save the evaluation summary, regardless of how the script exits.
-    # (finally runs for normal completion, KeyboardInterrupt, and Python exceptions;
-    # only os._exit()/SIGKILL can bypass this.)
-    tracker.print_final_summary(model_id)
-    # Always close parquet writers so every file gets a valid footer,
-    # regardless of how the script exits (Ctrl+C, crash, or clean finish).
-    if recorder:
-        recorder.close_writers()
+    if _fs_active:
+        print(f"\n  Full-success generation complete: {_fs_successes}/{n_inference_runs}"
+              f" successes in {_fs_attempts} attempts.")
+        # Per-episode staging recorders are already closed inside the loop.
+        # Close any recorder that may still be open if we crashed mid-episode.
+        try:
+            if recorder:
+                recorder.close_writers()
+        except Exception:
+            pass
+    else:
+        # Always print and save the evaluation summary, regardless of how the script exits.
+        # (finally runs for normal completion, KeyboardInterrupt, and Python exceptions;
+        # only os._exit()/SIGKILL can bypass this.)
+        tracker.print_final_summary(model_id)
+        if recorder:
+            recorder.close_writers()
     print("Closing environment...")
     env.close()
 
 # Push outside the Isaac Sim try/finally so Hub upload errors are visible
 # and Isaac Sim shutdown logs don't bury them.
-if recorder and RECORD_ENABLED and upload_after_shutdown:
-    print("\n📤 Pushing dataset to HuggingFace Hub (this may take a few minutes for video data)...")
-    recorder.push_to_hub()
+if RECORD_ENABLED and upload_after_shutdown:
+    if _fs_active:
+        # In full-success mode open the completed main dataset for Hub upload.
+        print("\n📤 Pushing dataset to HuggingFace Hub...")
+        _push_recorder = SubtaskRecorder.create(RECORD_DATASET_NAME, resume=True, freeze_frames=FREEZE_FRAMES)
+        _push_recorder.push_to_hub()
+    elif recorder:
+        print("\n📤 Pushing dataset to HuggingFace Hub (this may take a few minutes for video data)...")
+        recorder.push_to_hub()

@@ -36,6 +36,8 @@ import shutil
 from pathlib import Path
 
 import numpy as np
+import pyarrow as pa
+import pyarrow.parquet as pq
 from lerobot.datasets.lerobot_dataset import CODEBASE_VERSION, LeRobotDataset
 
 
@@ -58,6 +60,174 @@ DATASET_FEATURES = {
 HF_ORG = "MasterProject2026"
 SYNTHETIC_DATASETS_DIR = Path(__file__).parent / "synthetic_datasets"
 INCREMENTAL_PUSH_EVERY = 25
+
+CAMERAS = ["observation.images.front", "observation.images.wrist"]
+
+
+def merge_staging_into(staging_path: Path, main_path: Path) -> int:
+    """
+    Append all episodes from staging into the main dataset at the file level.
+    Used by FULL_SUCCESS_DATA_GENERATION mode to atomically add a complete
+    successful episode to the main dataset only after all subtasks are recorded.
+
+    Must be called after staging_recorder.close_writers() so all parquet
+    footers are valid.  Returns the number of episodes merged.
+    """
+    with open(staging_path / "meta" / "info.json") as f:
+        staging_info = json.load(f)
+    with open(main_path / "meta" / "info.json") as f:
+        main_info = json.load(f)
+
+    n_staging   = staging_info["total_episodes"]
+    chunks_size = main_info["chunks_size"]
+    ep_offset   = main_info["total_episodes"]
+    frame_offset = main_info["total_frames"]
+
+    if n_staging == 0:
+        return 0
+
+    # --- Load staging meta/episodes table ---
+    staging_ep_tables = []
+    for f in sorted((staging_path / "meta" / "episodes").glob("chunk-*/*.parquet")):
+        try:
+            staging_ep_tables.append(pq.read_table(f))
+        except Exception:
+            pass
+    staging_ep_meta = pa.concat_tables(staging_ep_tables)
+    src_ep_ids   = staging_ep_meta.column("episode_index").to_pylist()
+    src_row_of   = {ep: i for i, ep in enumerate(src_ep_ids)}
+
+    def col(table, name):
+        return table.column(name).to_pylist()
+
+    src_data_chunk = col(staging_ep_meta, "data/chunk_index")
+    src_data_file  = col(staging_ep_meta, "data/file_index")
+    src_vid = {
+        cam: {
+            "chunk":   col(staging_ep_meta, f"videos/{cam}/chunk_index"),
+            "file":    col(staging_ep_meta, f"videos/{cam}/file_index"),
+            "from_ts": col(staging_ep_meta, f"videos/{cam}/from_timestamp"),
+            "to_ts":   col(staging_ep_meta, f"videos/{cam}/to_timestamp"),
+        }
+        for cam in CAMERAS
+    }
+
+    new_ep_frame_offsets: list[int] = []
+    new_ep_n_frames: list[int]      = []
+    running_frame_offset = frame_offset
+
+    for src_ep in range(n_staging):
+        dst_ep    = ep_offset + src_ep
+        dst_chunk = dst_ep // chunks_size
+        dst_file  = dst_ep % chunks_size
+        ri = src_row_of[src_ep]
+
+        # Copy + reindex data parquet
+        src_parquet = staging_path / f"data/chunk-{src_data_chunk[ri]:03d}/file-{src_data_file[ri]:03d}.parquet"
+        dst_parquet = main_path   / f"data/chunk-{dst_chunk:03d}/file-{dst_file:03d}.parquet"
+        dst_parquet.parent.mkdir(parents=True, exist_ok=True)
+
+        table = pq.read_table(src_parquet)
+        n_frames = len(table)
+        table = table.set_column(
+            table.schema.get_field_index("episode_index"),
+            "episode_index",
+            pa.array([dst_ep] * n_frames, type=pa.int64()),
+        )
+        table = table.set_column(
+            table.schema.get_field_index("index"),
+            "index",
+            pa.array(range(running_frame_offset, running_frame_offset + n_frames), type=pa.int64()),
+        )
+        pq.write_table(table, dst_parquet)
+
+        # Copy video files
+        for cam in CAMERAS:
+            vc = src_vid[cam]
+            src_video = staging_path / f"videos/{cam}/chunk-{vc['chunk'][ri]:03d}/file-{vc['file'][ri]:03d}.mp4"
+            dst_video = main_path   / f"videos/{cam}/chunk-{dst_chunk:03d}/file-{dst_file:03d}.mp4"
+            dst_video.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src_video, dst_video)
+
+        new_ep_frame_offsets.append(running_frame_offset)
+        new_ep_n_frames.append(n_frames)
+        running_frame_offset += n_frames
+
+    total_new_frames = running_frame_offset - frame_offset
+
+    # --- Update main meta/episodes ---
+    def replace_col(t, name, values, typ):
+        return t.set_column(t.schema.get_field_index(name), name, pa.array(values, type=typ))
+
+    # Re-order staging meta to match src_ep 0..n_staging-1 order
+    ordered_rows = [src_row_of[ep] for ep in range(n_staging)]
+    new_ep_table = staging_ep_meta.take(ordered_rows)
+    N = n_staging
+
+    new_ep_table = replace_col(new_ep_table, "episode_index",    [ep_offset + i for i in range(N)], pa.int64())
+    new_ep_table = replace_col(new_ep_table, "data/chunk_index", [(ep_offset + i) // chunks_size for i in range(N)], pa.int64())
+    new_ep_table = replace_col(new_ep_table, "data/file_index",  [(ep_offset + i) % chunks_size  for i in range(N)], pa.int64())
+    new_ep_table = replace_col(new_ep_table, "dataset_from_index", new_ep_frame_offsets, pa.int64())
+    new_ep_table = replace_col(new_ep_table, "dataset_to_index",
+                               [new_ep_frame_offsets[i] + new_ep_n_frames[i] for i in range(N)], pa.int64())
+
+    for cam in CAMERAS:
+        new_ep_table = replace_col(new_ep_table, f"videos/{cam}/chunk_index",
+                                   [(ep_offset + i) // chunks_size for i in range(N)], pa.int64())
+        new_ep_table = replace_col(new_ep_table, f"videos/{cam}/file_index",
+                                   [(ep_offset + i) % chunks_size  for i in range(N)], pa.int64())
+        new_ep_table = replace_col(new_ep_table, f"videos/{cam}/from_timestamp", [0.0] * N, pa.float64())
+        fps = main_info["fps"]
+        new_ep_table = replace_col(new_ep_table, f"videos/{cam}/to_timestamp",
+                                   [new_ep_n_frames[i] / fps for i in range(N)], pa.float64())
+
+    # Append new rows to the appropriate main meta/episodes chunk file
+    last_chunk = (ep_offset + N - 1) // chunks_size
+    for dst_chunk in range(ep_offset // chunks_size, last_chunk + 1):
+        chunk_start = dst_chunk * chunks_size
+        # Rows in new_ep_table that belong to this chunk
+        lo = max(chunk_start - ep_offset, 0)
+        hi = min((dst_chunk + 1) * chunks_size - ep_offset, N)
+        if lo >= hi:
+            continue
+        chunk_slice = new_ep_table.slice(lo, hi - lo)
+
+        chunk_dir = main_path / "meta" / "episodes" / f"chunk-{dst_chunk:03d}"
+        chunk_dir.mkdir(parents=True, exist_ok=True)
+
+        existing_files = sorted(chunk_dir.glob("file-*.parquet"))
+        if existing_files:
+            # Append to the last existing metadata file in this chunk
+            existing = pq.read_table(existing_files[-1])
+            merged = pa.concat_tables([existing, chunk_slice])
+            pq.write_table(merged, existing_files[-1])
+        else:
+            pq.write_table(chunk_slice, chunk_dir / "file-000.parquet")
+
+    # --- Update main meta/info.json ---
+    main_info["total_episodes"] = ep_offset + N
+    main_info["total_frames"]   = frame_offset + total_new_frames
+    main_info["splits"]         = {"train": f"0:{ep_offset + N}"}
+    with open(main_path / "meta" / "info.json", "w") as f:
+        json.dump(main_info, f, indent=4)
+
+    # --- Update checkpoint.json ---
+    with open(main_path / "checkpoint.json", "w") as f:
+        json.dump({
+            "total_subtask_recordings": ep_offset + N,
+            "last_commit": datetime.datetime.now().isoformat(timespec="seconds"),
+        }, f)
+
+    # --- Append to subtask_metadata.jsonl ---
+    staging_jsonl = staging_path / "subtask_metadata.jsonl"
+    main_jsonl    = main_path    / "subtask_metadata.jsonl"
+    staging_lines = [json.loads(l) for l in staging_jsonl.read_text().splitlines() if l.strip()]
+    with open(main_jsonl, "a") as f:
+        for i, rec in enumerate(staging_lines):
+            rec["episode_index"] = ep_offset + i
+            f.write(json.dumps(rec) + "\n")
+
+    return N
 
 
 class SubtaskRecorder:
