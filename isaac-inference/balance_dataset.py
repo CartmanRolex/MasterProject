@@ -330,6 +330,13 @@ def main() -> None:
             )
 
     N = len(selected)
+
+    # Consolidate per-episode video files into one large file per camera so that
+    # torchcodec does not reinitialise the decoder on every training sample.
+    print(f"\nConsolidating videos (merging {N} files per camera → 1)...")
+    from consolidate_dataset_videos import consolidate_videos
+    consolidate_videos(dest, episodes_per_file=0)
+
     print(f"\nDone.")
     print(f"  Source:   {source.name}  ({len(records)} episodes)")
     print(f"  Output:   {dest.name}  ({N} episodes, {total_frames} frames)")
