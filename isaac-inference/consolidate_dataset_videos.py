@@ -65,6 +65,28 @@ def _ffmpeg_concat(src_paths: list[Path], dst: Path) -> None:
         list_path.unlink(missing_ok=True)
 
 
+def _normalize_video_timestamps(video_path: Path, fps: int) -> None:
+    """Remux in-place so frame PTS are exactly 0, 1/fps, 2/fps, ..."""
+    ticks_per_frame = 1000
+    timescale = fps * ticks_per_frame
+    tmp = video_path.with_suffix(".norm.mp4")
+    res = subprocess.run(
+        [
+            "ffmpeg", "-y", "-loglevel", "error",
+            "-i", str(video_path),
+            "-c", "copy",
+            "-bsf:v", f"setts=pts=N*{ticks_per_frame}:dts=N*{ticks_per_frame}",
+            "-video_track_timescale", str(timescale),
+            str(tmp),
+        ],
+        capture_output=True, text=True,
+    )
+    if res.returncode != 0:
+        tmp.unlink(missing_ok=True)
+        raise RuntimeError(f"ffmpeg timestamp normalization failed for {video_path}:\n{res.stderr}")
+    tmp.rename(video_path)
+
+
 def consolidate(dataset_path: Path, episodes_per_file: int = 0) -> None:
     # ── Load meta/episodes ─────────────────────────────────────────────────
     meta_files = sorted((dataset_path / "meta" / "episodes").glob("chunk-*/*.parquet"))
@@ -125,6 +147,8 @@ def consolidate(dataset_path: Path, episodes_per_file: int = 0) -> None:
                 for p in batch_srcs:
                     if p.resolve() != dst.resolve():
                         p.unlink(missing_ok=True)
+            print(f"  [video/{cam}] batch {batch_idx}: normalizing timestamps")
+            _normalize_video_timestamps(dst, fps)
 
         # Determine which batch each episode belongs to
         src_key_to_batch: dict[tuple, int] = {}
@@ -160,6 +184,7 @@ def consolidate(dataset_path: Path, episodes_per_file: int = 0) -> None:
                     # last frame of the file: estimate from frame duration
                     frame_dur = all_pts[-1] - all_pts[-2] if len(all_pts) > 1 else 1.0 / fps
                     new_to_ts[cam][i] = all_pts[ep_end_frame] + frame_dur
+
                 frame_cursor += ep_lengths[i]
 
         # Clean up empty non-chunk-000 video directories

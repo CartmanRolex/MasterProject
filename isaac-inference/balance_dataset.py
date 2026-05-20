@@ -106,7 +106,7 @@ def load_episode_lookup(source: Path) -> tuple[dict[int, int], pa.Table]:
     return row_of_ep, all_eps
 
 
-def copy_data_parquet(src: Path, dst: Path, new_ep_idx: int, frame_offset: int) -> int:
+def copy_data_parquet(src: Path, dst: Path, new_ep_idx: int, frame_offset: int, fps: int) -> int:
     table = pq.read_table(src)
     n = len(table)
     table = table.set_column(
@@ -119,6 +119,12 @@ def copy_data_parquet(src: Path, dst: Path, new_ep_idx: int, frame_offset: int) 
         "index",
         pa.array(range(frame_offset, frame_offset + n), type=pa.int64()),
     )
+    # Reset to exact k/fps so parquet timestamps match the normalized video PTS.
+    table = table.set_column(
+        table.schema.get_field_index("timestamp"),
+        "timestamp",
+        pa.array([k / fps for k in range(n)], type=pa.float64()),
+    )
     dst.parent.mkdir(parents=True, exist_ok=True)
     pq.write_table(table, dst)
     return n
@@ -126,7 +132,7 @@ def copy_data_parquet(src: Path, dst: Path, new_ep_idx: int, frame_offset: int) 
 
 def probe_vcodec() -> str:
     """Return the best available hardware/software video encoder."""
-    for codec in ("h264_nvenc", "libx264"):
+    for codec in ("h264_nvenc", "libsvtav1", "libx264"):
         res = subprocess.run(
             ["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc=duration=0.1:size=640x480:rate=30",
              "-c:v", codec, "-f", "null", "-"],
@@ -134,24 +140,33 @@ def probe_vcodec() -> str:
         )
         if res.returncode == 0:
             return codec
-    raise RuntimeError("No supported video encoder found (h264_nvenc or libx264)")
+    raise RuntimeError("No supported video encoder found (h264_nvenc, libsvtav1, or libx264)")
 
 
 _VCODEC: str | None = None
 
 
-def extract_video(src: Path, dst: Path, from_ts: float, to_ts: float) -> None:
+def extract_video(src: Path, dst: Path, from_ts: float, n_frames: int, fps: int) -> None:
     global _VCODEC
     if _VCODEC is None:
         _VCODEC = probe_vcodec()
         print(f"  Video encoder: {_VCODEC}")
     dst.parent.mkdir(parents=True, exist_ok=True)
+    ticks_per_frame = 1000
+    timescale = fps * ticks_per_frame
+    # -vf setpts=PTS-STARTPTS resets output PTS to 0.
+    # The final consolidate step also remuxes timestamps after concatenating clips.
     res = subprocess.run(
         [
             "ffmpeg", "-y", "-loglevel", "error",
-            "-ss", str(from_ts), "-to", str(to_ts),
+            "-ss", str(from_ts),
             "-i", str(src),
-            "-c:v", _VCODEC, "-pix_fmt", "yuv420p",
+            "-frames:v", str(n_frames),
+            "-c:v", _VCODEC, "-pix_fmt", "yuv420p", "-g", "2",
+            *(["-bf", "0"] if "264" in _VCODEC else []),
+            "-vf", "setpts=PTS-STARTPTS",
+            "-r", str(fps),
+            "-video_track_timescale", str(timescale),
             str(dst),
         ],
         capture_output=True, text=True,
@@ -255,13 +270,13 @@ def main() -> None:
 
         src_parquet = source / f"data/chunk-{data_chunk_col[ri]:03d}/file-{data_file_col[ri]:03d}.parquet"
         dst_parquet = dest / f"data/chunk-{new_ep_idx // chunks_size:03d}/file-{new_ep_idx % chunks_size:03d}.parquet"
-        n_frames = copy_data_parquet(src_parquet, dst_parquet, new_ep_idx, frame_offset)
+        n_frames = copy_data_parquet(src_parquet, dst_parquet, new_ep_idx, frame_offset, fps)
 
         for cam in CAMERAS:
             vi = vid_info[cam]
             src_video = source / f"videos/{cam}/chunk-{vi['chunk'][ri]:03d}/file-{vi['file'][ri]:03d}.mp4"
             dst_video = dest / f"videos/{cam}/chunk-{new_ep_idx // chunks_size:03d}/file-{new_ep_idx % chunks_size:03d}.mp4"
-            extract_video(src_video, dst_video, vi["from_ts"][ri], vi["to_ts"][ri])
+            extract_video(src_video, dst_video, vi["from_ts"][ri], n_frames, fps)
 
         frame_offsets.append(frame_offset)
         per_ep_frames.append(n_frames)
@@ -296,8 +311,8 @@ def main() -> None:
     new_info["total_episodes"] = len(selected)
     new_info["total_frames"] = total_frames
     new_info["splits"] = {"train": f"0:{len(selected)}"}
-    if _VCODEC and _VCODEC != "libsvtav1":
-        codec_name = "h264" if "264" in _VCODEC else _VCODEC
+    if _VCODEC:
+        codec_name = "av1" if _VCODEC == "libsvtav1" else "h264" if "264" in _VCODEC else _VCODEC
         for cam in CAMERAS:
             if "features" in new_info and cam in new_info["features"]:
                 new_info["features"][cam]["info"]["video.codec"] = codec_name
@@ -334,8 +349,8 @@ def main() -> None:
     # Consolidate per-episode video files into one large file per camera so that
     # torchcodec does not reinitialise the decoder on every training sample.
     print(f"\nConsolidating videos (merging {N} files per camera → 1)...")
-    from consolidate_dataset_videos import consolidate_videos
-    consolidate_videos(dest, episodes_per_file=0)
+    from consolidate_dataset_videos import consolidate
+    consolidate(dest, episodes_per_file=0)
 
     print(f"\nDone.")
     print(f"  Source:   {source.name}  ({len(records)} episodes)")
