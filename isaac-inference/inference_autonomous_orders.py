@@ -55,7 +55,7 @@ FREEZE_FRAMES       = 20     # freeze frames appended at the end of each subtask
 #     only on full success — failed attempts produce zero disk writes.
 #   - On the 2nd grasp failure for any orange the episode aborts immediately.
 #   - EvaluationTracker is not used (evaluation stats are unaffected).
-FULL_SUCCESS_DATA_GENERATION = False
+FULL_SUCCESS_DATA_GENERATION = True
 
 # --- Evaluation metrics ---
 EVAL_RESUME          = True   # True: resume completed-run metrics from results/eval_<model>_checkpoint.json
