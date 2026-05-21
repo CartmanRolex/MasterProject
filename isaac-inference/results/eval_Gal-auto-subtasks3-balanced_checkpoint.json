@@ -1,0 +1,52 @@
+{
+  "model_id": "MasterProject2026/Gal-auto-subtasks3-balanced",
+  "target_n_episodes": 500,
+  "completed_episodes": 2,
+  "last_update": "2026-05-21T10:28:14",
+  "episodes": [
+    {
+      "episode": 0,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 0,
+      "n_infer_calls": 3301,
+      "last_infer_ms": 6.245157914236188,
+      "avg_step_ms": 37.92349533708766,
+      "ended_at": "2026-05-21T10:24:23",
+      "n_local_retries": 4,
+      "n_redirections": 2,
+      "n_oranges_abandoned": 2
+    },
+    {
+      "episode": 1,
+      "step_count": 4305,
+      "is_terminated": false,
+      "oranges_in_plate": 1,
+      "n_infer_calls": 2879,
+      "last_infer_ms": 9.926220984198153,
+      "avg_step_ms": 38.13646348403133,
+      "ended_at": "2026-05-21T10:28:14",
+      "n_local_retries": 3,
+      "n_redirections": 2,
+      "n_oranges_abandoned": 2
+    }
+  ],
+  "subtask_stats": {
+    "GRASP_0": {
+      "attempts": 7,
+      "successes": 2
+    },
+    "LIFT_0": {
+      "attempts": 2,
+      "successes": 1
+    },
+    "PLACE_0": {
+      "attempts": 1,
+      "successes": 0
+    },
+    "GRASP_1": {
+      "attempts": 4,
+      "successes": 0
+    }
+  }
+}

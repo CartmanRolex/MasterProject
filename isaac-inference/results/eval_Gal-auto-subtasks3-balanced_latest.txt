@@ -1,0 +1,21 @@
+
+========================================
+EVALUATION SUMMARY (stopped after 2/500 runs)
+Model ID:             MasterProject2026/Gal-auto-subtasks3-balanced
+Success Rate:         0/2 (0.00%)
+Avg oranges in plate: 0.50/3
+Mean steps (success): nan
+3/3 oranges:          0/2 (0.0%)
+2/3 oranges:          0/2 (0.0%)
+1/3 oranges:          1/2 (50.0%)
+0/3 oranges:          1/2 (50.0%)
+Per-episode oranges:  [0, 1]
+Per-subtask success rates (by oranges in plate at subtask start):
+  GRASP:  0 placed:   5/12  ( 41.7%)   1 placed:   0/4   (  0.0%)   2 placed:   0/0   (  nan%)
+  LIFT:   0 placed:   1/5   ( 20.0%)   1 placed:   0/0   (  nan%)   2 placed:   0/0   (  nan%)
+  PLACE:  0 placed:   0/1   (  0.0%)   1 placed:   0/0   (  nan%)   2 placed:   0/0   (  nan%)
+Mechanism usage (local retry = same orange after slip; redirection = new orange after timeout):
+  Local retries:      7 total, fired in 2/2 episodes
+  Target redirections:4 total, fired in 2/2 episodes
+  Oranges abandoned:  4 total (2.00 avg/episode)
+========================================

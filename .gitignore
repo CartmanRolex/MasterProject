@@ -17,9 +17,14 @@ cluster-training/outputs/
 
 # ── Debug snapshots ─────────────────────────────────────────────────────
 isaac-inference/debug/
+isaac-inference/explore_tests/
 
 # ── Inference run logs ───────────────────────────────────────────────────
 isaac-inference/logs/
+isaac-inference/logs.txt
+
+# ── Local assistant/tool settings ────────────────────────────────────────
+.claude/
 
 # ── LaTeX build artifacts ────────────────────────────────────────────────
 report/*.aux
@@ -32,4 +37,3 @@ report/*.out
 report/*.synctex.gz
 report/*.toc
 report/*.pdf
-
