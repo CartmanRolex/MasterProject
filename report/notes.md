@@ -102,8 +102,8 @@ At the end of every recorded subtask episode, **20 freeze frames** are appended 
 ### Result
 - SmolVLA fine-tuned on this dataset follows relative-position instructions and can target a specific orange.
 - **Full-task standalone eval (no orchestrator): 0–1/100** — expected, because this is a subtask model not designed to run monolithically.
-- With orchestrator: qualitative improvement observed; robustness still limited in OOD configurations. Retrying the same orange in a failed configuration rarely helps (out-of-distribution, not noise). Redirecting to a different orange typically works.
-- No formal orchestrated success rate measured at this stage.
+- With orchestrator: formal evaluation is worse than the monolithic baselines. The policy can still follow target instructions qualitatively, but this is not enough to offset low grasp reliability under full-task execution.
+- Formal orchestrated eval: **26/326 (7.98%)**, average **1.32/3** oranges in plate, stopped after 326/500 planned episodes.
 
 ---
 
@@ -146,18 +146,26 @@ Terminology (do not conflate):
 - Eval and data recording are controlled independently: `RECORD_ENABLED` flag. These should be run separately — eval first (recording off), then data collection (recording on).
 - Current dataset target: `Gal-auto-subtasks3`.
 
-### First partial eval results — `Gal-pick-orange-tailedCH20` (3 runs, May 2026)
+### Partial eval results — `Gal-pick-orange-tailedCH20` (326/500 runs, May 2026)
 
 ```
-Success Rate:         0/3 (0%)
-Avg oranges in plate: 0.67/3
+Success Rate:         26/326 (7.98%)
+Avg oranges in plate: 1.32/3
+3/3 oranges:          26/326 (8.0%)
+2/3 oranges:          121/326 (37.1%)
+1/3 oranges:          110/326 (33.7%)
+0/3 oranges:          69/326 (21.2%)
 
-GRASP:  0 placed → 2/5  (40%)    1 placed → 0/4  (0%)
-LIFT:   2/2  (100%)
-PLACE:  2/2  (100%)
+GRASP:  0 placed: 357/921 (38.8%)   1 placed: 204/608 (33.6%)   2 placed: 51/195 (26.2%)
+LIFT:   0 placed: 302/357 (84.6%)   1 placed: 174/204 (85.3%)   2 placed: 39/51  (76.5%)
+PLACE:  0 placed: 237/302 (78.5%)   1 placed: 140/174 (80.5%)   2 placed: 30/39  (76.9%)
+
+Local retries:        791 total, fired in 314/326 episodes
+Target redirections:  523 total, fired in 293/326 episodes
+Oranges abandoned:    515 total (1.58 avg/episode)
 ```
 
-**Key takeaway:** LIFT and PLACE are essentially solved — once the robot has the orange, it places it reliably. The entire failure chain bottleneck is **GRASP, specifically the 2nd and 3rd oranges** (0% success when 1 orange is already placed). This is a distribution problem: the scene state with an orange already in the plate is underrepresented in the training data. Need to run full 100-episode eval to confirm.
+**Key takeaway:** The new formal result is **worse** than the monolithic baselines (ACT 26%, SmolVLA 28%). LIFT and PLACE are comparatively reliable once the robot has the orange, but GRASP remains the bottleneck and degrades as the episode progresses. The orchestrator fires local retry and redirection frequently, but these mechanisms do not compensate for the weak grasp policy strongly enough to improve full-task success.
 
 ---
 

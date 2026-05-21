@@ -1,7 +1,7 @@
 \section{Results}
 \label{sec:experiments}
 
-This section reports the experimental evidence collected so far. The first result establishes a monolithic full-episode baseline. The later results characterise the subtask model and identify the formal metrics that remain to be collected once orchestrated evaluation completes.
+This section reports the experimental evidence collected so far. The first result establishes a monolithic full-episode baseline. The later results characterise the subtask model and its performance inside the orchestrated execution loop.
 
 \subsection{Full-Episode Imitation Baseline}
 
@@ -27,7 +27,39 @@ ACT and SmolVLA achieve comparable performance. This confirms that, under identi
 
 The dataset contains 921 successful subtask episodes, each annotated with a relative-position instruction and collected in a randomised pick order. The resulting SmolVLA model qualitatively follows target-specific grasp instructions — the enabling capability for the orchestrator: after a subtask failure, the system can issue a corrective instruction rather than aborting the full episode.
 
-The model is not intended to solve the whole task as a monolithic policy. The formal metric of interest is its performance inside the orchestrated execution loop. FILLME: formal orchestrated success rate. FILLME: average oranges placed with orchestrator.
+The model is not intended to solve the whole task as a monolithic policy. The formal metric of interest is its performance inside the orchestrated execution loop, where privileged simulator state is used to detect failed subtasks and trigger local retry or target redirection.
+
+\begin{table}[H]
+    \centering
+    \caption{Orchestrated evaluation of the manually collected subtask model. The run was stopped after 326 of the planned 500 episodes. Success means completing the full three-orange task.}
+    \label{tab:orchestrated_eval}
+    \begin{tabular}{lccc}
+        \toprule
+        Model & Episodes & Success rate & Avg. oranges in plate \\
+        \midrule
+        Gal-pick-orange-tailedCH20 & 326 & 26/326 (7.98\%) & 1.32 / 3 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+The orchestrated result is worse than the monolithic baselines in Table~\ref{tab:full_episode_baseline}: its full-task success rate is 7.98\%, compared with 26\% for ACT and 28\% for the monolithic SmolVLA baseline, and its average number of oranges placed is also lower. The result therefore does not support the original expectation that subtask decomposition plus orchestration would immediately improve complete-task performance.
+
+\begin{table}[H]
+    \centering
+    \caption{Subtask success rates during orchestrated evaluation, grouped by how many oranges were already in the plate at subtask start.}
+    \label{tab:orchestrated_subtasks}
+    \begin{tabular}{lccc}
+        \toprule
+        Subtask & 0 placed & 1 placed & 2 placed \\
+        \midrule
+        GRASP & 357/921 (38.8\%) & 204/608 (33.6\%) & 51/195 (26.2\%) \\
+        LIFT & 302/357 (84.6\%) & 174/204 (85.3\%) & 39/51 (76.5\%) \\
+        PLACE & 237/302 (78.5\%) & 140/174 (80.5\%) & 30/39 (76.9\%) \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+The subtask breakdown shows that the main bottleneck remains GRASP. LIFT and PLACE are substantially more reliable once an orange has been acquired, but grasp success declines as the episode progresses and the scene moves further away from the original training distribution. The orchestrator also made heavy use of its recovery mechanisms: local retries occurred in 314 of 326 episodes, target redirections in 293 of 326 episodes, and 515 oranges were abandoned in total. These mechanisms prevented immediate dead-end execution, but they did not compensate for the low grasp reliability strongly enough to improve full-task success.
 
 \subsection{Autonomous Data Generation}
 
