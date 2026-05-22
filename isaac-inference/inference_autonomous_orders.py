@@ -31,7 +31,7 @@ from dataset_recorder import SubtaskRecorder, SYNTHETIC_DATASETS_DIR, merge_stag
 # 1. Configuration & Setup
 # ==========================================
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model_id = "MasterProject2026/Gal-pick-orange-tailedCH20"
+model_id = "MasterProject2026/Gal-merged-tailed-auto"
 
 # Number of full robot sessions to run.
 # One inference run = env reset → robot picks all oranges → done.
@@ -42,10 +42,10 @@ n_inference_runs = 500
 max_steps = 5000
 
 # --- Dataset recording ---ss
-RECORD_ENABLED      = True
+RECORD_ENABLED      = False
 RECORD_RESUME       = True   # True: append to existing dataset  |  False: start fresh (needs RECORD_OVERWRITE)
 RECORD_OVERWRITE    = False  # True: delete existing dataset and start fresh (DESTRUCTIVE — set intentionally)
-RECORD_DATASET_NAME = "Gal-auto-subtasks3"   # repo → MasterProject2026/<name>, local → synthetic_datasets/<name>/
+RECORD_DATASET_NAME = "-"   # repo → MasterProject2026/<name>, local → synthetic_datasets/<name>/
 FREEZE_FRAMES       = 20     # freeze frames appended at the end of each subtask recording
 
 # --- Full-success data generation ---
@@ -55,7 +55,7 @@ FREEZE_FRAMES       = 20     # freeze frames appended at the end of each subtask
 #     only on full success — failed attempts produce zero disk writes.
 #   - On the 2nd grasp failure for any orange the episode aborts immediately.
 #   - EvaluationTracker is not used (evaluation stats are unaffected).
-FULL_SUCCESS_DATA_GENERATION = True
+FULL_SUCCESS_DATA_GENERATION = False
 
 # --- Evaluation metrics ---
 EVAL_RESUME          = True   # True: resume completed-run metrics from results/eval_<model>_checkpoint.json

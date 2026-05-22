@@ -27,6 +27,7 @@ from pathlib import Path
 
 import pyarrow as pa
 import pyarrow.parquet as pq
+import pandas as pd
 
 from balance_dataset import CAMERAS, extract_video, probe_vcodec
 import balance_dataset as _bd
@@ -100,12 +101,9 @@ def unify_tasks(source_tasks: list[dict[int, str]]) -> tuple[list[str], list[dic
 
 
 def write_tasks_parquet(unified: list[str], dst: Path) -> None:
-    table = pa.table({
-        "task_index": pa.array(list(range(len(unified))), type=pa.int64()),
-        "__index_level_0__": pa.array(unified, type=pa.string()),
-    })
     dst.parent.mkdir(parents=True, exist_ok=True)
-    pq.write_table(table, dst)
+    tasks = pd.DataFrame({"task_index": range(len(unified))}, index=unified)
+    tasks.to_parquet(dst)
 
 
 # ── data parquet merge ────────────────────────────────────────────────────────
@@ -122,6 +120,7 @@ def remap_data_table(
     ep_offset: int,
     frame_offset: int,
     task_remap: dict[int, int],
+    fps: int,
 ) -> pa.Table:
     n = table.num_rows
 
@@ -136,11 +135,12 @@ def remap_data_table(
     old_ti = table.column("task_index").to_pylist()
     table = replace(table, "task_index", [task_remap[x] for x in old_ti], pa.int64())
 
-    # info.json declares timestamp as float32; balance_dataset.py historically wrote
-    # float64 — normalize so cross-source concat succeeds.
+    # Match balance_dataset.py: keep timestamps exact within each episode so
+    # LeRobot's video query time is local frame_index / fps.
     ts_idx = table.schema.get_field_index("timestamp")
-    if ts_idx != -1 and table.schema.field("timestamp").type != pa.float32():
-        ts_vals = table.column("timestamp").cast(pa.float32())
+    if ts_idx != -1:
+        frame_idx = table.column("frame_index").to_pylist()
+        ts_vals = pa.array([k / fps for k in frame_idx], type=pa.float64())
         table = table.set_column(ts_idx, "timestamp", ts_vals)
 
     return table
@@ -444,7 +444,7 @@ def main() -> None:
     merged_chunks: list[pa.Table] = []
     for src, ep_off, frame_off, remap in zip(sources, ep_offsets, frame_offsets, task_remaps):
         t = load_concat_data_parquet(src)
-        t = remap_data_table(t, ep_off, frame_off, remap)
+        t = remap_data_table(t, ep_off, frame_off, remap, fps)
         merged_chunks.append(t)
     merged_data = pa.concat_tables(merged_chunks, promote_options="default")
     print(f"  {merged_data.num_rows} rows (will be reconciled against actual mp4 frame counts)")
@@ -500,7 +500,9 @@ def main() -> None:
 
     # ── 10. Final consolidate pass: probe PTS, fix from/to_timestamp ──────────
     print("\nFinal consolidate pass (probe PTS + fix timestamps) ...")
-    consolidate(dest, episodes_per_file=0)
+    # Avoid one multi-hour MP4: torchcodec's timestamp tolerance path uses
+    # float32 internally, so very long videos can exceed tolerance_s=1e-4.
+    consolidate(dest, episodes_per_file=100)
 
     print(f"\nDone.")
     print(f"  Output: {dest}")
