@@ -444,7 +444,7 @@ home_checker     = HomeChecker()
 reset_controller = ResetController()
 reset_controller.start()
 
-recorder = DryRunRecorder(FREEZE_FRAMES)
+recorder = None
 if RECORD_ENABLED:
     if FULL_SUCCESS_DATA_GENERATION:
         # Ensure the main dataset exists; staging is created fresh per episode attempt.
@@ -508,7 +508,7 @@ else:
   Model:                {model_id}
   Inference runs:       {n_inference_runs}
   Completed runs:       {_completed_so_far} already tracked
-  Recording:            {'enabled' if recorder else 'disabled'}
+  Recording:            {'enabled' if RECORD_ENABLED else 'disabled'}
   Subtask recordings:   {_recorded_so_far} already saved
 {'━' * 52}
 """)
