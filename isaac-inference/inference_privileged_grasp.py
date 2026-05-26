@@ -42,7 +42,7 @@ RETREAT_ORIENTATION_GAIN = 1.4
 ORIENT_DOWN_TOL = 0.03
 ORIENT_DOWN_STABLE_STEPS = 8
 ORIENT_DOWN_MAX_STEPS = 250
-RETREAT_DISTANCE = 0.15
+RETREAT_DISTANCE = 0.1
 RETREAT_MAX_STEPS = 250
 GRIPPER_LOCAL_BACKWARDS_AXIS = (0.0, 0.0, 1.0)
 GRIPPER_LOCAL_DOWN_AXIS = (0.0, 0.0, -1.0)
@@ -385,18 +385,16 @@ class PrivilegedGraspController:
             if rot_norm > self.max_rotation_step:
                 rot_error = rot_error / (rot_norm + 1e-8) * self.max_rotation_step
 
-            task_jacobian = torch.cat(
-                (jacobian_pos, RETREAT_ORIENTATION_GAIN * jacobian_rot),
-                dim=0,
+            nullspace = torch.eye(
+                len(self._jacobi_joint_ids),
+                device=jacobian.device,
+                dtype=jacobian.dtype,
+            ) - pinv_primary @ jacobian_pos
+            jacobian_rot_null = jacobian_rot @ nullspace
+            delta_rot = nullspace @ (
+                self._dls_pinv(jacobian_rot_null) @ rot_error.to(jacobian.device)
             )
-            task_error = torch.cat(
-                (
-                    pos_error.to(jacobian.device),
-                    RETREAT_ORIENTATION_GAIN * rot_error.to(jacobian.device),
-                ),
-                dim=0,
-            )
-            delta = self._dls_pinv(task_jacobian) @ task_error
+            delta = delta_pos + RETREAT_ORIENTATION_GAIN * delta_rot
         else:
             rot_error = down_axis_error(ee_quat_w)
             rot_norm = torch.linalg.norm(rot_error)
