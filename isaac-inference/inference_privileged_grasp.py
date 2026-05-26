@@ -1,7 +1,6 @@
 import argparse
 import importlib.util
 import logging
-import math
 import signal
 import sys
 import threading
@@ -32,20 +31,19 @@ ARM_JOINT_NAMES = (
 GRIPPER_OPEN = 1.00
 
 # Cartesian target: same XY as orange COM, fixed height above COM.
-ABOVE_COM_HEIGHT = 0.08
+ABOVE_COM_HEIGHT = 0.13
 WARMUP_STEPS = 2
 
 DLS_LAMBDA = 0.04
-DEFAULT_SPEED_SCALE = 1.0
-BASE_CARTESIAN_STEP = 0.0125
-BASE_ROTATION_STEP = 0.06
+DEFAULT_SPEED_SCALE = 10
 BASE_JOINT_STEP = 0.0225
+RETREAT_POS_TOL = 0.015
 ORIENT_DOWN_TOL = 0.03
 ORIENT_DOWN_STABLE_STEPS = 8
 ORIENT_DOWN_MAX_STEPS = 250
-RETREAT_BACKWARD_DISTANCE = 0.15
+RETREAT_BACKWARD_DISTANCE = 0.1
 RETREAT_DOWN_DISTANCE = 0.05
-RETREAT_MAX_STEPS = 250
+RETREAT_MAX_STEPS = 5000
 GRIPPER_LOCAL_BACKWARDS_AXIS = (0.0, 0.0, 1.0)
 GRIPPER_LOCAL_DOWN_AXIS = (0.0, 0.0, -1.0)
 WORLD_DOWN_AXIS = (0.0, 0.0, -1.0)
@@ -204,19 +202,27 @@ class PrivilegedGraspController:
     height above the COM, and aligns the gripper downward.
     """
 
-    def __init__(self, target_orange: str, speed_scale: float):
+    def __init__(
+        self,
+        target_orange: str,
+        speed_scale: float,
+        ik_pose_weights: tuple[float, float, float, float, float, float] | None,
+    ):
         if speed_scale <= 0.0:
             raise ValueError(f"speed_scale must be positive, got {speed_scale}")
+        if ik_pose_weights is not None:
+            if len(ik_pose_weights) != 6:
+                raise ValueError(f"Expected six IK pose weights, got {ik_pose_weights}")
+            if any(weight < 0.0 for weight in ik_pose_weights):
+                raise ValueError(f"IK pose weights must be non-negative, got {ik_pose_weights}")
+            if all(weight == 0.0 for weight in ik_pose_weights):
+                raise ValueError("At least one IK weight must be positive")
 
         self.target_orange = target_orange
-        self.speed_scale = speed_scale
-        self.max_cartesian_step = BASE_CARTESIAN_STEP * speed_scale
-        self.max_rotation_step = BASE_ROTATION_STEP * speed_scale
         self.max_joint_step = BASE_JOINT_STEP * speed_scale
-        timeout_scale = DEFAULT_SPEED_SCALE / speed_scale
-        self.retreat_max_steps = max(1, math.ceil(RETREAT_MAX_STEPS * timeout_scale))
-        self.orient_down_max_steps = max(1, math.ceil(ORIENT_DOWN_MAX_STEPS * timeout_scale))
-        self.done = False
+        self.ik_pose_weights = None if ik_pose_weights is None else tuple(float(weight) for weight in ik_pose_weights)
+        self.retreat_max_steps = RETREAT_MAX_STEPS
+        self.orient_down_max_steps = ORIENT_DOWN_MAX_STEPS
 
         self._joint_ids = None
         self._body_idx = None
@@ -233,10 +239,10 @@ class PrivilegedGraspController:
         self._retreat_start_pos_w = None
         self._retreat_start_quat_w = None
         self._retreat_target_w = None
+        self._tilt_pos_w = None
         self._debug_legend_printed = False
 
     def reset(self):
-        self.done = False
         self._origin_w = None
         self._target_com_env = None
         self._phase = "RETREAT"
@@ -245,6 +251,7 @@ class PrivilegedGraspController:
         self._retreat_start_pos_w = None
         self._retreat_start_quat_w = None
         self._retreat_target_w = None
+        self._tilt_pos_w = None
         self._debug_legend_printed = False
 
     def compute_action(self, env, current_joint_pos: torch.Tensor) -> torch.Tensor:
@@ -267,11 +274,16 @@ class PrivilegedGraspController:
             self._retreat_target_w = self._compute_retreat_target_w()
 
         self._update_phase(env)
-        final_target_w, step_target_w = self._compute_targets_w(env)
-        self._draw_control_points(env, final_target_w, step_target_w)
+        final_target_w, ik_target_w = self._compute_targets_w(env)
+        self._draw_control_points(env, final_target_w, ik_target_w)
 
-        target_quat_w = self._target_quat_w(env)
-        arm_target = self._ik_arm_target(env, current_joint_pos, step_target_w, target_quat_w)
+        if self._phase == "RETREAT":
+            if self._retreat_start_quat_w is None:
+                self._retreat_start_quat_w = self._ee_quat_w(env).clone()
+            arm_target = self._ik_arm_target(env, current_joint_pos, ik_target_w, self._retreat_start_quat_w)
+        else:
+            target_quat_w = self._target_quat_w(env)
+            arm_target = self._ik_arm_target(env, current_joint_pos, ik_target_w, target_quat_w)
         gripper_target = self._gripper_target(current_joint_pos[-1])
 
         action = current_joint_pos.clone()
@@ -282,45 +294,32 @@ class PrivilegedGraspController:
         return action
 
     def _compute_targets_w(self, env):
-        """Return (final_target_w, step_target_w) for the current phase.
+        """Return (final_target_w, ik_target_w) for the current phase.
 
-        final_target_w is the conceptual goal (viz only); None when there is
-        no real anchored goal (RETREAT/TILT are pure relative-step control).
-        step_target_w is the one-step clamped command handed to IK.
+        final_target_w is the conceptual goal (viz only). ik_target_w is the
+        Cartesian command handed to the active IK controller.
         """
         ee_pos_w = self._ee_pos_w(env)
-        ee_quat_w = self._ee_quat_w(env)
 
         if self._phase == "RETREAT":
             if self._retreat_target_w is None:
                 self._retreat_start_pos_w = ee_pos_w.clone()
-                self._retreat_start_quat_w = ee_quat_w.clone()
+                self._retreat_start_quat_w = self._ee_quat_w(env).clone()
                 self._retreat_target_w = self._compute_retreat_target_w()
 
-            pos_error = self._retreat_target_w - ee_pos_w
-            err_norm = torch.linalg.norm(pos_error)
-            if err_norm > self.max_cartesian_step:
-                pos_error = pos_error / (err_norm + 1e-8) * self.max_cartesian_step
-            step_target_w = ee_pos_w + pos_error
-            return self._retreat_target_w, step_target_w
+            return self._retreat_target_w, self._retreat_target_w
 
         if self._phase == "TILT":
-            return None, ee_pos_w.clone()
+            if self._tilt_pos_w is None:
+                self._tilt_pos_w = ee_pos_w.clone()
+            return self._tilt_pos_w, self._tilt_pos_w
 
         # MOVE_TO_TARGET
         origin = env.scene.env_origins[0].to(self._target_com_env.device)
         final_target_w = self._target_com_env + origin
         final_target_w = final_target_w.clone()
         final_target_w[2] += ABOVE_COM_HEIGHT
-        pos_error = final_target_w - ee_pos_w
-        err_norm = torch.linalg.norm(pos_error)
-        if err_norm > self.max_cartesian_step:
-            pos_error = pos_error / (err_norm + 1e-8) * self.max_cartesian_step
-        step_target_w = ee_pos_w + pos_error
-        return final_target_w, step_target_w
-
-    def mark_timeout(self):
-        self.done = True
+        return final_target_w, final_target_w
 
     def _ensure_robot_handles(self, env):
         if self._joint_ids is not None:
@@ -438,15 +437,7 @@ class PrivilegedGraspController:
 
     def _target_quat_w(self, env) -> torch.Tensor:
         ee_quat_w = self._ee_quat_w(env)
-        if self._phase == "RETREAT":
-            if self._retreat_start_quat_w is None:
-                self._retreat_start_quat_w = ee_quat_w.clone()
-            return self._retreat_start_quat_w
-
         rot_error = down_axis_error(ee_quat_w)
-        rot_norm = torch.linalg.norm(rot_error)
-        if rot_norm > self.max_rotation_step:
-            rot_error = rot_error / (rot_norm + 1e-8) * self.max_rotation_step
         delta_quat_w = quat_from_rotvec(rot_error)
         target_quat_w = quat_mul(delta_quat_w, ee_quat_w)
         return target_quat_w / (torch.linalg.norm(target_quat_w) + 1e-8)
@@ -456,7 +447,8 @@ class PrivilegedGraspController:
             ee_pos_w = self._ee_pos_w(env)
             remaining = torch.linalg.norm(self._retreat_target_w - ee_pos_w).item()
             self._phase_step += 1
-            if remaining <= self.max_cartesian_step or self._phase_step >= self.retreat_max_steps:
+            if remaining <= RETREAT_POS_TOL or self._phase_step >= self.retreat_max_steps:
+                self._tilt_pos_w = ee_pos_w.clone()
                 self._phase = "TILT"
                 self._phase_step = 0
                 self._orient_stable_steps = 0
@@ -487,30 +479,86 @@ class PrivilegedGraspController:
         self,
         env,
         current_joint_pos: torch.Tensor,
-        step_target_w: torch.Tensor,
+        target_pos_w: torch.Tensor,
         target_quat_w: torch.Tensor,
     ) -> torch.Tensor:
-        target_pos_root, target_quat_root = self._world_pose_to_root(env, step_target_w, target_quat_w)
+        target_pos_root, target_quat_root = self._world_pose_to_root(env, target_pos_w, target_quat_w)
         current_pos_root, current_quat_root = self._ee_pose_root(env)
-        target_pose_root = torch.cat((target_pos_root, target_quat_root), dim=1)
-        self._ik_controller.set_command(target_pose_root)
-
         jacobian_root = self._jacobian_root(env)
         current_arm_pos = current_joint_pos[:5].to(jacobian_root.device).unsqueeze(0)
-        arm_target = self._ik_controller.compute(
+
+        if self.ik_pose_weights is None:
+            target_pose_root = torch.cat((target_pos_root, target_quat_root), dim=1)
+            self._ik_controller.set_command(target_pose_root)
+            arm_target = self._ik_controller.compute(
+                current_pos_root,
+                current_quat_root,
+                jacobian_root,
+                current_arm_pos,
+            )[0]
+        else:
+            delta_joint_pos = self._compute_weighted_dls_delta(
+                current_pos_root,
+                current_quat_root,
+                target_pos_root,
+                target_quat_root,
+                jacobian_root,
+            )[0]
+            arm_target = current_arm_pos[0] + delta_joint_pos
+
+        return self._limit_arm_joint_delta_by_norm(current_arm_pos[0], arm_target)
+
+    def _compute_weighted_dls_delta(
+        self,
+        current_pos_root: torch.Tensor,
+        current_quat_root: torch.Tensor,
+        target_pos_root: torch.Tensor,
+        target_quat_root: torch.Tensor,
+        jacobian_root: torch.Tensor,
+    ) -> torch.Tensor:
+        position_error, axis_angle_error = self._math_utils.compute_pose_error(
             current_pos_root,
             current_quat_root,
-            jacobian_root,
-            current_arm_pos,
-        )[0]
+            target_pos_root,
+            target_quat_root,
+            rot_error_type="axis_angle",
+        )
+        pose_error = torch.cat((position_error, axis_angle_error), dim=1)
+        weights = torch.tensor(
+            self.ik_pose_weights,
+            device=jacobian_root.device,
+            dtype=jacobian_root.dtype,
+        )
+        weighted_error = pose_error * weights.unsqueeze(0)
+        weighted_jacobian = jacobian_root * weights.view(1, 6, 1)
 
-        current_arm_pos = current_arm_pos[0]
+        jacobian_t = torch.transpose(weighted_jacobian, dim0=1, dim1=2)
+        damping = (DLS_LAMBDA**2) * torch.eye(
+            n=weighted_jacobian.shape[1],
+            device=weighted_jacobian.device,
+            dtype=weighted_jacobian.dtype,
+        )
+        delta_joint_pos = (
+            jacobian_t
+            @ torch.linalg.solve(
+                weighted_jacobian @ jacobian_t + damping,
+                weighted_error.unsqueeze(-1),
+            )
+        )
+        return delta_joint_pos.squeeze(-1)
+
+    def _limit_arm_joint_delta_by_norm(
+        self,
+        current_arm_pos: torch.Tensor,
+        arm_target: torch.Tensor,
+    ) -> torch.Tensor:
         delta = arm_target - current_arm_pos
-        delta = torch.clamp(delta, -self.max_joint_step, self.max_joint_step)
+        delta_norm = torch.linalg.norm(delta)
+        if delta_norm > self.max_joint_step:
+            delta = delta / (delta_norm + 1e-8) * self.max_joint_step
         arm_target = current_arm_pos + delta
-        arm_limits = self._joint_limits[:5].to(delta.device)
-        arm_target = torch.max(torch.min(arm_target, arm_limits[:, 1]), arm_limits[:, 0])
-        return arm_target
+        arm_limits = self._joint_limits[:5].to(arm_target.device)
+        return torch.max(torch.min(arm_target, arm_limits[:, 1]), arm_limits[:, 0])
 
     def _gripper_target(self, current_gripper: torch.Tensor) -> torch.Tensor:
         return torch.as_tensor(GRIPPER_OPEN, device=current_gripper.device, dtype=current_gripper.dtype)
@@ -519,11 +567,11 @@ class PrivilegedGraspController:
         limits = self._joint_limits.to(action.device)
         return torch.max(torch.min(action, limits[:, 1]), limits[:, 0])
 
-    def _draw_control_points(self, env, final_target_w, step_target_w: torch.Tensor):
+    def _draw_control_points(self, env, final_target_w, ik_target_w: torch.Tensor):
         """Draw the world-frame points used by this controller in the Isaac viewport.
 
-        `final_target_w` is optional: TILT has no real anchored goal
-        (relative-step control), so only the magenta arrow renders there.
+        `final_target_w` is the visual goal; TILT freezes it at the position
+        reached when RETREAT completes.
         """
         if not DEBUG_DRAW_CONTROL_POINTS:
             return
@@ -542,7 +590,7 @@ class PrivilegedGraspController:
 
         if not self._debug_legend_printed:
             print(
-                "Viewport debug: magenta arrow = EE -> per-step IK target (all phases); "
+                "Viewport debug: magenta arrow = EE -> Cartesian IK target; "
                 "cyan dot = final target; dashed orange = orange alignment line (MOVE_TO_TARGET only)"
             )
             self._debug_legend_printed = True
@@ -550,7 +598,7 @@ class PrivilegedGraspController:
         def point(pos):
             return carb.Float3(pos[0].item(), pos[1].item(), pos[2].item())
 
-        step_target_w = step_target_w.to(ee_pos_w.device)
+        ik_target_w = ik_target_w.to(ee_pos_w.device)
 
         MAGENTA = 0xFFFF00FF
         CYAN = 0xFF00FFFF
@@ -570,8 +618,8 @@ class PrivilegedGraspController:
                     b = orange_com_w + seg * (i + 1)
                     draw.draw_line(point(a), ORANGE, 2.0, point(b), ORANGE, 2.0)
 
-        # Magenta arrow: shaft EE -> step_target, plus two arrowhead wings.
-        shaft_vec = step_target_w - ee_pos_w
+        # Magenta arrow: shaft EE -> IK target, plus two arrowhead wings.
+        shaft_vec = ik_target_w - ee_pos_w
         shaft_len = torch.linalg.norm(shaft_vec)
         if shaft_len.item() > 1e-6:
             shaft_dir = shaft_vec / shaft_len
@@ -581,12 +629,12 @@ class PrivilegedGraspController:
             perp = torch.cross(shaft_dir, ref, dim=0)
             perp = perp / (torch.linalg.norm(perp) + 1e-8)
             head_len = min(0.25 * shaft_len.item(), 0.01)
-            head_back = step_target_w - shaft_dir * head_len
+            head_back = ik_target_w - shaft_dir * head_len
             wing1 = head_back + perp * (head_len * 0.5)
             wing2 = head_back - perp * (head_len * 0.5)
-            draw.draw_line(point(ee_pos_w), MAGENTA, 5.0, point(step_target_w), MAGENTA, 5.0)
-            draw.draw_line(point(step_target_w), MAGENTA, 5.0, point(wing1), MAGENTA, 5.0)
-            draw.draw_line(point(step_target_w), MAGENTA, 5.0, point(wing2), MAGENTA, 5.0)
+            draw.draw_line(point(ee_pos_w), MAGENTA, 5.0, point(ik_target_w), MAGENTA, 5.0)
+            draw.draw_line(point(ik_target_w), MAGENTA, 5.0, point(wing1), MAGENTA, 5.0)
+            draw.draw_line(point(ik_target_w), MAGENTA, 5.0, point(wing2), MAGENTA, 5.0)
 
 
 def hold_current_action(obs) -> torch.Tensor:
@@ -597,13 +645,32 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Privileged EE alignment controller for SO101 pick-orange.")
     parser.add_argument("stdin_marker", nargs="?", choices=["-"], help=argparse.SUPPRESS)
     parser.add_argument("--runs", type=int, default=20, help="Number of alignment runs.")
-    parser.add_argument("--max_steps", type=int, default=700, help="Maximum steps per run.")
     parser.add_argument("--target_orange", type=str, default="Orange001", choices=ORANGE_NAMES)
     parser.add_argument(
         "--speed_scale",
         type=float,
         default=DEFAULT_SPEED_SCALE,
-        help="Multiplier for Cartesian, rotation, and joint step caps. Lower is slower.",
+        help="Multiplier for the joint-space step cap. Lower is slower.",
+    )
+    parser.add_argument(
+        "--ik_position_weight",
+        type=float,
+        help="Enable weighted DLS IK with this x/y/z position error weight.",
+    )
+    parser.add_argument(
+        "--ik_orientation_weight",
+        type=float,
+        help="Enable weighted DLS IK with this roll/pitch/yaw axis-angle error weight.",
+    )
+    parser.add_argument(
+        "--ik_pose_weights",
+        type=float,
+        nargs=6,
+        metavar=("X", "Y", "Z", "RX", "RY", "RZ"),
+        help=(
+            "Enable weighted DLS IK with per-component weights. "
+            "Overrides --ik_position_weight and --ik_orientation_weight."
+        ),
     )
     parser.add_argument(
         "--no_real_time",
@@ -620,15 +687,32 @@ def main():
     envs_dict = make_env("LightwheelAI/leisaac_env:envs/so101_pick_orange.py", n_envs=1, trust_remote_code=True)
     suite_name = next(iter(envs_dict))
     env = envs_dict[suite_name][0].envs[0].unwrapped
-    env.cfg.episode_length_s = args.max_steps * env.cfg.sim.dt * env.cfg.decimation
     step_dt = env.cfg.sim.dt * env.cfg.decimation
+    if args.ik_pose_weights is not None:
+        ik_pose_weights = tuple(args.ik_pose_weights)
+    elif args.ik_position_weight is not None or args.ik_orientation_weight is not None:
+        position_weight = 1.0 if args.ik_position_weight is None else args.ik_position_weight
+        orientation_weight = 1.0 if args.ik_orientation_weight is None else args.ik_orientation_weight
+        ik_pose_weights = (
+            position_weight,
+            position_weight,
+            position_weight,
+            orientation_weight,
+            orientation_weight,
+            orientation_weight,
+        )
+    else:
+        ik_pose_weights = None
+
     print(
-        "Speed caps: "
+        "Motion cap: "
         f"scale={args.speed_scale:g}, "
-        f"cart={BASE_CARTESIAN_STEP * args.speed_scale:.6f} m/step, "
-        f"rot={BASE_ROTATION_STEP * args.speed_scale:.6f} rad/step, "
         f"joint={BASE_JOINT_STEP * args.speed_scale:.6f} rad/step"
     )
+    if ik_pose_weights is None:
+        print("IK solver: Isaac Lab DifferentialIKController")
+    else:
+        print(f"IK solver: weighted DLS [x y z rx ry rz] = {' '.join(f'{weight:g}' for weight in ik_pose_weights)}")
     if not args.no_real_time:
         print(f"Real-time pacing enabled ({step_dt:.6f} s/step). Use --no_real_time to run flat out.")
 
@@ -660,7 +744,11 @@ def main():
             print(f"{'-' * 52}")
 
             obs, _ = env.reset()
-            controller = PrivilegedGraspController(args.target_orange, args.speed_scale)
+            controller = PrivilegedGraspController(
+                args.target_orange,
+                args.speed_scale,
+                ik_pose_weights,
+            )
             controller.reset()
 
             step_count = 0
@@ -698,13 +786,10 @@ def main():
                     else:
                         next_step_time = time.perf_counter()
 
-                if not done and step_count >= args.max_steps:
-                    controller.mark_timeout()
+                terminated_or_truncated = tensor_to_bool(terminated) or tensor_to_bool(truncated)
+                if terminated_or_truncated:
                     completed_runs += 1
-                    print(f"Run {run_idx + 1}: alignment run reached max steps ({step_count})")
                     done = True
-
-                done = done or tensor_to_bool(terminated) or tensor_to_bool(truncated)
 
             if interrupted:
                 break
