@@ -46,7 +46,6 @@ RETREAT_DISTANCE = 0.1
 RETREAT_MAX_STEPS = 250
 GRIPPER_LOCAL_BACKWARDS_AXIS = (0.0, 0.0, 1.0)
 GRIPPER_LOCAL_DOWN_AXIS = (0.0, 0.0, -1.0)
-RETREAT_FREE_LOCAL_AXIS = (0.0, 0.0, 1.0)
 WORLD_DOWN_AXIS = (0.0, 0.0, -1.0)
 DEBUG_DRAW_CONTROL_POINTS = True
 
@@ -122,18 +121,6 @@ def quat_orientation_error(current_quat_w: torch.Tensor, target_quat_w: torch.Te
 
     angle = 2.0 * torch.atan2(vector_norm, torch.clamp(error_quat[0], -1.0, 1.0))
     return vector / (vector_norm + 1e-8) * angle
-
-
-def perpendicular_basis(axis: torch.Tensor) -> torch.Tensor:
-    axis = axis / (torch.linalg.norm(axis) + 1e-8)
-    ref = torch.tensor([0.0, 0.0, 1.0], device=axis.device, dtype=axis.dtype)
-    if torch.abs(torch.dot(axis, ref)).item() > 0.95:
-        ref = torch.tensor([1.0, 0.0, 0.0], device=axis.device, dtype=axis.dtype)
-    basis_0 = torch.cross(axis, ref, dim=0)
-    basis_0 = basis_0 / (torch.linalg.norm(basis_0) + 1e-8)
-    basis_1 = torch.cross(axis, basis_0, dim=0)
-    basis_1 = basis_1 / (torch.linalg.norm(basis_1) + 1e-8)
-    return torch.stack((basis_0, basis_1), dim=0)
 
 
 class ResetController:
@@ -273,6 +260,7 @@ class PrivilegedGraspController:
             backwards_dir_w = quat_apply(ee_quat_w, local_back)
             backwards_dir_w = backwards_dir_w / (torch.linalg.norm(backwards_dir_w) + 1e-8)
             step_target_w = ee_pos_w + self.max_cartesian_step * backwards_dir_w
+            step_target_w[2] = ee_pos_w[2]
             return None, step_target_w
 
         if self._phase == "TILT":
@@ -339,7 +327,7 @@ class PrivilegedGraspController:
     def _update_phase(self, env):
         if self._phase == "RETREAT":
             ee_pos_w = self._ee_pos_w(env)
-            displacement = torch.linalg.norm(ee_pos_w - self._retreat_start_pos_w).item()
+            displacement = torch.linalg.norm(ee_pos_w[:2] - self._retreat_start_pos_w[:2]).item()
             self._phase_step += 1
             if displacement >= RETREAT_DISTANCE or self._phase_step >= self.retreat_max_steps:
                 self._phase = "TILT"
@@ -398,21 +386,15 @@ class PrivilegedGraspController:
             if rot_norm > self.max_rotation_step:
                 rot_error = rot_error / (rot_norm + 1e-8) * self.max_rotation_step
 
-            free_axis_local = torch.tensor(
-                RETREAT_FREE_LOCAL_AXIS,
-                device=ee_quat_w.device,
-                dtype=ee_quat_w.dtype,
-            )
-            free_axis_w = quat_apply(self._retreat_start_quat_w, free_axis_local).to(jacobian.device)
-            orient_basis = perpendicular_basis(free_axis_w)
+            pos_xy_error = pos_error[:2].to(jacobian.device)
             task_jacobian = torch.cat(
-                (jacobian_pos, RETREAT_ORIENTATION_GAIN * (orient_basis @ jacobian_rot)),
+                (jacobian_pos[:2], RETREAT_ORIENTATION_GAIN * jacobian_rot),
                 dim=0,
             )
             task_error = torch.cat(
                 (
-                    pos_error.to(jacobian.device),
-                    RETREAT_ORIENTATION_GAIN * (orient_basis @ rot_error.to(jacobian.device)),
+                    pos_xy_error,
+                    RETREAT_ORIENTATION_GAIN * rot_error.to(jacobian.device),
                 ),
                 dim=0,
             )
