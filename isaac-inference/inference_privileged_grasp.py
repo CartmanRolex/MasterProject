@@ -1,9 +1,12 @@
 import argparse
+import importlib.util
 import logging
 import math
 import signal
+import sys
 import threading
 import time
+from pathlib import Path
 
 import torch
 from lerobot.envs.factory import make_env
@@ -47,6 +50,42 @@ GRIPPER_LOCAL_BACKWARDS_AXIS = (0.0, 0.0, 1.0)
 GRIPPER_LOCAL_DOWN_AXIS = (0.0, 0.0, -1.0)
 WORLD_DOWN_AXIS = (0.0, 0.0, -1.0)
 DEBUG_DRAW_CONTROL_POINTS = True
+
+
+def ensure_isaaclab_source_api():
+    """Expose source-layout Isaac Lab modules from the packaged wheel.
+
+    The leisaac_envhub Isaac Lab wheel exposes isaaclab.app from a top-level
+    shim, but leaves modules such as isaaclab.controllers under
+    isaaclab/source/isaaclab. If the shim has already been imported by the
+    environment setup, adding sys.path alone is not enough: the loaded package's
+    __path__ also needs the real source package directory.
+    """
+    try:
+        if importlib.util.find_spec("isaaclab.controllers") is not None:
+            return
+    except ModuleNotFoundError:
+        pass
+
+    spec = importlib.util.find_spec("isaaclab")
+    if spec is None or spec.origin is None:
+        return
+
+    package_root = Path(spec.origin).resolve().parent
+    source_root = package_root / "source" / "isaaclab"
+    source_package = source_root / "isaaclab"
+    if not (source_package / "controllers").is_dir():
+        return
+
+    source_root_str = str(source_root)
+    if source_root_str not in sys.path:
+        sys.path.insert(0, source_root_str)
+
+    loaded_isaaclab = sys.modules.get("isaaclab")
+    if loaded_isaaclab is not None and hasattr(loaded_isaaclab, "__path__"):
+        source_package_str = str(source_package)
+        if source_package_str not in loaded_isaaclab.__path__:
+            loaded_isaaclab.__path__.append(source_package_str)
 
 
 def tensor_to_bool(value):
@@ -311,6 +350,7 @@ class PrivilegedGraspController:
             limits.append((lo_deg * torch.pi / 180.0, hi_deg * torch.pi / 180.0))
         self._joint_limits = torch.tensor(limits, device=env.device, dtype=torch.float32)
 
+        ensure_isaaclab_source_api()
         from isaaclab.controllers import DifferentialIKController, DifferentialIKControllerCfg
         import isaaclab.utils.math as math_utils
 
@@ -555,6 +595,7 @@ def hold_current_action(obs) -> torch.Tensor:
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Privileged EE alignment controller for SO101 pick-orange.")
+    parser.add_argument("stdin_marker", nargs="?", choices=["-"], help=argparse.SUPPRESS)
     parser.add_argument("--runs", type=int, default=20, help="Number of alignment runs.")
     parser.add_argument("--max_steps", type=int, default=700, help="Maximum steps per run.")
     parser.add_argument("--target_orange", type=str, default="Orange001", choices=ORANGE_NAMES)
