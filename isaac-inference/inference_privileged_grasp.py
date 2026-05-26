@@ -37,8 +37,6 @@ DEFAULT_SPEED_SCALE = 1.0
 BASE_CARTESIAN_STEP = 0.0125
 BASE_ROTATION_STEP = 0.06
 BASE_JOINT_STEP = 0.0225
-AXIS_ALIGNMENT_GAIN = 0.35
-RETREAT_ORIENTATION_GAIN = 1.4
 ORIENT_DOWN_TOL = 0.03
 ORIENT_DOWN_STABLE_STEPS = 8
 ORIENT_DOWN_MAX_STEPS = 250
@@ -83,6 +81,20 @@ def quat_apply(quat: torch.Tensor, vec: torch.Tensor) -> torch.Tensor:
     return quat_mul(quat_mul(quat, pure_vec), quat_conjugate(quat))[1:]
 
 
+def quat_from_rotvec(rotvec: torch.Tensor) -> torch.Tensor:
+    angle = torch.linalg.norm(rotvec)
+    quat = torch.zeros(4, device=rotvec.device, dtype=rotvec.dtype)
+    if angle.item() < 1e-8:
+        quat[0] = 1.0
+        return quat
+
+    axis = rotvec / (angle + 1e-8)
+    half_angle = 0.5 * angle
+    quat[0] = torch.cos(half_angle)
+    quat[1:] = axis * torch.sin(half_angle)
+    return quat / (torch.linalg.norm(quat) + 1e-8)
+
+
 def down_axis_error(current_quat_w: torch.Tensor) -> torch.Tensor:
     """World-frame angular error that points the gripper's local down axis at world down.
 
@@ -104,24 +116,6 @@ def down_axis_error(current_quat_w: torch.Tensor) -> torch.Tensor:
     current_down = current_down / (torch.linalg.norm(current_down) + 1e-8)
     world_down = world_down / (torch.linalg.norm(world_down) + 1e-8)
     return torch.cross(current_down, world_down, dim=0)
-
-
-def quat_orientation_error(current_quat_w: torch.Tensor, target_quat_w: torch.Tensor) -> torch.Tensor:
-    """World-frame rotation vector that rotates current orientation to target orientation."""
-    current_quat_w = current_quat_w / (torch.linalg.norm(current_quat_w) + 1e-8)
-    target_quat_w = target_quat_w / (torch.linalg.norm(target_quat_w) + 1e-8)
-    error_quat = quat_mul(target_quat_w, quat_conjugate(current_quat_w))
-    error_quat = error_quat / (torch.linalg.norm(error_quat) + 1e-8)
-    if error_quat[0].item() < 0.0:
-        error_quat = -error_quat
-
-    vector = error_quat[1:]
-    vector_norm = torch.linalg.norm(vector)
-    if vector_norm.item() < 1e-8:
-        return torch.zeros_like(vector)
-
-    angle = 2.0 * torch.atan2(vector_norm, torch.clamp(error_quat[0], -1.0, 1.0))
-    return vector / (vector_norm + 1e-8) * angle
 
 
 class ResetController:
@@ -189,6 +183,8 @@ class PrivilegedGraspController:
         self._body_idx = None
         self._jacobi_body_idx = None
         self._jacobi_joint_ids = None
+        self._ik_controller = None
+        self._math_utils = None
         self._joint_limits = None
         self._origin_w = None
         self._target_com_env = None
@@ -235,7 +231,8 @@ class PrivilegedGraspController:
         final_target_w, step_target_w = self._compute_targets_w(env)
         self._draw_control_points(env, final_target_w, step_target_w)
 
-        arm_target = self._ik_arm_target(env, current_joint_pos, step_target_w)
+        target_quat_w = self._target_quat_w(env)
+        arm_target = self._ik_arm_target(env, current_joint_pos, step_target_w, target_quat_w)
         gripper_target = self._gripper_target(current_joint_pos[-1])
 
         action = current_joint_pos.clone()
@@ -314,6 +311,21 @@ class PrivilegedGraspController:
             limits.append((lo_deg * torch.pi / 180.0, hi_deg * torch.pi / 180.0))
         self._joint_limits = torch.tensor(limits, device=env.device, dtype=torch.float32)
 
+        from isaaclab.controllers import DifferentialIKController, DifferentialIKControllerCfg
+        import isaaclab.utils.math as math_utils
+
+        self._math_utils = math_utils
+        self._ik_controller = DifferentialIKController(
+            cfg=DifferentialIKControllerCfg(
+                command_type="pose",
+                ik_method="dls",
+                use_relative_mode=False,
+                ik_params={"lambda_val": DLS_LAMBDA},
+            ),
+            num_envs=1,
+            device=env.device,
+        )
+
         print(f"IK joints: {joint_names}")
         print(f"IK body:   {body_names[0]}")
 
@@ -348,6 +360,56 @@ class PrivilegedGraspController:
     def _ee_quat_w(self, env) -> torch.Tensor:
         robot = env.scene["robot"]
         return robot.data.body_quat_w[0, self._body_idx]
+
+    def _ee_pose_root(self, env) -> tuple[torch.Tensor, torch.Tensor]:
+        robot = env.scene["robot"]
+        ee_pos_w = self._ee_pos_w(env).unsqueeze(0)
+        ee_quat_w = self._ee_quat_w(env).unsqueeze(0)
+        root_pos_w = robot.data.root_pos_w
+        root_quat_w = robot.data.root_quat_w
+        pos_root, quat_root = self._math_utils.subtract_frame_transforms(
+            root_pos_w, root_quat_w, ee_pos_w, ee_quat_w
+        )
+        return pos_root, quat_root
+
+    def _world_pose_to_root(
+        self,
+        env,
+        pos_w: torch.Tensor,
+        quat_w: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        robot = env.scene["robot"]
+        pos_root, quat_root = self._math_utils.subtract_frame_transforms(
+            robot.data.root_pos_w,
+            robot.data.root_quat_w,
+            pos_w.unsqueeze(0),
+            quat_w.unsqueeze(0),
+        )
+        return pos_root, quat_root
+
+    def _jacobian_root(self, env) -> torch.Tensor:
+        robot = env.scene["robot"]
+        jacobian = robot.root_physx_view.get_jacobians()[:, self._jacobi_body_idx, :, self._jacobi_joint_ids]
+        base_rot_matrix = self._math_utils.matrix_from_quat(self._math_utils.quat_inv(robot.data.root_quat_w))
+        jacobian = jacobian.clone()
+        jacobian[:, :3, :] = torch.bmm(base_rot_matrix, jacobian[:, :3, :])
+        jacobian[:, 3:, :] = torch.bmm(base_rot_matrix, jacobian[:, 3:, :])
+        return jacobian
+
+    def _target_quat_w(self, env) -> torch.Tensor:
+        ee_quat_w = self._ee_quat_w(env)
+        if self._phase == "RETREAT":
+            if self._retreat_start_quat_w is None:
+                self._retreat_start_quat_w = ee_quat_w.clone()
+            return self._retreat_start_quat_w
+
+        rot_error = down_axis_error(ee_quat_w)
+        rot_norm = torch.linalg.norm(rot_error)
+        if rot_norm > self.max_rotation_step:
+            rot_error = rot_error / (rot_norm + 1e-8) * self.max_rotation_step
+        delta_quat_w = quat_from_rotvec(rot_error)
+        target_quat_w = quat_mul(delta_quat_w, ee_quat_w)
+        return target_quat_w / (torch.linalg.norm(target_quat_w) + 1e-8)
 
     def _update_phase(self, env):
         if self._phase == "RETREAT":
@@ -386,75 +448,29 @@ class PrivilegedGraspController:
         env,
         current_joint_pos: torch.Tensor,
         step_target_w: torch.Tensor,
+        target_quat_w: torch.Tensor,
     ) -> torch.Tensor:
-        robot = env.scene["robot"]
-        ee_pos_w = self._ee_pos_w(env)
-        ee_quat_w = self._ee_quat_w(env)
+        target_pos_root, target_quat_root = self._world_pose_to_root(env, step_target_w, target_quat_w)
+        current_pos_root, current_quat_root = self._ee_pose_root(env)
+        target_pose_root = torch.cat((target_pos_root, target_quat_root), dim=1)
+        self._ik_controller.set_command(target_pose_root)
 
-        pos_error = step_target_w - ee_pos_w
-        err_norm = torch.linalg.norm(pos_error)
-        if err_norm > self.max_cartesian_step:
-            pos_error = pos_error / (err_norm + 1e-8) * self.max_cartesian_step
+        jacobian_root = self._jacobian_root(env)
+        current_arm_pos = current_joint_pos[:5].to(jacobian_root.device).unsqueeze(0)
+        arm_target = self._ik_controller.compute(
+            current_pos_root,
+            current_quat_root,
+            jacobian_root,
+            current_arm_pos,
+        )[0]
 
-        jacobian = robot.root_physx_view.get_jacobians()[0, self._jacobi_body_idx, :, self._jacobi_joint_ids]
-        jacobian_pos = jacobian[0:3]
-        jacobian_rot = jacobian[3:6]
-
-        pinv_primary = self._dls_pinv(jacobian_pos)
-        delta_pos = pinv_primary @ pos_error.to(jacobian.device)
-
-        if self._phase == "RETREAT":
-            if self._retreat_start_quat_w is None:
-                self._retreat_start_quat_w = ee_quat_w.clone()
-            rot_error = quat_orientation_error(ee_quat_w, self._retreat_start_quat_w)
-            rot_norm = torch.linalg.norm(rot_error)
-            if rot_norm > self.max_rotation_step:
-                rot_error = rot_error / (rot_norm + 1e-8) * self.max_rotation_step
-
-            task_jacobian = torch.cat(
-                (jacobian_pos, RETREAT_ORIENTATION_GAIN * jacobian_rot),
-                dim=0,
-            )
-            task_error = torch.cat(
-                (
-                    pos_error.to(jacobian.device),
-                    RETREAT_ORIENTATION_GAIN * rot_error.to(jacobian.device),
-                ),
-                dim=0,
-            )
-            delta = self._dls_pinv(task_jacobian) @ task_error
-        else:
-            rot_error = down_axis_error(ee_quat_w)
-            rot_norm = torch.linalg.norm(rot_error)
-            if rot_norm > self.max_rotation_step:
-                rot_error = rot_error / (rot_norm + 1e-8) * self.max_rotation_step
-
-            nullspace = torch.eye(
-                len(self._jacobi_joint_ids),
-                device=jacobian.device,
-                dtype=jacobian.dtype,
-            ) - pinv_primary @ jacobian_pos
-            jacobian_rot_null = jacobian_rot @ nullspace
-            delta_rot = nullspace @ (
-                self._dls_pinv(jacobian_rot_null) @ rot_error.to(jacobian.device)
-            )
-            delta = delta_pos + AXIS_ALIGNMENT_GAIN * delta_rot
-
+        current_arm_pos = current_arm_pos[0]
+        delta = arm_target - current_arm_pos
         delta = torch.clamp(delta, -self.max_joint_step, self.max_joint_step)
-
-        current_arm_pos = current_joint_pos[:5].to(delta.device)
         arm_target = current_arm_pos + delta
         arm_limits = self._joint_limits[:5].to(delta.device)
         arm_target = torch.max(torch.min(arm_target, arm_limits[:, 1]), arm_limits[:, 0])
         return arm_target
-
-    def _dls_pinv(self, jacobian: torch.Tensor) -> torch.Tensor:
-        damping = (DLS_LAMBDA ** 2) * torch.eye(
-            jacobian.shape[0],
-            device=jacobian.device,
-            dtype=jacobian.dtype,
-        )
-        return jacobian.transpose(0, 1) @ torch.linalg.inv(jacobian @ jacobian.transpose(0, 1) + damping)
 
     def _gripper_target(self, current_gripper: torch.Tensor) -> torch.Tensor:
         return torch.as_tensor(GRIPPER_OPEN, device=current_gripper.device, dtype=current_gripper.dtype)
