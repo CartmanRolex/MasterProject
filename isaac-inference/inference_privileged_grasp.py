@@ -42,7 +42,8 @@ RETREAT_ORIENTATION_GAIN = 1.4
 ORIENT_DOWN_TOL = 0.03
 ORIENT_DOWN_STABLE_STEPS = 8
 ORIENT_DOWN_MAX_STEPS = 250
-RETREAT_DISTANCE = 0.1
+RETREAT_BACKWARD_DISTANCE = 0.15
+RETREAT_DOWN_DISTANCE = 0.05
 RETREAT_MAX_STEPS = 250
 GRIPPER_LOCAL_BACKWARDS_AXIS = (0.0, 0.0, 1.0)
 GRIPPER_LOCAL_DOWN_AXIS = (0.0, 0.0, -1.0)
@@ -196,6 +197,7 @@ class PrivilegedGraspController:
         self._orient_stable_steps = 0
         self._retreat_start_pos_w = None
         self._retreat_start_quat_w = None
+        self._retreat_target_w = None
         self._debug_legend_printed = False
 
     def reset(self):
@@ -207,6 +209,7 @@ class PrivilegedGraspController:
         self._orient_stable_steps = 0
         self._retreat_start_pos_w = None
         self._retreat_start_quat_w = None
+        self._retreat_target_w = None
         self._debug_legend_printed = False
 
     def compute_action(self, env, current_joint_pos: torch.Tensor) -> torch.Tensor:
@@ -226,6 +229,7 @@ class PrivilegedGraspController:
         if self._phase == "RETREAT" and self._retreat_start_pos_w is None:
             self._retreat_start_pos_w = self._ee_pos_w(env).clone()
             self._retreat_start_quat_w = self._ee_quat_w(env).clone()
+            self._retreat_target_w = self._compute_retreat_target_w()
 
         self._update_phase(env)
         final_target_w, step_target_w = self._compute_targets_w(env)
@@ -252,16 +256,17 @@ class PrivilegedGraspController:
         ee_quat_w = self._ee_quat_w(env)
 
         if self._phase == "RETREAT":
-            local_back = torch.tensor(
-                GRIPPER_LOCAL_BACKWARDS_AXIS,
-                device=ee_quat_w.device,
-                dtype=ee_quat_w.dtype,
-            )
-            backwards_dir_w = quat_apply(ee_quat_w, local_back)
-            backwards_dir_w = backwards_dir_w / (torch.linalg.norm(backwards_dir_w) + 1e-8)
-            step_target_w = ee_pos_w + self.max_cartesian_step * backwards_dir_w
-            step_target_w[2] = ee_pos_w[2]
-            return None, step_target_w
+            if self._retreat_target_w is None:
+                self._retreat_start_pos_w = ee_pos_w.clone()
+                self._retreat_start_quat_w = ee_quat_w.clone()
+                self._retreat_target_w = self._compute_retreat_target_w()
+
+            pos_error = self._retreat_target_w - ee_pos_w
+            err_norm = torch.linalg.norm(pos_error)
+            if err_norm > self.max_cartesian_step:
+                pos_error = pos_error / (err_norm + 1e-8) * self.max_cartesian_step
+            step_target_w = ee_pos_w + pos_error
+            return self._retreat_target_w, step_target_w
 
         if self._phase == "TILT":
             return None, ee_pos_w.clone()
@@ -316,6 +321,26 @@ class PrivilegedGraspController:
         origin = env.scene.env_origins[0]
         return env.scene[name].data.root_com_pos_w[0] - origin
 
+    def _compute_retreat_target_w(self) -> torch.Tensor:
+        local_back = torch.tensor(
+            GRIPPER_LOCAL_BACKWARDS_AXIS,
+            device=self._retreat_start_quat_w.device,
+            dtype=self._retreat_start_quat_w.dtype,
+        )
+        world_down = torch.tensor(
+            WORLD_DOWN_AXIS,
+            device=self._retreat_start_quat_w.device,
+            dtype=self._retreat_start_quat_w.dtype,
+        )
+        backwards_dir_w = quat_apply(self._retreat_start_quat_w, local_back)
+        backwards_dir_w = backwards_dir_w / (torch.linalg.norm(backwards_dir_w) + 1e-8)
+        world_down = world_down / (torch.linalg.norm(world_down) + 1e-8)
+        return (
+            self._retreat_start_pos_w
+            + RETREAT_BACKWARD_DISTANCE * backwards_dir_w
+            + RETREAT_DOWN_DISTANCE * world_down
+        )
+
     def _ee_pos_w(self, env) -> torch.Tensor:
         robot = env.scene["robot"]
         return robot.data.body_pos_w[0, self._body_idx]
@@ -327,13 +352,13 @@ class PrivilegedGraspController:
     def _update_phase(self, env):
         if self._phase == "RETREAT":
             ee_pos_w = self._ee_pos_w(env)
-            displacement = torch.linalg.norm(ee_pos_w[:2] - self._retreat_start_pos_w[:2]).item()
+            remaining = torch.linalg.norm(self._retreat_target_w - ee_pos_w).item()
             self._phase_step += 1
-            if displacement >= RETREAT_DISTANCE or self._phase_step >= self.retreat_max_steps:
+            if remaining <= self.max_cartesian_step or self._phase_step >= self.retreat_max_steps:
                 self._phase = "TILT"
                 self._phase_step = 0
                 self._orient_stable_steps = 0
-                print(f"RETREAT complete (displacement={displacement:.4f} m); tilting in place.")
+                print(f"RETREAT complete (remaining={remaining:.4f} m); tilting in place.")
             return
 
         if self._phase == "TILT":
@@ -386,14 +411,13 @@ class PrivilegedGraspController:
             if rot_norm > self.max_rotation_step:
                 rot_error = rot_error / (rot_norm + 1e-8) * self.max_rotation_step
 
-            pos_xy_error = pos_error[:2].to(jacobian.device)
             task_jacobian = torch.cat(
-                (jacobian_pos[:2], RETREAT_ORIENTATION_GAIN * jacobian_rot),
+                (jacobian_pos, RETREAT_ORIENTATION_GAIN * jacobian_rot),
                 dim=0,
             )
             task_error = torch.cat(
                 (
-                    pos_xy_error,
+                    pos_error.to(jacobian.device),
                     RETREAT_ORIENTATION_GAIN * rot_error.to(jacobian.device),
                 ),
                 dim=0,
@@ -442,8 +466,8 @@ class PrivilegedGraspController:
     def _draw_control_points(self, env, final_target_w, step_target_w: torch.Tensor):
         """Draw the world-frame points used by this controller in the Isaac viewport.
 
-        `final_target_w` is optional: RETREAT and TILT have no real anchored
-        goal (relative-step control), so only the magenta arrow renders there.
+        `final_target_w` is optional: TILT has no real anchored goal
+        (relative-step control), so only the magenta arrow renders there.
         """
         if not DEBUG_DRAW_CONTROL_POINTS:
             return
@@ -463,7 +487,7 @@ class PrivilegedGraspController:
         if not self._debug_legend_printed:
             print(
                 "Viewport debug: magenta arrow = EE -> per-step IK target (all phases); "
-                "cyan dot + dashed orange = final target & alignment line (MOVE_TO_TARGET only)"
+                "cyan dot = final target; dashed orange = orange alignment line (MOVE_TO_TARGET only)"
             )
             self._debug_legend_printed = True
 
@@ -478,16 +502,17 @@ class PrivilegedGraspController:
 
         if final_target_w is not None:
             final_target_w = final_target_w.to(ee_pos_w.device)
-            origin = env.scene.env_origins[0].to(ee_pos_w.device)
-            orange_com_w = self._target_com_env.to(ee_pos_w.device) + origin
-            DASH_COUNT = 12
-            seg = (final_target_w - orange_com_w) / DASH_COUNT
-            for i in range(0, DASH_COUNT, 2):
-                a = orange_com_w + seg * i
-                b = orange_com_w + seg * (i + 1)
-                draw.draw_line(point(a), ORANGE, 2.0, point(b), ORANGE, 2.0)
             if hasattr(draw, "draw_point"):
                 draw.draw_point(point(final_target_w), CYAN, 12.0)
+            if self._phase == "MOVE_TO_TARGET":
+                origin = env.scene.env_origins[0].to(ee_pos_w.device)
+                orange_com_w = self._target_com_env.to(ee_pos_w.device) + origin
+                DASH_COUNT = 12
+                seg = (final_target_w - orange_com_w) / DASH_COUNT
+                for i in range(0, DASH_COUNT, 2):
+                    a = orange_com_w + seg * i
+                    b = orange_com_w + seg * (i + 1)
+                    draw.draw_line(point(a), ORANGE, 2.0, point(b), ORANGE, 2.0)
 
         # Magenta arrow: shaft EE -> step_target, plus two arrowhead wings.
         shaft_vec = step_target_w - ee_pos_w
