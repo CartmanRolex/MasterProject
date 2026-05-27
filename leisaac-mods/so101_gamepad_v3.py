@@ -33,7 +33,7 @@ class SO101GamepadV3(Device):
     UP_DOWN_SENSITIVITY = 0.01
     SHOULDER_PAN_SENSITIVITY = 0.03
     PITCH_SENSITIVITY = 0.15
-    WRIST_ROLL_SENSITIVITY = 0.15
+    WRIST_ROLL_SENSITIVITY = 0.05
     GRIPPER_SENSITIVITY = 0.15
 
     def __init__(
@@ -94,6 +94,7 @@ class SO101GamepadV3(Device):
         body_idxs, _ = self.robot_asset.find_bodies(self.target_frame)
         self.target_frame_idx = body_idxs[0]
         self._sync_internal_targets_from_state()
+        self._needs_sync = False
 
     def __del__(self):
         """Release the gamepad interface."""
@@ -139,7 +140,7 @@ class SO101GamepadV3(Device):
 
     def reset(self):
         self._delta_action[:] = 0.0
-        self._sync_internal_targets_from_state()
+        self._needs_sync = True  # sync on next advance(), after env has reset robot pose
 
     def advance(self):
         self._delta_action[:] = 0.0
@@ -250,6 +251,9 @@ class SO101GamepadV3(Device):
 
     def _update_arm_action(self):
         """Update the delta action based on the gamepad state."""
+        if self._needs_sync:
+            self._sync_internal_targets_from_state()
+            self._needs_sync = False
         controller_state = self._gamepad.get_state()
         if self.debug_print_inputs:
             self._print_input_debug(controller_state)

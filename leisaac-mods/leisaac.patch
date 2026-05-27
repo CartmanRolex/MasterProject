@@ -4,8 +4,143 @@ index e69de29..0000000
 diff --git a/assets/scenes/.gitkeep b/assets/scenes/.gitkeep
 deleted file mode 100644
 index e69de29..0000000
+diff --git a/scripts/convert/isaaclab2lerobotv3.py b/scripts/convert/isaaclab2lerobotv3.py
+index 41fbce7..ccae93a 100644
+--- a/scripts/convert/isaaclab2lerobotv3.py
++++ b/scripts/convert/isaaclab2lerobotv3.py
+@@ -62,6 +62,17 @@ parser.add_argument(
+     action="store_true",
+     help="Push to hub",
+ )
++parser.add_argument(
++    "--resume",
++    action="store_true",
++    help="Resume from an existing dataset instead of creating a new one.",
++)
++parser.add_argument(
++    "--skip_hdf5_episodes",
++    type=int,
++    default=0,
++    help="Skip the first N episodes in each HDF5 file (use with --resume to skip already-processed episodes).",
++)
+ 
+ # append AppLauncher cli args
+ AppLauncher.add_app_launcher_args(parser)
+@@ -148,12 +159,17 @@ def convert_isaaclab_to_lerobot():
+     )
+     dataset_cfg.features = build_feature_from_env(env, dataset_cfg)
+ 
+-    dataset = LeRobotDataset.create(
+-        repo_id=dataset_cfg.repo_id,
+-        fps=dataset_cfg.fps,
+-        robot_type=dataset_cfg.robot_type,
+-        features=dataset_cfg.features,
+-    )
++    if args_cli.resume:
++        dataset = LeRobotDataset(repo_id=dataset_cfg.repo_id)
++        dataset.episode_buffer = dataset.create_episode_buffer()
++        print(f"Resuming from existing dataset with {dataset.meta.total_episodes} episodes")
++    else:
++        dataset = LeRobotDataset.create(
++            repo_id=dataset_cfg.repo_id,
++            fps=dataset_cfg.fps,
++            robot_type=dataset_cfg.robot_type,
++            features=dataset_cfg.features,
++        )
+ 
+     if args_cli.hdf5_files is None:
+         hdf5_files_list = [os.path.join(args_cli.hdf5_root, "dataset.hdf5")]
+@@ -163,31 +179,63 @@ def convert_isaaclab_to_lerobot():
+             for f in args_cli.hdf5_files.split(",")
+         ]
+ 
+-    now_episode_index = 0
+-    for hdf5_id, hdf5_file in enumerate(hdf5_files_list):
+-        print(f"[{hdf5_id+1}/{len(hdf5_files_list)}] Processing hdf5 file: {hdf5_file}")
+-
+-        dataset_file_handler = HDF5DatasetFileHandler()
+-        dataset_file_handler.open(hdf5_file)
+-
+-        episode_names = dataset_file_handler.get_episode_names()
+-        print(f"Found {len(episode_names)} episodes: {episode_names}")
+-        for episode_name in tqdm(episode_names, desc="Processing each episode"):
+-            episode = dataset_file_handler.load_episode(episode_name, device=args_cli.device)
+-            if not episode.success:
+-                print(f"Episode {episode_name} is not successful, skip it")
+-                continue
+-            valid = add_episode(dataset, episode, env, dataset_cfg, args_cli.task_description)
+-            if valid:
+-                now_episode_index += 1
+-                dataset.save_episode()
+-                print(f"Saving episode {now_episode_index} successfully")
+-            else:
+-                dataset.clear_episode_buffer()
+-
+-        dataset_file_handler.close()
+-
+-    dataset.finalize()
++    now_episode_index = dataset.meta.total_episodes
++    try:
++        for hdf5_id, hdf5_file in enumerate(hdf5_files_list):
++            print(f"[{hdf5_id+1}/{len(hdf5_files_list)}] Processing hdf5 file: {hdf5_file}")
++
++            dataset_file_handler = HDF5DatasetFileHandler()
++            dataset_file_handler.open(hdf5_file)
++
++            episode_names = list(dataset_file_handler.get_episode_names())
++            if args_cli.skip_hdf5_episodes > 0:
++                print(f"Skipping first {args_cli.skip_hdf5_episodes} HDF5 episodes")
++                episode_names = episode_names[args_cli.skip_hdf5_episodes:]
++            print(f"Found {len(episode_names)} episodes to process")
++            for episode_name in tqdm(episode_names, desc="Processing each episode"):
++                try:
++                    episode = dataset_file_handler.load_episode(episode_name, device=args_cli.device)
++                except torch.OutOfMemoryError:
++                    print(f"[OOM] {episode_name} too large for {args_cli.device}, retrying on CPU")
++                    torch.cuda.empty_cache()
++                    episode = dataset_file_handler.load_episode(episode_name, device="cpu")
++                except Exception as e:
++                    print(f"[ERROR] Failed to load {episode_name}: {e}, skipping")
++                    continue
++
++                if not episode.success:
++                    print(f"Episode {episode_name} is not successful, skip it")
++                    del episode
++                    torch.cuda.empty_cache()
++                    continue
++
++                try:
++                    valid = add_episode(dataset, episode, env, dataset_cfg, args_cli.task_description)
++                except Exception as e:
++                    print(f"[ERROR] Failed to process {episode_name}: {e}, skipping")
++                    dataset.clear_episode_buffer()
++                    del episode
++                    torch.cuda.empty_cache()
++                    continue
++                del episode
++                torch.cuda.empty_cache()
++
++                if valid:
++                    try:
++                        dataset.save_episode()
++                        now_episode_index += 1
++                        print(f"Saving episode {now_episode_index} successfully")
++                    except Exception as e:
++                        print(f"[ERROR] Failed to save {episode_name}: {e}, discarding")
++                        dataset.clear_episode_buffer()
++                else:
++                    dataset.clear_episode_buffer()
++
++            dataset_file_handler.close()
++    finally:
++        # Always write parquet footers so already-saved episodes are recoverable on crash
++        print(f"Finalizing dataset with {dataset.meta.total_episodes} episodes...")
++        dataset.finalize()
+ 
+     if args_cli.push_to_hub:
+         dataset.push_to_hub()
 diff --git a/scripts/environments/teleoperation/teleop_se3_agent.py b/scripts/environments/teleoperation/teleop_se3_agent.py
-index 573738f..a6a69ce 100644
+index 573738f..c3e0344 100644
 --- a/scripts/environments/teleoperation/teleop_se3_agent.py
 +++ b/scripts/environments/teleoperation/teleop_se3_agent.py
 @@ -25,6 +25,8 @@ parser.add_argument(
@@ -80,15 +215,16 @@ index 573738f..a6a69ce 100644
  
      resume_recorded_demo_count = 0
      if args_cli.record and args_cli.resume:
-@@ -331,6 +355,7 @@ def main():  # noqa: C901
+@@ -331,6 +355,8 @@ def main():  # noqa: C901
                          manual_terminate(env, True)
                  if should_reset_recording_instance:
                      env.reset()
++                    teleop_interface.reset()
 +                    prev_success_mask = torch.zeros(env.num_envs, dtype=torch.bool, device=env.device)
                      should_reset_recording_instance = False
                      if start_record_state:
                          if args_cli.record:
-@@ -366,6 +391,14 @@ def main():  # noqa: C901
+@@ -366,6 +392,14 @@ def main():  # noqa: C901
                              print("Start Recording!!!")
                          start_record_state = True
                      env.step(actions)
@@ -103,6 +239,18 @@ index 573738f..a6a69ce 100644
                  if rate_limiter:
                      rate_limiter.sleep(env)
              if interrupted:
+diff --git a/source/leisaac/leisaac/assets/robots/lerobot.py b/source/leisaac/leisaac/assets/robots/lerobot.py
+index 1d80101..e06cd1b 100644
+--- a/source/leisaac/leisaac/assets/robots/lerobot.py
++++ b/source/leisaac/leisaac/assets/robots/lerobot.py
+@@ -11,6 +11,7 @@ SO101_FOLLOWER_ASSET_PATH = Path(ASSETS_ROOT) / "robots" / "so101_follower.usd"
+ SO101_FOLLOWER_CFG = ArticulationCfg(
+     spawn=sim_utils.UsdFileCfg(
+         usd_path=str(SO101_FOLLOWER_ASSET_PATH),
++        activate_contact_sensors=True,
+         rigid_props=sim_utils.RigidBodyPropertiesCfg(
+             disable_gravity=False,
+         ),
 diff --git a/source/leisaac/leisaac/devices/__init__.py b/source/leisaac/leisaac/devices/__init__.py
 index d6f1a75..08dc6de 100644
 --- a/source/leisaac/leisaac/devices/__init__.py
@@ -180,10 +328,61 @@ index 166ac1c..5ac155b 100644
 +from .so101_gamepad_v2 import SO101GamepadV2
 +from .so101_gamepad_v3 import SO101GamepadV3
 diff --git a/source/leisaac/leisaac/tasks/template/single_arm_env_cfg.py b/source/leisaac/leisaac/tasks/template/single_arm_env_cfg.py
-index d337a20..5b9313a 100644
+index d337a20..5ce8593 100644
 --- a/source/leisaac/leisaac/tasks/template/single_arm_env_cfg.py
 +++ b/source/leisaac/leisaac/tasks/template/single_arm_env_cfg.py
-@@ -194,7 +194,7 @@ class SingleArmTaskEnvCfg(ManagerBasedRLEnvCfg):
+@@ -14,7 +14,7 @@ from isaaclab.managers import ObservationTermCfg as ObsTerm
+ from isaaclab.managers import SceneEntityCfg
+ from isaaclab.managers import TerminationTermCfg as DoneTerm
+ from isaaclab.scene import InteractiveSceneCfg
+-from isaaclab.sensors import FrameTransformerCfg, OffsetCfg, TiledCameraCfg
++from isaaclab.sensors import ContactSensorCfg, FrameTransformerCfg, OffsetCfg, TiledCameraCfg
+ from isaaclab.utils import configclass
+ from isaaclab.utils.datasets.episode_data import EpisodeData
+ from leisaac.assets.robots.lerobot import SO101_FOLLOWER_CFG
+@@ -42,8 +42,10 @@ class SingleArmTaskSceneCfg(InteractiveSceneCfg):
+                 prim_path="{ENV_REGEX_NS}/Robot/gripper", name="gripper"
+             ),  # no offset for ik convert
+             FrameTransformerCfg.FrameCfg(
+-                prim_path="{ENV_REGEX_NS}/Robot/jaw", name="jaw", offset=OffsetCfg(pos=(-0.021, -0.070, 0.02))
+-            ),  # set offset for obj detection
++                prim_path="{ENV_REGEX_NS}/Robot/gripper", name="gripper_tip", offset=OffsetCfg(pos=(-0.015, 0.0,-0.09))
++            ),  # no offset for ik convert
++            FrameTransformerCfg.FrameCfg(prim_path="{ENV_REGEX_NS}/Robot/jaw", name="jaw_tip", offset=OffsetCfg(pos=(-0.01, -0.070, 0.02))),  # set offset for obj detection
++            FrameTransformerCfg.FrameCfg(prim_path="{ENV_REGEX_NS}/Robot/jaw", name="jaw", offset=OffsetCfg(pos=(-0.021, -0.070, 0.02))),  # set offset for obj detection
+         ],
+     )
+ 
+@@ -88,6 +90,28 @@ class SingleArmTaskSceneCfg(InteractiveSceneCfg):
+         spawn=sim_utils.DomeLightCfg(color=(0.75, 0.75, 0.75), intensity=3000.0),
+     )
+ 
++    gripper_contact: ContactSensorCfg = ContactSensorCfg(
++        prim_path="{ENV_REGEX_NS}/Robot/gripper",
++        filter_prim_paths_expr=[
++            "{ENV_REGEX_NS}/Scene/Orange001",
++            "{ENV_REGEX_NS}/Scene/Orange002",
++            "{ENV_REGEX_NS}/Scene/Orange003",
++        ],
++        track_air_time=False,
++        force_threshold=0.5,
++    )
++
++    jaw_contact: ContactSensorCfg = ContactSensorCfg(
++        prim_path="{ENV_REGEX_NS}/Robot/jaw",
++        filter_prim_paths_expr=[
++            "{ENV_REGEX_NS}/Scene/Orange001",
++            "{ENV_REGEX_NS}/Scene/Orange002",
++            "{ENV_REGEX_NS}/Scene/Orange003",
++        ],
++        track_air_time=False,
++        force_threshold=0.5,
++    )
++
+ 
+ @configclass
+ class SingleArmActionsCfg:
+@@ -194,7 +218,7 @@ class SingleArmTaskEnvCfg(ManagerBasedRLEnvCfg):
      def use_teleop_device(self, teleop_device) -> None:
          self.task_type = teleop_device
          self.actions = init_action_cfg(self.actions, device=teleop_device)
@@ -192,7 +391,20 @@ index d337a20..5b9313a 100644
              self.scene.robot.spawn.rigid_props.disable_gravity = True
  
      def preprocess_device_action(self, action: dict[str, Any], teleop_device) -> torch.Tensor:
-@@ -218,4 +218,4 @@ class SingleArmTaskEnvCfg(ManagerBasedRLEnvCfg):
+@@ -202,11 +226,7 @@ class SingleArmTaskEnvCfg(ManagerBasedRLEnvCfg):
+ 
+     def build_lerobot_frame(self, episode_data: EpisodeData, dataset_cfg: LeRobotDatasetCfg) -> dict:
+         obs_data = episode_data._data["obs"]
+-        action = episode_data._data["actions"][-1]
+-        if dataset_cfg.action_align:
+-            processed_action = convert_leisaac_action_to_lerobot(action.unsqueeze(0)).squeeze(0)
+-        else:
+-            processed_action = action.cpu().numpy()
++        processed_action = convert_leisaac_action_to_lerobot(obs_data["joint_pos_target"][-1].unsqueeze(0)).squeeze(0)
+         frame = {
+             "action": processed_action,
+             "observation.state": convert_leisaac_action_to_lerobot(obs_data["joint_pos"][-1].unsqueeze(0)).squeeze(0),
+@@ -218,4 +238,4 @@ class SingleArmTaskEnvCfg(ManagerBasedRLEnvCfg):
              camera_key = frame_key.split(".")[-1]
              frame[frame_key] = obs_data[camera_key][-1].cpu().numpy()
  
@@ -219,3 +431,25 @@ index 02c6094..c9ef1c7 100644
 -        delattr(obj, attr_name)
 +        delattr(obj, attr_name)
 \ No newline at end of file
+diff --git a/source/leisaac/leisaac/utils/robot_utils.py b/source/leisaac/leisaac/utils/robot_utils.py
+index 047dad3..e86027e 100644
+--- a/source/leisaac/leisaac/utils/robot_utils.py
++++ b/source/leisaac/leisaac/utils/robot_utils.py
+@@ -52,14 +52,9 @@ def build_feature_from_env(env: ManagerBasedEnv | DirectRLEnv, dataset_cfg: LeRo
+     else:
+         action_dim = env.actions.shape[-1]
+ 
+-    if action_dim != len(default_feature_joint_names):
+-        # [A bit tricky, currently works because the action dimension matches the joints only when we use leader control]
+-        action_joint_names = [f"dim_{index}" for index in range(action_dim)]
+-        dataset_cfg.action_align = False
+-    else:
+-        action_joint_names = default_feature_joint_names
+-        dataset_cfg.action_align = True
+-    features["action"] = asdict(StateFeatureItem(dtype="float32", shape=(action_dim,), names=action_joint_names))
++    features["action"] = asdict(
++        StateFeatureItem(dtype="float32", shape=(len(default_feature_joint_names),), names=default_feature_joint_names)
++    )
+     features["observation.state"] = asdict(
+         StateFeatureItem(dtype="float32", shape=(len(default_feature_joint_names),), names=default_feature_joint_names)
+     )
