@@ -332,6 +332,8 @@ try:
         done = False
         step_count = 0
         last_positions = save_positions(env)
+        STABLE_PLATE_FRAMES = 10
+        stable_plate_count = 0
 
         while not done:
             if reset_controller.stop_requested:
@@ -385,11 +387,18 @@ try:
             tracker.record_timing(infer_time_ms, step_time_ms)
             step_count += 1
 
-            is_terminated = tensor_to_bool(terminated)
+            post_step_positions = save_positions(env)
+            if count_oranges_in_plate(post_step_positions) >= 3:
+                stable_plate_count += 1
+            else:
+                stable_plate_count = 0
+
+            is_terminated = tensor_to_bool(terminated) or stable_plate_count >= STABLE_PLATE_FRAMES
             is_truncated = tensor_to_bool(truncated)
             done = is_terminated or is_truncated
 
             if done:
+                last_positions = post_step_positions
                 oranges_in_plate = count_oranges_in_plate(last_positions)
                 tracker.end_episode(episode, step_count, is_terminated, oranges_in_plate)
 

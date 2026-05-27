@@ -741,6 +741,13 @@ try:
             controller.update_after_step(sub_tracker, orange_positions, step_count)
             phase_after = controller.phase
 
+            # End the episode immediately when the third orange is placed.
+            # FULL_SUCCESS mode additionally flips episode_succeeded inside the
+            # recorder block below for staging-merge bookkeeping.
+            if (phase_before == "PLACE"
+                    and len(sub_tracker.placed_oranges) == len(controller.orange_names)):
+                done = True
+
             # After a scripted spatial reset, flush the VLA action queue so stale
             # pre-reset actions don't replay on the first GRASP step.
             if (SCRIPTED_SPATIAL_RESET
@@ -763,11 +770,11 @@ try:
                     # so checking phase_after in ("SELECT_TARGET", "HOME") misses those cases.
                     recorder.commit(task="Place it into plate",
                                    n_placed=len(sub_tracker.placed_oranges))
-                    # Full-success: all oranges placed → merge staging and end episode.
+                    # Full-success: all oranges placed → merge staging on episode end.
+                    # (done = True is already set above for both modes.)
                     if (_fs_active
                             and len(sub_tracker.placed_oranges) == len(controller.orange_names)):
                         episode_succeeded = True
-                        done = True
                 elif phase_before == "HOME" and not home_fired_before and home_checker._fired:
                     recorder.commit(task="Go back to start position",
                                    n_placed=len(sub_tracker.placed_oranges))
