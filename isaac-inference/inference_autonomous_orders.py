@@ -58,7 +58,7 @@ FREEZE_FRAMES       = 20     # freeze frames appended at the end of each subtask
 FULL_SUCCESS_DATA_GENERATION = False
 
 # --- Evaluation metrics ---
-EVAL_RESUME          = True   # True: resume completed-run metrics from results/eval_<model>_checkpoint.json
+EVAL_RESUME          = True   # True: resume completed-run metrics from results/<model>/checkpoint.json
 EVAL_CHECKPOINT_PATH = None   # None: use model-specific default in results/
 
 TIMEOUT_STEPS = {
@@ -556,6 +556,7 @@ try:
         step_count = 0
         last_model_prompt = None
         last_positions = save_positions(env)
+        last_camera_images = None
         episode_start_joint_pos   = None  # arm pose at episode start (LeIsaac radians); scripted reset target
         spatial_reset_start_joint = None  # arm pose when SPATIAL_RESET/ABORT_HOME begins
 
@@ -571,7 +572,8 @@ try:
                     tracker.end_episode(run_idx, step_count, False, oranges_in_plate,
                                         n_local_retries=controller.n_local_retries,
                                         n_redirections=controller.n_redirections,
-                                        n_oranges_abandoned=sum(1 for c in controller._timeout_count.values() if c >= 2))
+                                        n_oranges_abandoned=sum(1 for c in controller._timeout_count.values() if c >= 2),
+                                        camera_images=last_camera_images)
                 done = True
                 break
 
@@ -586,7 +588,8 @@ try:
                     tracker.end_episode(run_idx, step_count, False, oranges_in_plate,
                                         n_local_retries=controller.n_local_retries,
                                         n_redirections=controller.n_redirections,
-                                        n_oranges_abandoned=sum(1 for c in controller._timeout_count.values() if c >= 2))
+                                        n_oranges_abandoned=sum(1 for c in controller._timeout_count.values() if c >= 2),
+                                        camera_images=last_camera_images)
                 done = True
                 break
 
@@ -615,7 +618,8 @@ try:
                         tracker.end_episode(run_idx, step_count, False, oranges_in_plate,
                                             n_local_retries=controller.n_local_retries,
                                             n_redirections=controller.n_redirections,
-                                            n_oranges_abandoned=sum(1 for c in controller._timeout_count.values() if c >= 2))
+                                            n_oranges_abandoned=sum(1 for c in controller._timeout_count.values() if c >= 2),
+                                            camera_images=last_camera_images)
                     torch.cuda.empty_cache()
                     done = True
                     break
@@ -640,6 +644,7 @@ try:
             policy_obs = obs["policy"]
             raw_front = policy_obs["front"][0].cpu().numpy()
             raw_wrist = policy_obs["wrist"][0].cpu().numpy()
+            last_camera_images = {"front": raw_front, "wrist": raw_wrist}
 
             # Save episode-start joint pose (scripted reset target). Deferred to step 1
             # for the same reason as height init: step 0 buffers are stale post-reset.
@@ -813,7 +818,8 @@ try:
                     tracker.end_episode(run_idx, step_count, is_terminated, oranges_in_plate,
                                         n_local_retries=controller.n_local_retries,
                                         n_redirections=controller.n_redirections,
-                                        n_oranges_abandoned=sum(1 for c in controller._timeout_count.values() if c >= 2))
+                                        n_oranges_abandoned=sum(1 for c in controller._timeout_count.values() if c >= 2),
+                                        camera_images=last_camera_images)
 
         # --- Post-episode: merge staging on full success ---
         if _fs_active and RECORD_ENABLED:

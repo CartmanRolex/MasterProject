@@ -13,7 +13,14 @@ from lerobot.policies.smolvla.modeling_smolvla import SmolVLAPolicy
 from lerobot.policies.utils import build_inference_frame
 from tqdm import tqdm
 
-from eval_utils import count_oranges_in_plate, save_positions
+from eval_utils import (
+    count_oranges_in_plate,
+    evaluation_checkpoint_path,
+    evaluation_summary_path,
+    save_episode_camera_snapshots,
+    save_positions,
+    short_model_name,
+)
 from robot_utils import (
     convert_leisaac_action_to_lerobot,
     convert_lerobot_action_to_leisaac,
@@ -38,9 +45,6 @@ dataset_features = {
     "observation.state": {"dtype": "float32", "shape": (6,), "names": ["state"]},
     "action": {"dtype": "float32", "shape": (6,), "names": ["action"]},
 }
-
-RESULTS_DIR = Path(__file__).parent / "results"
-
 
 def tensor_to_bool(value):
     if isinstance(value, torch.Tensor):
@@ -72,15 +76,15 @@ class FlatEvaluationTracker:
 
     @staticmethod
     def _short_model_name(model_id):
-        return model_id.rstrip("/").split("/")[-1]
+        return short_model_name(model_id)
 
     @classmethod
     def _default_checkpoint_path(cls, model_id):
-        return RESULTS_DIR / f"eval_{cls._short_model_name(model_id)}_flat_checkpoint.json"
+        return evaluation_checkpoint_path(model_id, flat=True)
 
     @classmethod
     def _default_summary_path(cls, model_id):
-        return RESULTS_DIR / f"eval_{cls._short_model_name(model_id)}_flat_latest.txt"
+        return evaluation_summary_path(model_id, flat=True)
 
     @property
     def next_episode_index(self):
@@ -128,7 +132,7 @@ class FlatEvaluationTracker:
         if step_time_ms is not None:
             self._step_times.append(step_time_ms)
 
-    def end_episode(self, episode, step_count, is_terminated, oranges_in_plate):
+    def end_episode(self, episode, step_count, is_terminated, oranges_in_plate, camera_images=None):
         n_infer_calls = len(self._infer_times)
         last_infer = self._infer_times[-1] if self._infer_times else float("nan")
         avg_step = (sum(self._step_times) / len(self._step_times)) if self._step_times else float("nan")
@@ -158,6 +162,17 @@ class FlatEvaluationTracker:
         )
         if was_new_episode:
             self._pbar.update(1)
+        if camera_images:
+            try:
+                save_episode_camera_snapshots(
+                    self.model_id,
+                    "flat",
+                    episode,
+                    camera_images.get("front"),
+                    camera_images.get("wrist"),
+                )
+            except Exception as exc:
+                tqdm.write(f"  Could not save flat episode camera snapshots: {exc}")
         self.save_checkpoint()
         self.write_summary()
 
@@ -193,7 +208,7 @@ class FlatEvaluationTracker:
         )
 
     def save_checkpoint(self):
-        RESULTS_DIR.mkdir(exist_ok=True)
+        self.checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
         checkpoint = {
             "model_id": self.model_id,
             "prompt": instruction,
@@ -208,7 +223,7 @@ class FlatEvaluationTracker:
         tmp.replace(self.checkpoint_path)
 
     def write_summary(self):
-        RESULTS_DIR.mkdir(exist_ok=True)
+        self.summary_path.parent.mkdir(parents=True, exist_ok=True)
         tmp = self.summary_path.with_suffix(self.summary_path.suffix + ".tmp")
         with open(tmp, "w") as f:
             f.write(self._summary_text())
@@ -332,6 +347,7 @@ try:
         done = False
         step_count = 0
         last_positions = save_positions(env)
+        last_camera_images = None
         STABLE_PLATE_FRAMES = 10
         stable_plate_count = 0
 
@@ -339,20 +355,21 @@ try:
             if reset_controller.stop_requested:
                 print("\nStop requested - ending current episode as failed.")
                 oranges_in_plate = count_oranges_in_plate(last_positions)
-                tracker.end_episode(episode, step_count, False, oranges_in_plate)
+                tracker.end_episode(episode, step_count, False, oranges_in_plate, camera_images=last_camera_images)
                 done = True
                 break
 
             if reset_controller.get_and_clear_reset():
                 print("\nEpisode reset requested - ending current episode as failed.")
                 oranges_in_plate = count_oranges_in_plate(last_positions)
-                tracker.end_episode(episode, step_count, False, oranges_in_plate)
+                tracker.end_episode(episode, step_count, False, oranges_in_plate, camera_images=last_camera_images)
                 done = True
                 break
 
             policy_obs = obs["policy"]
             raw_front = policy_obs["front"][0].cpu().numpy()
             raw_wrist = policy_obs["wrist"][0].cpu().numpy()
+            last_camera_images = {"front": raw_front, "wrist": raw_wrist}
             joint_pos_converted = convert_leisaac_action_to_lerobot(policy_obs["joint_pos"].cpu().numpy())
 
             obs_frame = build_inference_frame(
@@ -400,7 +417,13 @@ try:
             if done:
                 last_positions = post_step_positions
                 oranges_in_plate = count_oranges_in_plate(last_positions)
-                tracker.end_episode(episode, step_count, is_terminated, oranges_in_plate)
+                tracker.end_episode(
+                    episode,
+                    step_count,
+                    is_terminated,
+                    oranges_in_plate,
+                    camera_images=last_camera_images,
+                )
 
         if reset_controller.stop_requested:
             break

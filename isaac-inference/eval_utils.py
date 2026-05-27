@@ -33,8 +33,68 @@ from PIL import Image
 
 
 # ============================================================
+# Result Paths
+# ============================================================
+
+def short_model_name(model_id):
+    return model_id.rstrip("/").split("/")[-1] if model_id else None
+
+
+def evaluation_result_dir(model_id):
+    model_name = short_model_name(model_id)
+    return _RESULTS_DIR / model_name if model_name else _RESULTS_DIR
+
+
+def evaluation_checkpoint_path(model_id, flat=False):
+    filename = "flat_checkpoint.json" if flat else "checkpoint.json"
+    return evaluation_result_dir(model_id) / filename
+
+
+def evaluation_summary_path(model_id, flat=False):
+    filename = "flat_latest.txt" if flat else "latest.txt"
+    return evaluation_result_dir(model_id) / filename
+
+
+def evaluation_snapshot_dir(model_id, run_type):
+    return evaluation_result_dir(model_id) / "snapshots" / run_type
+
+
+# ============================================================
 # Camera Debugging
 # ============================================================
+
+def _camera_array_for_image(img):
+    arr = np.asarray(img)
+    if arr.ndim == 3 and arr.shape[0] in (1, 3, 4):
+        arr = arr.transpose(1, 2, 0)
+    if arr.ndim == 2:
+        arr = arr[:, :, None]
+    if arr.ndim != 3:
+        raise ValueError(f"expected image with 2 or 3 dimensions, got shape {arr.shape}")
+    if arr.shape[2] == 1:
+        arr = np.repeat(arr, 3, axis=2)
+    elif arr.shape[2] > 3:
+        arr = arr[:, :, :3]
+
+    arr = np.nan_to_num(arr)
+    if arr.dtype != np.uint8:
+        max_val = float(np.max(arr)) if arr.size else 0.0
+        if max_val <= 1.0:
+            arr = arr * 255.0
+        arr = np.clip(arr, 0, 255).astype(np.uint8)
+    return arr
+
+
+def save_episode_camera_snapshots(model_id, run_type, episode, raw_front, raw_wrist):
+    """Save final front/wrist images for an evaluated episode."""
+    if raw_front is None or raw_wrist is None:
+        return
+
+    snapshot_dir = evaluation_snapshot_dir(model_id, run_type)
+    snapshot_dir.mkdir(parents=True, exist_ok=True)
+    for name, img in (("front", raw_front), ("wrist", raw_wrist)):
+        arr = _camera_array_for_image(img)
+        Image.fromarray(arr).save(snapshot_dir / f"episode_{int(episode):06d}_{name}.png")
 
 def save_camera_snapshots(raw_front, raw_wrist, episode, step_count,
                           target_step=15, target_episode=0):
@@ -43,11 +103,7 @@ def save_camera_snapshots(raw_front, raw_wrist, episode, step_count,
         return
 
     for name, img in [("front", raw_front), ("wrist", raw_wrist)]:
-        if img.dtype != np.uint8:
-            img = (img * 255).clip(0, 255).astype(np.uint8)
-        if img.shape[0] == 3:  # CHW -> HWC
-            img = img.transpose(1, 2, 0)
-        Image.fromarray(img).save(Path(__file__).parent / f"camera_check_{name}.png")
+        Image.fromarray(_camera_array_for_image(img)).save(Path(__file__).parent / f"camera_check_{name}.png")
         print(f"  Saved camera_check_{name}.png")
 
 
@@ -232,21 +288,19 @@ class EvaluationTracker:
 
     @staticmethod
     def _short_model_name(model_id):
-        return model_id.rstrip("/").split("/")[-1] if model_id else None
+        return short_model_name(model_id)
 
     @classmethod
     def _default_checkpoint_path(cls, model_id):
-        short_model_name = cls._short_model_name(model_id)
-        if not short_model_name:
+        if not cls._short_model_name(model_id):
             return None
-        return _RESULTS_DIR / f"eval_{short_model_name}_checkpoint.json"
+        return evaluation_checkpoint_path(model_id)
 
     @classmethod
     def _default_summary_path(cls, model_id):
-        short_model_name = cls._short_model_name(model_id)
-        if not short_model_name:
+        if not cls._short_model_name(model_id):
             return None
-        return _RESULTS_DIR / f"eval_{short_model_name}_latest.txt"
+        return evaluation_summary_path(model_id)
 
     @property
     def next_episode_index(self):
@@ -354,7 +408,7 @@ class EvaluationTracker:
         if not self.checkpoint_path:
             return
 
-        _RESULTS_DIR.mkdir(exist_ok=True)
+        self.checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
         checkpoint = {
             "model_id": self.model_id,
             "target_n_episodes": self.n_episodes,
@@ -371,7 +425,7 @@ class EvaluationTracker:
     def write_partial_summary(self, model_id=None):
         if not self.summary_path:
             return
-        _RESULTS_DIR.mkdir(exist_ok=True)
+        self.summary_path.parent.mkdir(parents=True, exist_ok=True)
         tmp = self.summary_path.with_suffix(self.summary_path.suffix + ".tmp")
         with open(tmp, "w") as f:
             f.write(self._summary_text(model_id or self.model_id))
@@ -408,7 +462,8 @@ class EvaluationTracker:
             self._step_times.append(step_time_ms)
 
     def end_episode(self, episode, step_count, is_terminated, oranges_in_plate,
-                    n_local_retries=0, n_redirections=0, n_oranges_abandoned=0):
+                    n_local_retries=0, n_redirections=0, n_oranges_abandoned=0,
+                    camera_images=None):
         """Record episode result, print a summary line, and advance the progress bar."""
         n_infer_calls  = len(self._infer_times)
         last_infer     = self._infer_times[-1] if self._infer_times else float("nan")
@@ -446,6 +501,17 @@ class EvaluationTracker:
         )
         if was_new_episode:
             self._pbar.update(1)
+        if camera_images:
+            try:
+                save_episode_camera_snapshots(
+                    self.model_id,
+                    "autonomous",
+                    episode,
+                    camera_images.get("front"),
+                    camera_images.get("wrist"),
+                )
+            except Exception as exc:
+                tqdm.write(f"  ⚠ Could not save episode camera snapshots: {exc}")
         self.save_checkpoint()
         self.write_partial_summary()
 
