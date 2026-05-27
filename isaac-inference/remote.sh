@@ -4,7 +4,7 @@
 export LIVESTREAM=2
 export ENABLE_CAMERAS=1
 
-export LEISAAC_ASSETS_ROOT=/home/gal/Documents/leisaac/assets
+export LEISAAC_ASSETS_ROOT="$HOME/Documents/leisaac/assets"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG_DIR="$SCRIPT_DIR/logs"
