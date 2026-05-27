@@ -1,21 +1,21 @@
 
 ========================================
-EVALUATION SUMMARY (stopped after 41/500 runs)
+EVALUATION SUMMARY (stopped after 102/500 runs)
 Model ID:             MasterProject2026/Gal-merged-tailed-auto
-Success Rate:         1/41 (2.44%)
-Avg oranges in plate: 1.15/3
+Success Rate:         1/102 (0.98%)
+Avg oranges in plate: 0.81/3
 Mean steps (success): 1349.0
-3/3 oranges:          1/41 (2.4%)
-2/3 oranges:          8/41 (19.5%)
-1/3 oranges:          28/41 (68.3%)
-0/3 oranges:          4/41 (9.8%)
-Per-episode oranges:  [1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 2, 0, 2, 1, 1, 2, 1, 1, 2, 1, 3, 1, 1, 1, 1, 1, 2, 2, 0, 1, 0, 2, 1, 0, 1, 1, 1, 1, 1, 1]
+3/3 oranges:          1/102 (1.0%)
+2/3 oranges:          14/102 (13.7%)
+1/3 oranges:          52/102 (51.0%)
+0/3 oranges:          35/102 (34.3%)
+Per-episode oranges:  [1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 2, 0, 2, 1, 1, 2, 1, 1, 2, 1, 3, 1, 1, 1, 1, 1, 2, 2, 0, 1, 0, 2, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 2, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1]
 Per-subtask success rates (by oranges in plate at subtask start):
-  GRASP:  0 placed:  51/108 ( 47.2%)   1 placed:  17/107 ( 15.9%)   2 placed:   1/11  (  9.1%)
-  LIFT:   0 placed:  43/51  ( 84.3%)   1 placed:  13/17  ( 76.5%)   2 placed:   1/1   (100.0%)
-  PLACE:  0 placed:  28/43  ( 65.1%)   1 placed:   9/13  ( 69.2%)   2 placed:   1/1   (100.0%)
+  GRASP:  0 placed: 104/343 ( 30.3%)   1 placed:  28/212 ( 13.2%)   2 placed:   1/17  (  5.9%)
+  LIFT:   0 placed:  85/104 ( 81.7%)   1 placed:  20/28  ( 71.4%)   2 placed:   1/1   (100.0%)
+  PLACE:  0 placed:  49/85  ( 57.6%)   1 placed:  13/20  ( 65.0%)   2 placed:   1/1   (100.0%)
 Mechanism usage (local retry = same orange after slip; redirection = new orange after timeout):
-  Local retries:      110 total, fired in 40/41 episodes
-  Target redirections:78 total, fired in 40/41 episodes
-  Oranges abandoned:  76 total (1.85 avg/episode)
+  Local retries:      288 total, fired in 101/102 episodes
+  Target redirections:221 total, fired in 101/102 episodes
+  Oranges abandoned:  218 total (2.14 avg/episode)
 ========================================
