@@ -4,14 +4,15 @@ strip_lang_and_tail.py — produce a no-language-conditioning clone of a dataset
 with the trailing N "frozen frames" of every episode removed.
 
 Source: synthetic_datasets/Gal-merged-tailed-auto (1335 episodes, 191257 frames, 16 tasks).
-Destination: synthetic_datasets/Gal-merged-tailed-auto-no-lang.
+Destination: synthetic_datasets/Gal-merged-tailed-auto-no-lang-no-home.
 
 What changes:
+  - Episodes labelled "Go back to start position" are removed.
   - All task labels collapse to a single string: "Place the orange into plate".
-  - Last TAIL=20 frames of every episode are dropped from data parquet.
+  - Last TAIL=20 frames of every kept episode are dropped from data parquet.
   - episodes meta: length, dataset_from/to_index, tasks, videos/*/to_timestamp updated.
   - tasks.parquet rewritten with a single row.
-  - info.json: total_frames and total_tasks updated.
+  - info.json: total_frames, total_episodes, splits, and total_tasks updated.
   - stats.json: scalar feature stats recomputed; image stats preserved (videos untouched).
 
 What does NOT change:
@@ -25,7 +26,6 @@ What does NOT change:
 from __future__ import annotations
 
 import json
-import shutil
 from pathlib import Path
 
 import numpy as np
@@ -37,13 +37,40 @@ from balance_dataset import CAMERAS
 
 ROOT = Path(__file__).parent
 SRC = ROOT / "synthetic_datasets" / "Gal-merged-tailed-auto"
-DST = ROOT / "synthetic_datasets" / "Gal-merged-tailed-auto-no-lang"
+DST = ROOT / "synthetic_datasets" / "Gal-merged-tailed-auto-no-lang-no-home"
 TAIL = 20
 NEW_TASK = "Place the orange into plate"
+DROP_TASKS = {"Go back to start position"}
+EXPECTED_KEPT_EPISODES = 1260
+EXPECTED_TOTAL_FRAMES = 155357
 
 
 def replace_col(t: pa.Table, name: str, values, typ) -> pa.Table:
     return t.set_column(t.schema.get_field_index(name), name, pa.array(values, type=typ))
+
+
+def task_tuple(tasks) -> tuple[str, ...]:
+    return tuple(str(task) for task in tasks)
+
+
+def load_episode_filter(src_path: Path) -> tuple[dict[int, int], int, int, int]:
+    """Return old->new episode ids plus source/drop/kept raw frame counts."""
+    eps = pq.read_table(src_path)
+    old_episode_indices = eps.column("episode_index").to_pylist()
+    tasks = eps.column("tasks").to_pylist()
+    lengths = eps.column("length").to_pylist()
+
+    old_to_new: dict[int, int] = {}
+    dropped_frames = 0
+    kept_raw_frames = 0
+    for old_ep, task_list, length in zip(old_episode_indices, tasks, lengths):
+        if task_tuple(task_list) in {(task,) for task in DROP_TASKS}:
+            dropped_frames += length
+            continue
+        old_to_new[int(old_ep)] = len(old_to_new)
+        kept_raw_frames += length
+
+    return old_to_new, len(old_episode_indices), dropped_frames, kept_raw_frames
 
 
 def link_videos(src: Path, dst: Path) -> None:
@@ -65,8 +92,13 @@ def link_videos(src: Path, dst: Path) -> None:
                 link.symlink_to(mp4.resolve())
 
 
-def rewrite_data_parquet(src_path: Path, dst_path: Path, tail: int) -> int:
-    """Drop last `tail` rows per episode, set task_index=0, reset global index. Returns new row count."""
+def rewrite_data_parquet(
+    src_path: Path,
+    dst_path: Path,
+    tail: int,
+    old_to_new_episode: dict[int, int],
+) -> int:
+    """Drop filtered episodes and per-episode tail, then reset episode/task/global indices."""
     data = pq.read_table(src_path)
     ep_col = data.column("episode_index").to_pylist()
 
@@ -76,14 +108,19 @@ def rewrite_data_parquet(src_path: Path, dst_path: Path, tail: int) -> int:
         totals[ep] = totals.get(ep, 0) + 1
 
     keep_mask: list[bool] = []
+    new_episode_indices: list[int] = []
     seen: dict[int, int] = {}
     for ep in ep_col:
         c = seen.get(ep, 0)
-        keep_mask.append(c < totals[ep] - tail)
+        keep = ep in old_to_new_episode and c < totals[ep] - tail
+        keep_mask.append(keep)
+        if keep:
+            new_episode_indices.append(old_to_new_episode[ep])
         seen[ep] = c + 1
 
     data = data.filter(pa.array(keep_mask, type=pa.bool_()))
     n = data.num_rows
+    data = replace_col(data, "episode_index", new_episode_indices, pa.int64())
     data = replace_col(data, "task_index", [0] * n, pa.int64())
     data = replace_col(data, "index", list(range(n)), pa.int64())
     dst_path.parent.mkdir(parents=True, exist_ok=True)
@@ -91,17 +128,27 @@ def rewrite_data_parquet(src_path: Path, dst_path: Path, tail: int) -> int:
     return n
 
 
-def rewrite_episodes_parquet(src_path: Path, dst_path: Path, tail: int, fps: int) -> tuple[list[int], int]:
+def rewrite_episodes_parquet(
+    src_path: Path,
+    dst_path: Path,
+    tail: int,
+    fps: int,
+    old_to_new_episode: dict[int, int],
+) -> tuple[list[int], int]:
     """Update length, tasks, dataset_from/to_index, videos/*/to_timestamp.
 
     Returns (new_lengths, new_total_frames).
     """
     eps = pq.read_table(src_path)
+    old_episode_indices = eps.column("episode_index").to_pylist()
+    keep_mask = [ep in old_to_new_episode for ep in old_episode_indices]
+    eps = eps.filter(pa.array(keep_mask, type=pa.bool_()))
     n_eps = eps.num_rows
     old_lengths = eps.column("length").to_pylist()
     new_lengths = [L - tail for L in old_lengths]
     assert all(L >= 1 for L in new_lengths), "An episode would become empty after trimming"
 
+    eps = replace_col(eps, "episode_index", list(range(n_eps)), pa.int64())
     eps = replace_col(eps, "length", new_lengths, pa.int64())
 
     # tasks: single-element string list per row
@@ -137,10 +184,12 @@ def rewrite_tasks_parquet(dst_path: Path) -> None:
     tasks.to_parquet(dst_path)
 
 
-def rewrite_info_json(src_path: Path, dst_path: Path, total_frames: int) -> None:
+def rewrite_info_json(src_path: Path, dst_path: Path, total_frames: int, total_episodes: int) -> None:
     info = json.loads(src_path.read_text())
     info["total_frames"] = total_frames
+    info["total_episodes"] = total_episodes
     info["total_tasks"] = 1
+    info["splits"] = {"train": f"0:{total_episodes}"}
     with open(dst_path, "w") as f:
         json.dump(info, f, indent=4)
 
@@ -192,11 +241,23 @@ def verify(dst: Path) -> None:
         f"data rows {len(data)} != sum of episode lengths {eps['length'].sum()}"
     assert (data["index"].to_numpy() == np.arange(len(data))).all(), \
         "data 'index' column is not a contiguous range"
+    assert (data["episode_index"].to_numpy() >= 0).all(), \
+        "data contains negative episode_index values"
+    assert sorted(data["episode_index"].unique()) == list(range(len(eps))), \
+        "data episode_index values are not contiguous or do not match episodes metadata"
+    assert (eps["episode_index"].to_numpy() == np.arange(len(eps))).all(), \
+        "episodes metadata episode_index is not a contiguous range"
     assert list(data["task_index"].unique()) == [0], \
         f"unexpected task_index values: {data['task_index'].unique()}"
     assert len(tasks) == 1, f"tasks.parquet has {len(tasks)} rows, expected 1"
     assert info["total_frames"] == len(data)
+    assert info["total_episodes"] == len(eps)
     assert info["total_tasks"] == 1
+    assert info["splits"] == {"train": f"0:{len(eps)}"}
+    assert len(eps) == EXPECTED_KEPT_EPISODES, \
+        f"episodes {len(eps)} != expected {EXPECTED_KEPT_EPISODES}"
+    assert len(data) == EXPECTED_TOTAL_FRAMES, \
+        f"frames {len(data)} != expected {EXPECTED_TOTAL_FRAMES}"
 
     # Per-episode length consistency
     grouped = data.groupby("episode_index").agg(rows=("frame_index", "size"),
@@ -211,6 +272,8 @@ def verify(dst: Path) -> None:
     # tasks list uniformity
     task_strs = set(tuple(t) for t in eps["tasks"])
     assert task_strs == {(NEW_TASK,)}, f"non-uniform tasks in episodes meta: {task_strs}"
+    assert not any(task in DROP_TASKS for task_tuple_ in task_strs for task in task_tuple_), \
+        f"drop task still present in episodes meta: {task_strs}"
 
     # Video timestamp consistency
     for cam in CAMERAS:
@@ -235,10 +298,27 @@ def main() -> None:
 
     info = json.loads((SRC / "meta" / "info.json").read_text())
     fps = info["fps"]
+    old_to_new_episode, source_episodes, dropped_raw_frames, kept_raw_frames = load_episode_filter(
+        SRC / "meta" / "episodes" / "chunk-000" / "file-000.parquet"
+    )
+    kept_episodes = len(old_to_new_episode)
+    expected_total = kept_raw_frames - kept_episodes * TAIL
+
     print(f"Source:      {SRC}")
     print(f"Destination: {DST}")
     print(f"fps={fps}, trimming last {TAIL} frames per episode, "
-          f"collapsing all task labels to: {NEW_TASK!r}\n")
+          f"collapsing all task labels to: {NEW_TASK!r}")
+    print(f"Dropping tasks: {sorted(DROP_TASKS)}")
+    print(f"Source episodes: {source_episodes}")
+    print(f"Kept episodes:   {kept_episodes}")
+    print(f"Dropped episodes:{source_episodes - kept_episodes}")
+    print(f"Dropped frames:  {dropped_raw_frames}")
+    print(f"Expected rows:   {expected_total}\n")
+
+    assert kept_episodes == EXPECTED_KEPT_EPISODES, \
+        f"kept episodes {kept_episodes} != expected {EXPECTED_KEPT_EPISODES}"
+    assert expected_total == EXPECTED_TOTAL_FRAMES, \
+        f"expected rows {expected_total} != expected {EXPECTED_TOTAL_FRAMES}"
 
     DST.mkdir(parents=True)
     (DST / "data" / "chunk-000").mkdir(parents=True)
@@ -253,6 +333,7 @@ def main() -> None:
         SRC / "data" / "chunk-000" / "file-000.parquet",
         DST / "data" / "chunk-000" / "file-000.parquet",
         TAIL,
+        old_to_new_episode,
     )
     print(f"  → {new_total} rows")
 
@@ -260,7 +341,7 @@ def main() -> None:
     new_lengths, sum_lengths = rewrite_episodes_parquet(
         SRC / "meta" / "episodes" / "chunk-000" / "file-000.parquet",
         DST / "meta" / "episodes" / "chunk-000" / "file-000.parquet",
-        TAIL, fps,
+        TAIL, fps, old_to_new_episode,
     )
     assert sum_lengths == new_total, \
         f"episodes length sum ({sum_lengths}) != data rows ({new_total})"
@@ -269,7 +350,7 @@ def main() -> None:
     rewrite_tasks_parquet(DST / "meta" / "tasks.parquet")
 
     print("Rewriting info.json ...")
-    rewrite_info_json(SRC / "meta" / "info.json", DST / "meta" / "info.json", new_total)
+    rewrite_info_json(SRC / "meta" / "info.json", DST / "meta" / "info.json", new_total, kept_episodes)
 
     print("Rewriting stats.json ...")
     rewrite_stats_json(

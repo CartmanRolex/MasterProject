@@ -31,7 +31,7 @@ from dataset_recorder import SubtaskRecorder, SYNTHETIC_DATASETS_DIR, merge_stag
 # 1. Configuration & Setup
 # ==========================================
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model_id = "MasterProject2026/Gal-merged-tailed-auto"
+model_id = "MasterProject2026/Gal-merged-tailed-auto-no-lang"
 
 # Number of full robot sessions to run.
 # One inference run = env reset → robot picks all oranges → done.

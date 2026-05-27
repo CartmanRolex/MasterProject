@@ -1,0 +1,14 @@
+
+========================================
+FLAT-PROMPT EVALUATION SUMMARY (stopped after 32/500 runs)
+Model ID:             MasterProject2026/Gal-merged-tailed-auto-no-lang
+Prompt:               Place the orange into plate
+Success Rate:         1/32 (3.12%)
+Avg oranges in plate: 1.12/3
+Mean steps (success): 1305.0
+3/3 oranges:          1/32 (3.1%)
+2/3 oranges:          11/32 (34.4%)
+1/3 oranges:          11/32 (34.4%)
+0/3 oranges:          9/32 (28.1%)
+Per-episode oranges:  [2, 2, 2, 1, 3, 0, 1, 2, 2, 2, 2, 1, 0, 0, 2, 1, 0, 1, 2, 1, 1, 1, 0, 2, 1, 0, 1, 2, 0, 1, 0, 0]
+========================================

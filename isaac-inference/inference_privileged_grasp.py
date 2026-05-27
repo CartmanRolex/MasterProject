@@ -1,6 +1,7 @@
 import argparse
 import importlib.util
 import logging
+import random
 import signal
 import sys
 import threading
@@ -31,18 +32,18 @@ ARM_JOINT_NAMES = (
 GRIPPER_OPEN = 1.00
 
 # Cartesian target: same XY as orange COM, fixed height above COM.
-ABOVE_COM_HEIGHT = 0.13
+ABOVE_COM_HEIGHT = 0.1
 WARMUP_STEPS = 2
 
 DLS_LAMBDA = 0.04
 DEFAULT_SPEED_SCALE = 10
 BASE_JOINT_STEP = 0.0225
 RETREAT_POS_TOL = 0.015
-ORIENT_DOWN_TOL = 0.03
+ORIENT_DOWN_TOL = 0.04
 ORIENT_DOWN_STABLE_STEPS = 8
 ORIENT_DOWN_MAX_STEPS = 250
-RETREAT_BACKWARD_DISTANCE = 0.1
-RETREAT_DOWN_DISTANCE = 0.05
+RETREAT_BACKWARD_DISTANCE = 0.08
+RETREAT_DOWN_DISTANCE = 0.03
 RETREAT_MAX_STEPS = 5000
 GRIPPER_LOCAL_BACKWARDS_AXIS = (0.0, 0.0, 1.0)
 GRIPPER_LOCAL_DOWN_AXIS = (0.0, 0.0, -1.0)
@@ -457,6 +458,7 @@ class PrivilegedGraspController:
 
         if self._phase == "TILT":
             rot_error_norm = torch.linalg.norm(down_axis_error(self._ee_quat_w(env))).item()
+            print(f"TILT step {self._phase_step}: orientation error={rot_error_norm:.4f} rad")
             if rot_error_norm <= ORIENT_DOWN_TOL:
                 self._orient_stable_steps += 1
             else:
@@ -645,7 +647,12 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Privileged EE alignment controller for SO101 pick-orange.")
     parser.add_argument("stdin_marker", nargs="?", choices=["-"], help=argparse.SUPPRESS)
     parser.add_argument("--runs", type=int, default=20, help="Number of alignment runs.")
-    parser.add_argument("--target_orange", type=str, default="Orange001", choices=ORANGE_NAMES)
+    parser.add_argument(
+        "--target_orange",
+        type=str,
+        choices=ORANGE_NAMES,
+        help="Orange to target. Defaults to choosing a random orange each run.",
+    )
     parser.add_argument(
         "--speed_scale",
         type=float,
@@ -739,13 +746,14 @@ def main():
 
     try:
         for run_idx in range(args.runs):
+            target_orange = args.target_orange or random.choice(ORANGE_NAMES)
             print(f"\n{'-' * 52}")
-            print(f"Privileged alignment run {run_idx + 1} / {args.runs} | target {args.target_orange}")
+            print(f"Privileged alignment run {run_idx + 1} / {args.runs} | target {target_orange}")
             print(f"{'-' * 52}")
 
             obs, _ = env.reset()
             controller = PrivilegedGraspController(
-                args.target_orange,
+                target_orange,
                 args.speed_scale,
                 ik_pose_weights,
             )

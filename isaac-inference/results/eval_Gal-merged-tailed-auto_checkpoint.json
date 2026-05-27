@@ -1,8 +1,8 @@
 {
   "model_id": "MasterProject2026/Gal-merged-tailed-auto",
   "target_n_episodes": 500,
-  "completed_episodes": 35,
-  "last_update": "2026-05-22T14:04:56",
+  "completed_episodes": 41,
+  "last_update": "2026-05-22T14:23:38",
   "episodes": [
     {
       "episode": 0,
@@ -458,31 +458,109 @@
       "n_local_retries": 4,
       "n_redirections": 3,
       "n_oranges_abandoned": 3
+    },
+    {
+      "episode": 35,
+      "step_count": 3531,
+      "is_terminated": false,
+      "oranges_in_plate": 1,
+      "n_infer_calls": 1963,
+      "last_infer_ms": 6.43676589243114,
+      "avg_step_ms": 35.165082790428066,
+      "ended_at": "2026-05-22T14:07:50",
+      "n_local_retries": 2,
+      "n_redirections": 2,
+      "n_oranges_abandoned": 2
+    },
+    {
+      "episode": 36,
+      "step_count": 3308,
+      "is_terminated": false,
+      "oranges_in_plate": 1,
+      "n_infer_calls": 1970,
+      "last_infer_ms": 5.065936129540205,
+      "avg_step_ms": 35.34554240325896,
+      "ended_at": "2026-05-22T14:10:33",
+      "n_local_retries": 2,
+      "n_redirections": 2,
+      "n_oranges_abandoned": 2
+    },
+    {
+      "episode": 37,
+      "step_count": 4593,
+      "is_terminated": false,
+      "oranges_in_plate": 1,
+      "n_infer_calls": 2802,
+      "last_infer_ms": 7.872425019741058,
+      "avg_step_ms": 35.215727740364635,
+      "ended_at": "2026-05-22T14:14:20",
+      "n_local_retries": 3,
+      "n_redirections": 3,
+      "n_oranges_abandoned": 3
+    },
+    {
+      "episode": 38,
+      "step_count": 3283,
+      "is_terminated": false,
+      "oranges_in_plate": 1,
+      "n_infer_calls": 1898,
+      "last_infer_ms": 5.297931144014001,
+      "avg_step_ms": 35.528410425746685,
+      "ended_at": "2026-05-22T14:17:02",
+      "n_local_retries": 2,
+      "n_redirections": 2,
+      "n_oranges_abandoned": 2
+    },
+    {
+      "episode": 39,
+      "step_count": 3872,
+      "is_terminated": false,
+      "oranges_in_plate": 1,
+      "n_infer_calls": 2284,
+      "last_infer_ms": 5.267144879326224,
+      "avg_step_ms": 35.315973916000104,
+      "ended_at": "2026-05-22T14:20:13",
+      "n_local_retries": 3,
+      "n_redirections": 2,
+      "n_oranges_abandoned": 2
+    },
+    {
+      "episode": 40,
+      "step_count": 4114,
+      "is_terminated": false,
+      "oranges_in_plate": 1,
+      "n_infer_calls": 2484,
+      "last_infer_ms": 6.761116907000542,
+      "avg_step_ms": 35.54335048722849,
+      "ended_at": "2026-05-22T14:23:38",
+      "n_local_retries": 3,
+      "n_redirections": 2,
+      "n_oranges_abandoned": 2
     }
   ],
   "subtask_stats": {
     "GRASP_0": {
-      "attempts": 96,
-      "successes": 44
+      "attempts": 108,
+      "successes": 51
     },
     "LIFT_0": {
-      "attempts": 44,
-      "successes": 36
+      "attempts": 51,
+      "successes": 43
     },
     "PLACE_0": {
-      "attempts": 36,
-      "successes": 23
+      "attempts": 43,
+      "successes": 28
     },
     "GRASP_1": {
-      "attempts": 86,
-      "successes": 15
+      "attempts": 107,
+      "successes": 17
     },
     "LIFT_1": {
-      "attempts": 15,
-      "successes": 12
+      "attempts": 17,
+      "successes": 13
     },
     "PLACE_1": {
-      "attempts": 12,
+      "attempts": 13,
       "successes": 9
     },
     "GRASP_2": {
