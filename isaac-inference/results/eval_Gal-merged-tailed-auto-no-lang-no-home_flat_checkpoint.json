@@ -2,8 +2,8 @@
   "model_id": "MasterProject2026/Gal-merged-tailed-auto-no-lang-no-home",
   "prompt": "Place the orange into plate",
   "target_n_episodes": 500,
-  "completed_episodes": 77,
-  "last_update": "2026-05-27T15:32:06",
+  "completed_episodes": 83,
+  "last_update": "2026-05-27T15:56:43",
   "episodes": [
     {
       "episode": 0,
@@ -774,6 +774,66 @@
       "last_infer_ms": 6.84204300341662,
       "avg_step_ms": 35.98929182035208,
       "ended_at": "2026-05-27T15:32:06"
+    },
+    {
+      "episode": 77,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 0,
+      "n_infer_calls": 2329,
+      "last_infer_ms": 7.062415999826044,
+      "avg_step_ms": 35.73581220811466,
+      "ended_at": "2026-05-27T15:36:08"
+    },
+    {
+      "episode": 78,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 0,
+      "n_infer_calls": 2479,
+      "last_infer_ms": 9.068098006537184,
+      "avg_step_ms": 35.77005977434165,
+      "ended_at": "2026-05-27T15:40:13"
+    },
+    {
+      "episode": 79,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 0,
+      "n_infer_calls": 3389,
+      "last_infer_ms": 9.246001005521975,
+      "avg_step_ms": 35.536115320798125,
+      "ended_at": "2026-05-27T15:44:20"
+    },
+    {
+      "episode": 80,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 0,
+      "n_infer_calls": 3339,
+      "last_infer_ms": 7.8854729945305735,
+      "avg_step_ms": 35.803011335196786,
+      "ended_at": "2026-05-27T15:48:27"
+    },
+    {
+      "episode": 81,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 0,
+      "n_infer_calls": 3418,
+      "last_infer_ms": 6.972691000555642,
+      "avg_step_ms": 35.98563534912537,
+      "ended_at": "2026-05-27T15:52:36"
+    },
+    {
+      "episode": 82,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 0,
+      "n_infer_calls": 3226,
+      "last_infer_ms": 5.451696997624822,
+      "avg_step_ms": 35.764202005730475,
+      "ended_at": "2026-05-27T15:56:43"
     }
   ]
 }
