@@ -20,6 +20,8 @@ Three-machine robotics research project. See each subdirectory's AGENTS.md for m
 After making repository changes, commit the relevant files and push the branch
 to `origin`. Keep unrelated dirty working-tree changes out of the commit.
 
+**Commit messages must not include "Co-Authored-By: Claude" or any AI attribution line.**
+
 ## Documentation maintenance
 
 These rules apply to every agent and every contributor:

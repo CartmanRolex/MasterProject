@@ -64,3 +64,5 @@ Then commit & push from `MasterProject/`.
 ## Keeping this file current
 
 Update this file **and** `AGENTS.md` in the same commit as any structural change: new patch content, new module copies, changed pinned upstream commit. The `.md` and the code must always agree. Always commit and push after changes — never leave the working tree dirty.
+
+**Commit messages must not include "Co-Authored-By: Claude" or any AI attribution line.**

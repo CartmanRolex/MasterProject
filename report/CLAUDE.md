@@ -124,3 +124,5 @@ https://docs.google.com/presentation/d/1wdk6iVC3G0WgORenrWnNZ3Llxan1iO6rcQS7SlbR
 ## Keeping this file current
 
 Update this file **and** `AGENTS.md` in the same commit as any structural change: new plotting scripts, new sections, renamed figures, updated section status. The `.md` and the code must always agree. Always commit and push after changes — never leave the working tree dirty.
+
+**Commit messages must not include "Co-Authored-By: Claude" or any AI attribution line.**

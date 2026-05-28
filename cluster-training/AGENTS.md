@@ -39,3 +39,5 @@ conda activate lerobot
 ## Keeping this file current
 
 Update this file **and** `CLAUDE.md` in the same commit as any structural change: new training scripts, changed QOS/GPU configs, renamed files. The `.md` and the code must always agree. Always commit and push after changes — never leave the working tree dirty.
+
+**Commit messages must not include "Co-Authored-By: Claude" or any AI attribution line.**
