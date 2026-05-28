@@ -53,3 +53,7 @@ Standalone dataset inspection utilities — run directly, no GUI needed:
 | `edit_json.py` | Analyzes task distribution — counts and statistics across subtask labels. Read-only inspection tool (despite the name). |
 | `inspect_par.py` | Compares metadata exports between two dataset versions (`verify_meta_exports()`). Validates `tasks.parquet` schema and episode parquet schemas across old/new exports. |
 | `visualize_episode.py` | Plays back camera frames using PyAV — same decode path as the LeRobot training loader |
+
+## Keeping this file current
+
+Update this file **and** `AGENTS.md` in the same commit as any structural change: new modules, deleted scripts, renamed files, or significant feature additions. The `.md` and the code must always agree. Always commit and push after changes — never leave the working tree dirty.

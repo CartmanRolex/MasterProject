@@ -1,0 +1,130 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 720 460] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+6 0 obj
+<< /Length 2956 >>
+stream
+0.000 0.000 0.000 rg
+BT /F2 15.0 Tf 225.00 434.00 Td (Final orange count per episode) Tj ET
+0.250 0.250 0.250 rg
+BT /F1 10.0 Tf 270.40 417.00 Td (Percentage of evaluated episodes) Tj ET
+0.780 0.780 0.780 RG
+0.60 w
+72.00 108.00 m 692.00 108.00 l S
+0.250 0.250 0.250 rg
+BT /F1 8.0 Tf 57.52 104.00 Td (0) Tj ET
+72.00 173.00 m 692.00 173.00 l S
+0.250 0.250 0.250 rg
+BT /F1 8.0 Tf 53.04 169.00 Td (25) Tj ET
+72.00 238.00 m 692.00 238.00 l S
+0.250 0.250 0.250 rg
+BT /F1 8.0 Tf 53.04 234.00 Td (50) Tj ET
+72.00 303.00 m 692.00 303.00 l S
+0.250 0.250 0.250 rg
+BT /F1 8.0 Tf 53.04 299.00 Td (75) Tj ET
+72.00 368.00 m 692.00 368.00 l S
+0.250 0.250 0.250 rg
+BT /F1 8.0 Tf 48.56 364.00 Td (100) Tj ET
+0.120 0.120 0.120 RG
+1.00 w
+72.00 108.00 m 72.00 368.00 l S
+72.00 108.00 m 692.00 108.00 l S
+0.200 0.200 0.200 rg
+BT /F1 9.0 Tf -1.20 238.00 Td (% episodes) Tj ET
+0.420 0.450 0.500 rg
+182.00 108.00 90.00 57.20 re f
+1.000 1.000 1.000 rg
+BT /F2 7.1 Tf 220.61 133.60 Td (22%) Tj ET
+0.930 0.560 0.210 rg
+182.00 165.20 90.00 59.80 re f
+0.050 0.050 0.050 rg
+BT /F2 7.1 Tf 220.61 192.10 Td (23%) Tj ET
+0.340 0.630 0.760 rg
+182.00 225.00 90.00 67.60 re f
+0.050 0.050 0.050 rg
+BT /F2 7.1 Tf 220.61 255.80 Td (26%) Tj ET
+0.230 0.550 0.310 rg
+182.00 292.60 90.00 75.40 re f
+1.000 1.000 1.000 rg
+BT /F2 7.1 Tf 220.61 327.30 Td (29%) Tj ET
+0.000 0.000 0.000 rg
+BT /F2 8.3 Tf 214.55 390.00 Td (N=100) Tj ET
+0.200 0.200 0.200 rg
+BT /F1 7.6 Tf 203.59 378.00 Td (mean=1.62/3) Tj ET
+0.000 0.000 0.000 rg
+BT /F1 7.8 Tf 220.45 89.00 Td (ACT) Tj ET
+0.000 0.000 0.000 rg
+BT /F1 7.8 Tf 202.98 78.00 Td (HuggingFace) Tj ET
+0.000 0.000 0.000 rg
+BT /F1 7.8 Tf 205.16 67.00 Td (monolithic) Tj ET
+0.420 0.450 0.500 rg
+492.00 108.00 90.00 41.60 re f
+1.000 1.000 1.000 rg
+BT /F2 7.1 Tf 530.61 125.80 Td (16%) Tj ET
+0.930 0.560 0.210 rg
+492.00 149.60 90.00 122.20 re f
+0.050 0.050 0.050 rg
+BT /F2 7.1 Tf 530.61 207.70 Td (47%) Tj ET
+0.340 0.630 0.760 rg
+492.00 271.80 90.00 33.80 re f
+0.050 0.050 0.050 rg
+BT /F2 7.1 Tf 530.61 285.70 Td (13%) Tj ET
+0.230 0.550 0.310 rg
+492.00 305.60 90.00 62.40 re f
+1.000 1.000 1.000 rg
+BT /F2 7.1 Tf 530.61 333.80 Td (24%) Tj ET
+0.000 0.000 0.000 rg
+BT /F2 8.3 Tf 524.55 390.00 Td (N=100) Tj ET
+0.200 0.200 0.200 rg
+BT /F1 7.6 Tf 513.59 378.00 Td (mean=1.45/3) Tj ET
+0.000 0.000 0.000 rg
+BT /F1 7.8 Tf 521.71 89.00 Td (SmolVLA) Tj ET
+0.000 0.000 0.000 rg
+BT /F1 7.8 Tf 512.98 78.00 Td (HuggingFace) Tj ET
+0.000 0.000 0.000 rg
+BT /F1 7.8 Tf 515.16 67.00 Td (monolithic) Tj ET
+0.420 0.450 0.500 rg
+118.00 20.00 11.00 11.00 re f
+0.000 0.000 0.000 rg
+BT /F1 8.5 Tf 134.00 22.00 Td (0/3 oranges) Tj ET
+0.930 0.560 0.210 rg
+240.00 20.00 11.00 11.00 re f
+0.000 0.000 0.000 rg
+BT /F1 8.5 Tf 256.00 22.00 Td (1/3 oranges) Tj ET
+0.340 0.630 0.760 rg
+362.00 20.00 11.00 11.00 re f
+0.000 0.000 0.000 rg
+BT /F1 8.5 Tf 378.00 22.00 Td (2/3 oranges) Tj ET
+0.230 0.550 0.310 rg
+484.00 20.00 11.00 11.00 re f
+0.000 0.000 0.000 rg
+BT /F1 8.5 Tf 500.00 22.00 Td (3/3 oranges) Tj ET
+endstream
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000251 00000 n 
+0000000321 00000 n 
+0000000396 00000 n 
+trailer
+<< /Size 7 /Root 1 0 R >>
+startxref
+3404
+%%EOF

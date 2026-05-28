@@ -161,3 +161,7 @@ regardless of working directory (`eval_utils.py` uses
   `torch.cuda.empty_cache()` called between episodes.
 - **Disk space**: Root partition was ~93% full. Monitor with
   `df -h /` before long runs.
+
+## Keeping this file current
+
+Update this file **and** `AGENTS.md` in the same commit as any structural change: new scripts, deleted scripts, renamed files, or significant feature additions. The `.md` and the code must always agree. Always commit and push after changes — never leave the working tree dirty.

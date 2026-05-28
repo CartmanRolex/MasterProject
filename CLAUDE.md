@@ -19,3 +19,14 @@ Three-machine robotics research project. See each subdirectory's CLAUDE.md for m
 
 After making repository changes, commit the relevant files and push the branch
 to `origin`. Keep unrelated dirty working-tree changes out of the commit.
+
+## Documentation maintenance
+
+These rules apply to every agent and every contributor:
+
+- **Always commit and push** after making changes. Never leave the working tree dirty.
+- **Keep the .md current.** Whenever you add, remove, rename, or significantly change a file or feature, update the CLAUDE.md (and its AGENTS.md mirror) in the same directory **in the same commit**. The `.md` and the code must always agree.
+- **New file added?** Add a row to the relevant table before closing the commit.
+- **File deleted or renamed?** Remove or update the corresponding entry.
+- **New directory or structural change?** Update the root CLAUDE.md subdirectory map and root AGENTS.md as well.
+- CLAUDE.md and AGENTS.md are always identical in a given directory — if you edit one, edit the other.

@@ -35,3 +35,7 @@ The SLURM scripts activate conda automatically. To activate manually:
 source $(conda info --base)/etc/profile.d/conda.sh
 conda activate lerobot
 ```
+
+## Keeping this file current
+
+Update this file **and** `CLAUDE.md` in the same commit as any structural change: new training scripts, changed QOS/GPU configs, renamed files. The `.md` and the code must always agree. Always commit and push after changes — never leave the working tree dirty.
