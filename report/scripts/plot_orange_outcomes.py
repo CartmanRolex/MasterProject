@@ -38,10 +38,10 @@ RESULT_FILES = [
         path=ROOT_DIR / "isaac-inference" / "results" / "Gal-merged-tailed-auto" / "latest.txt",
     ),
     ResultFile(
-        label="SmolVLA\nHand+auto\nsingle-task no language\nprelim.",
+        label="SmolVLA\nHand+auto\nsingle-task\nprelim.",
         description=(
-            "SmolVLA monolithic fair-comparison model trained from the handmade + automated "
-            "dataset after removing language labels, tail frames, and unused home tasks"
+            "SmolVLA single-task fair-comparison model trained from the handmade + automated "
+            "dataset with a fixed full-task prompt"
         ),
         path=ROOT_DIR / "isaac-inference" / "results" / "Gal-merged-tailed-auto-no-lang-no-home" / "flat_latest.txt",
     ),

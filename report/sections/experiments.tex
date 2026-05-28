@@ -1,7 +1,7 @@
 \section{Results}
 \label{sec:experiments}
 
-This section reports the experimental evidence collected so far. The emphasis is on factual comparisons between task formulations: monolithic full-episode imitation, orchestrated subtask execution, additional autonomous subtask data, and a fair-comparison monolithic model trained from the same handmade-plus-automatic data without language conditioning.
+This section reports the experimental evidence collected so far. The emphasis is on factual comparisons between task formulations: monolithic full-episode imitation, orchestrated subtask execution, additional autonomous subtask data, and a fair-comparison single-task model trained from the same handmade-plus-automatic data.
 
 \subsection{Full-Episode Imitation Baseline}
 
@@ -20,7 +20,7 @@ The baseline distributions are comparable in aggregate. The ACT run has mean fin
 
 \subsection{Full-Task Outcomes Across Formulations}
 
-Figure~\ref{fig:orange_outcome_distribution} compares the main evaluated task formulations. The handmade subtask model is trained on 921 manually collected subtask episodes and executed through the orchestrator. The hand+auto subtask model is trained on those 921 episodes plus 414 successful autonomous subtask episodes. The final bar is a fair-comparison monolithic SmolVLA model trained from the handmade-plus-automatic dataset after removing language labels, tail frames, and unused home tasks.
+Figure~\ref{fig:orange_outcome_distribution} compares the main evaluated task formulations. The handmade subtask model is trained on 921 manually collected subtask episodes and executed through the orchestrator. The hand+auto subtask model is trained on those 921 episodes plus 414 successful autonomous subtask episodes. The final bar is a fair-comparison single-task SmolVLA model trained from the same handmade-plus-automatic data with the fixed prompt ``Place the orange into plate''.
 
 \begin{figure}[H]
     \centering
@@ -29,22 +29,13 @@ Figure~\ref{fig:orange_outcome_distribution} compares the main evaluated task fo
     \label{fig:orange_outcome_distribution}
 \end{figure}
 
-The handmade subtask model placed all three oranges in 26/326 evaluation runs (7.98\%) with mean final occupancy 1.32/3. It therefore did not improve full-task completion over the monolithic SmolVLA baseline. The current hand+auto subtask evaluation is preliminary: it has 1/41 full completions (2.44\%) and mean final occupancy 1.15/3. Adding automatically generated subtasks has not yet produced an observed improvement in the orchestrated subtask setting.
+The handmade subtask model placed all three oranges in 26/326 evaluation runs (7.98\%) with mean final occupancy 1.32/3. It therefore did not improve full-task completion over the monolithic SmolVLA baseline. The current hand+auto subtask evaluation is preliminary: it has 1/41 full completions (2.44\%) and mean final occupancy 1.15/3. Adding automatically generated subtasks has not yet produced an observed full-completion improvement in the orchestrated subtask setting.
 
-The no-language fair-comparison model has 43/247 full completions (17.41\%) and mean final occupancy 0.57/3. Its distribution is different from the orchestrated models: most episodes end with 0 oranges, but a larger minority reaches all three. This comparison separates dataset quality from task formulation by evaluating a monolithic model trained on the same handmade-plus-automatic data used for the merged subtask model.
-
-Figure~\ref{fig:data_effect} isolates the two orchestrated subtask models.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.68\textwidth]{data_effect.pdf}
-    \caption{Final plate occupancy for the handmade subtask model and the hand+auto subtask model. \textit{N eval runs} is the number of evaluated episodes; the hand+auto result is preliminary.}
-    \label{fig:data_effect}
-\end{figure}
+The single-task fair-comparison model has 43/247 full completions (17.41\%) and mean final occupancy 0.57/3. Its distribution is strongly all-or-nothing: most episodes end with 0 oranges, while a smaller set completes all three. On the same handmade-plus-automatic data, the orchestrated subtask model has lower full-task completion so far, but higher mean final occupancy. This indicates a different failure profile: the single-task model often gets stuck completely, whereas the orchestrated subtask model more often makes partial progress by moving on to other oranges after repeated failure on one target.
 
 \subsection{Subtask-Level Outcomes}
 
-Subtask-level metrics are available only for orchestrated evaluations, because the monolithic and flat-prompt runs do not expose comparable GRASP, LIFT, and PLACE checkpoints. Table~\ref{tab:orchestrated_subtasks} reports success rates by subtask and by how many oranges were already in the plate at subtask start.
+Subtask-level metrics are available only for orchestrated evaluations, because the monolithic and single-task runs do not expose comparable GRASP, LIFT, and PLACE checkpoints. Table~\ref{tab:orchestrated_subtasks} reports success rates by subtask and by how many oranges were already in the plate at subtask start.
 
 \begin{table}[H]
     \centering

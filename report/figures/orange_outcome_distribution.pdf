@@ -15,7 +15,7 @@ endobj
 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
 endobj
 6 0 obj
-<< /Length 5661 >>
+<< /Length 5649 >>
 stream
 0.000 0.000 0.000 rg
 BT /F2 15.0 Tf 225.00 434.00 Td (Final orange count per episode) Tj ET
@@ -182,7 +182,7 @@ BT /F2 8.4 Tf 612.36 89.00 Td (SmolVLA) Tj ET
 0.000 0.000 0.000 rg
 BT /F1 7.4 Tf 611.35 78.00 Td (Hand+auto) Tj ET
 0.000 0.000 0.000 rg
-BT /F1 7.4 Tf 582.34 67.00 Td (single-task no language) Tj ET
+BT /F1 7.4 Tf 607.21 67.00 Td (single-task) Tj ET
 0.000 0.000 0.000 rg
 BT /F1 7.4 Tf 615.50 56.00 Td (prelim.) Tj ET
 0.420 0.450 0.500 rg
@@ -215,5 +215,5 @@ xref
 trailer
 << /Size 7 /Root 1 0 R >>
 startxref
-6109
+6097
 %%EOF
