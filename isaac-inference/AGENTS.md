@@ -121,6 +121,7 @@ One-shot scripts for building and transforming the training dataset. Run from `i
 | Script | Purpose |
 |--------|---------|
 | `recover_episodes.py` | Repair corrupted episode parquet files. Originally written to fix `Gal-auto-subtasks2`. Run once as needed; not part of normal workflow. |
+| `debug_camera_drift.py` | Diagnostic: loads pick-orange env and runs 200 rapid resets, logging front camera world position before/after each `randomize_camera_uniform` call. Outputs `camera_drift_log_<hostname>.txt`. Run on both desktop and laptop to compare accumulation behaviour. |
 
 ## Running
 
