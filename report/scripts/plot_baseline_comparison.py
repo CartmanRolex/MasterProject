@@ -14,12 +14,12 @@ OUTPUT_PDF = REPORT_DIR / "figures" / "baseline_comparison.pdf"
 
 RESULT_FILES = [
     ResultFile(
-        label="ACT\nHuggingFace\nmonolithic",
+        label="ACT\nHF full-task\nsingle-task",
         description="ACT on official HuggingFace monolithic task dataset",
         path=ROOT_DIR / "isaac-inference" / "results" / "ACT-pick-orange" / "eval_ACT-pick-orange_2026-03-23_19-18-01.txt",
     ),
     ResultFile(
-        label="SmolVLA\nHuggingFace\nmonolithic",
+        label="SmolVLA\nHF full-task\nsingle-task",
         description="SmolVLA on official HuggingFace monolithic task dataset",
         path=ROOT_DIR / "isaac-inference" / "results" / "pretrained_model" / "eval_pretrained_model_2026-04-07_13-18-38.txt",
     ),

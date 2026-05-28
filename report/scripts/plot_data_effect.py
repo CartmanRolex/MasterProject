@@ -14,12 +14,12 @@ OUTPUT_PDF = REPORT_DIR / "figures" / "data_effect.pdf"
 
 RESULT_FILES = [
     ResultFile(
-        label="Handmade\nsubtasks",
+        label="SmolVLA\nHandmade subtasks\norchestrated subtasks",
         description="SmolVLA subtask model trained on the handmade dataset (921 episodes)",
         path=ROOT_DIR / "isaac-inference" / "results" / "Gal-pick-orange-tailedCH20" / "latest.txt",
     ),
     ResultFile(
-        label="Hand+auto\nsubtasks\n(prelim.)",
+        label="SmolVLA\nHand+auto\norchestrated subtasks\nprelim.",
         description="SmolVLA subtask model trained on merged dataset (921 handmade + 414 autonomous = 1335 episodes)",
         path=ROOT_DIR / "isaac-inference" / "results" / "Gal-merged-tailed-auto" / "latest.txt",
     ),

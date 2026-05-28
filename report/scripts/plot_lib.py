@@ -16,6 +16,10 @@ COLORS = {
     2: (0.34, 0.63, 0.76),
     3: (0.23, 0.55, 0.31),
 }
+POLICY_STROKES = {
+    "ACT": (0.10, 0.28, 0.66),
+    "SmolVLA": (0.58, 0.22, 0.10),
+}
 
 
 @dataclass(frozen=True)
@@ -176,7 +180,6 @@ def draw_figure(
     figure.set_stroke((0.12, 0.12, 0.12), 1.0)
     figure.line(left, bottom, left, bottom + plot_h)
     figure.line(left, bottom, figure.width - right, bottom)
-    figure.text(24, bottom + plot_h / 2, "% episodes", 9, "center", rgb=(0.2, 0.2, 0.2))
 
     for index, (result_file, parsed) in enumerate(results):
         x = left + x_step * index + x_step / 2 - bar_w / 2
@@ -187,15 +190,31 @@ def draw_figure(
             segment_h = plot_h * pct / 100
             figure.set_fill(COLORS[oranges])
             figure.rect(x, y, bar_w, segment_h)
-            label_rgb = (1, 1, 1) if oranges in [0, 3] else (0.05, 0.05, 0.05)
-            figure.text(x + bar_w / 2, y + segment_h / 2 - 3, pct_label(pct), 7.1, "center", rgb=label_rgb, bold=True)
+            if segment_h >= 12:
+                label_rgb = (1, 1, 1) if oranges in [0, 3] else (0.05, 0.05, 0.05)
+                figure.text(x + bar_w / 2, y + segment_h / 2 - 3, pct_label(pct), 7.1, "center", rgb=label_rgb, bold=True)
             y += segment_h
 
-        figure.text(x + bar_w / 2, bottom + plot_h + 22, f"N={parsed.total}", 8.3, "center", bold=True)
+        label_lines = result_file.label.splitlines()
+        policy = label_lines[0] if label_lines else ""
+        policy_rgb = POLICY_STROKES.get(policy, (0.12, 0.12, 0.12))
+        figure.set_stroke(policy_rgb, 1.6)
+        figure.rect(x, bottom, bar_w, plot_h, fill=False)
+
+        figure.text(x + bar_w / 2, bottom + plot_h + 22, f"N eval runs={parsed.total}", 7.0, "center", bold=True)
         figure.text(x + bar_w / 2, bottom + plot_h + 10, f"mean={parsed.mean:.2f}/3", 7.6, "center", rgb=(0.2, 0.2, 0.2))
 
-        for line_index, label_line in enumerate(result_file.label.splitlines()):
-            figure.text(x + bar_w / 2, bottom - 19 - 11 * line_index, label_line, 7.8, "center")
+        for line_index, label_line in enumerate(label_lines):
+            is_policy = line_index == 0
+            figure.text(
+                x + bar_w / 2,
+                bottom - 19 - 11 * line_index,
+                label_line,
+                8.4 if is_policy else 7.4,
+                "center",
+                rgb=policy_rgb if is_policy else (0, 0, 0),
+                bold=is_policy,
+            )
 
     legend_y = 20
     legend_x = left + 46

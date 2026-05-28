@@ -18,27 +18,27 @@ OUTPUT_PDF = REPORT_DIR / "figures" / "orange_outcome_distribution.pdf"
 
 RESULT_FILES = [
     ResultFile(
-        label="ACT\nHuggingFace\nmonolithic",
+        label="ACT\nHF full-task\nsingle-task",
         description="ACT on official HuggingFace monolithic task dataset",
         path=ROOT_DIR / "isaac-inference" / "results" / "ACT-pick-orange" / "eval_ACT-pick-orange_2026-03-23_19-18-01.txt",
     ),
     ResultFile(
-        label="SmolVLA\nHuggingFace\nmonolithic",
+        label="SmolVLA\nHF full-task\nsingle-task",
         description="SmolVLA on official HuggingFace monolithic task dataset",
         path=ROOT_DIR / "isaac-inference" / "results" / "pretrained_model" / "eval_pretrained_model_2026-04-07_13-18-38.txt",
     ),
     ResultFile(
-        label="Handmade\nsubtasks",
+        label="SmolVLA\nHandmade subtasks\norchestrated subtasks",
         description="SmolVLA subtask model trained on the handmade dataset",
         path=ROOT_DIR / "isaac-inference" / "results" / "Gal-pick-orange-tailedCH20" / "latest.txt",
     ),
     ResultFile(
-        label="Hand+auto\nsubtasks\n(prelim.)",
+        label="SmolVLA\nHand+auto\norchestrated subtasks\nprelim.",
         description="SmolVLA subtask model trained on handmade data merged with automated data generation",
         path=ROOT_DIR / "isaac-inference" / "results" / "Gal-merged-tailed-auto" / "latest.txt",
     ),
     ResultFile(
-        label="Hand+auto\nmonolithic\n(prelim.)",
+        label="SmolVLA\nHand+auto\nsingle-task no language\nprelim.",
         description=(
             "SmolVLA monolithic fair-comparison model trained from the handmade + automated "
             "dataset after removing language labels, tail frames, and unused home tasks"

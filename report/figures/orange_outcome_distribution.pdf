@@ -15,7 +15,7 @@ endobj
 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
 endobj
 6 0 obj
-<< /Length 5330 >>
+<< /Length 5661 >>
 stream
 0.000 0.000 0.000 rg
 BT /F2 15.0 Tf 225.00 434.00 Td (Final orange count per episode) Tj ET
@@ -42,8 +42,6 @@ BT /F1 8.0 Tf 48.56 364.00 Td (100) Tj ET
 1.00 w
 72.00 108.00 m 72.00 368.00 l S
 72.00 108.00 m 692.00 108.00 l S
-0.200 0.200 0.200 rg
-BT /F1 9.0 Tf -1.20 238.00 Td (% episodes) Tj ET
 0.420 0.450 0.500 rg
 105.00 108.00 58.00 57.20 re f
 1.000 1.000 1.000 rg
@@ -60,16 +58,19 @@ BT /F2 7.1 Tf 127.61 255.80 Td (26%) Tj ET
 105.00 292.60 58.00 75.40 re f
 1.000 1.000 1.000 rg
 BT /F2 7.1 Tf 127.61 327.30 Td (29%) Tj ET
+0.100 0.280 0.660 RG
+1.60 w
+105.00 108.00 58.00 260.00 re S
 0.000 0.000 0.000 rg
-BT /F2 8.3 Tf 121.55 390.00 Td (N=100) Tj ET
+BT /F2 7.0 Tf 102.50 390.00 Td (N eval runs=100) Tj ET
 0.200 0.200 0.200 rg
 BT /F1 7.6 Tf 110.59 378.00 Td (mean=1.62/3) Tj ET
+0.100 0.280 0.660 rg
+BT /F2 8.4 Tf 126.44 89.00 Td (ACT) Tj ET
 0.000 0.000 0.000 rg
-BT /F1 7.8 Tf 127.45 89.00 Td (ACT) Tj ET
+BT /F1 7.4 Tf 109.14 78.00 Td (HF full-task) Tj ET
 0.000 0.000 0.000 rg
-BT /F1 7.8 Tf 109.98 78.00 Td (HuggingFace) Tj ET
-0.000 0.000 0.000 rg
-BT /F1 7.8 Tf 112.16 67.00 Td (monolithic) Tj ET
+BT /F1 7.4 Tf 111.21 67.00 Td (single-task) Tj ET
 0.420 0.450 0.500 rg
 229.00 108.00 58.00 41.60 re f
 1.000 1.000 1.000 rg
@@ -86,16 +87,19 @@ BT /F2 7.1 Tf 251.61 285.70 Td (13%) Tj ET
 229.00 305.60 58.00 62.40 re f
 1.000 1.000 1.000 rg
 BT /F2 7.1 Tf 251.61 333.80 Td (24%) Tj ET
+0.580 0.220 0.100 RG
+1.60 w
+229.00 108.00 58.00 260.00 re S
 0.000 0.000 0.000 rg
-BT /F2 8.3 Tf 245.55 390.00 Td (N=100) Tj ET
+BT /F2 7.0 Tf 226.50 390.00 Td (N eval runs=100) Tj ET
 0.200 0.200 0.200 rg
 BT /F1 7.6 Tf 234.59 378.00 Td (mean=1.45/3) Tj ET
+0.580 0.220 0.100 rg
+BT /F2 8.4 Tf 240.36 89.00 Td (SmolVLA) Tj ET
 0.000 0.000 0.000 rg
-BT /F1 7.8 Tf 242.71 89.00 Td (SmolVLA) Tj ET
+BT /F1 7.4 Tf 233.14 78.00 Td (HF full-task) Tj ET
 0.000 0.000 0.000 rg
-BT /F1 7.8 Tf 233.98 78.00 Td (HuggingFace) Tj ET
-0.000 0.000 0.000 rg
-BT /F1 7.8 Tf 236.16 67.00 Td (monolithic) Tj ET
+BT /F1 7.4 Tf 235.21 67.00 Td (single-task) Tj ET
 0.420 0.450 0.500 rg
 353.00 108.00 58.00 55.03 re f
 1.000 1.000 1.000 rg
@@ -112,66 +116,75 @@ BT /F2 7.1 Tf 371.35 296.01 Td (37.1%) Tj ET
 353.00 347.26 58.00 20.74 re f
 1.000 1.000 1.000 rg
 BT /F2 7.1 Tf 377.74 354.63 Td (8%) Tj ET
+0.580 0.220 0.100 RG
+1.60 w
+353.00 108.00 58.00 260.00 re S
 0.000 0.000 0.000 rg
-BT /F2 8.3 Tf 369.55 390.00 Td (N=326) Tj ET
+BT /F2 7.0 Tf 350.50 390.00 Td (N eval runs=326) Tj ET
 0.200 0.200 0.200 rg
 BT /F1 7.6 Tf 358.59 378.00 Td (mean=1.32/3) Tj ET
+0.580 0.220 0.100 rg
+BT /F2 8.4 Tf 364.36 89.00 Td (SmolVLA) Tj ET
 0.000 0.000 0.000 rg
-BT /F1 7.8 Tf 364.53 89.00 Td (Handmade) Tj ET
+BT /F1 7.4 Tf 346.78 78.00 Td (Handmade subtasks) Tj ET
 0.000 0.000 0.000 rg
-BT /F1 7.8 Tf 364.53 78.00 Td (subtasks) Tj ET
+BT /F1 7.4 Tf 338.49 67.00 Td (orchestrated subtasks) Tj ET
 0.420 0.450 0.500 rg
-477.00 108.00 58.00 169.62 re f
+477.00 108.00 58.00 25.37 re f
 1.000 1.000 1.000 rg
-BT /F2 7.1 Tf 495.35 189.81 Td (65.2%) Tj ET
+BT /F2 7.1 Tf 497.48 117.68 Td (9.8%) Tj ET
 0.930 0.560 0.210 rg
-477.00 277.62 58.00 79.24 re f
+477.00 133.37 58.00 177.56 re f
 0.050 0.050 0.050 rg
-BT /F2 7.1 Tf 495.35 314.24 Td (30.5%) Tj ET
+BT /F2 7.1 Tf 495.35 219.15 Td (68.3%) Tj ET
 0.340 0.630 0.760 rg
-477.00 356.86 58.00 10.52 re f
+477.00 310.93 58.00 50.73 re f
 0.050 0.050 0.050 rg
-BT /F2 7.1 Tf 501.74 359.12 Td (4%) Tj ET
+BT /F2 7.1 Tf 495.35 333.29 Td (19.5%) Tj ET
 0.230 0.550 0.310 rg
-477.00 367.38 58.00 0.62 re f
-1.000 1.000 1.000 rg
-BT /F2 7.1 Tf 497.48 364.69 Td (0.2%) Tj ET
+477.00 361.66 58.00 6.34 re f
+0.580 0.220 0.100 RG
+1.60 w
+477.00 108.00 58.00 260.00 re S
 0.000 0.000 0.000 rg
-BT /F2 8.3 Tf 493.55 390.00 Td (N=420) Tj ET
+BT /F2 7.0 Tf 476.60 390.00 Td (N eval runs=41) Tj ET
 0.200 0.200 0.200 rg
-BT /F1 7.6 Tf 482.59 378.00 Td (mean=0.39/3) Tj ET
+BT /F1 7.6 Tf 482.59 378.00 Td (mean=1.15/3) Tj ET
+0.580 0.220 0.100 rg
+BT /F2 8.4 Tf 488.36 89.00 Td (SmolVLA) Tj ET
 0.000 0.000 0.000 rg
-BT /F1 7.8 Tf 486.34 89.00 Td (Hand+auto) Tj ET
+BT /F1 7.4 Tf 487.35 78.00 Td (Hand+auto) Tj ET
 0.000 0.000 0.000 rg
-BT /F1 7.8 Tf 488.53 78.00 Td (subtasks) Tj ET
+BT /F1 7.4 Tf 462.49 67.00 Td (orchestrated subtasks) Tj ET
 0.000 0.000 0.000 rg
-BT /F1 7.8 Tf 486.34 67.00 Td (\(prelim.\)) Tj ET
+BT /F1 7.4 Tf 491.50 56.00 Td (prelim.) Tj ET
 0.420 0.450 0.500 rg
 601.00 108.00 58.00 206.32 re f
 1.000 1.000 1.000 rg
 BT /F2 7.1 Tf 619.35 208.16 Td (79.4%) Tj ET
 0.930 0.560 0.210 rg
 601.00 314.32 58.00 4.21 re f
-0.050 0.050 0.050 rg
-BT /F2 7.1 Tf 621.48 313.42 Td (1.6%) Tj ET
 0.340 0.630 0.760 rg
 601.00 318.53 58.00 4.21 re f
-0.050 0.050 0.050 rg
-BT /F2 7.1 Tf 621.48 317.63 Td (1.6%) Tj ET
 0.230 0.550 0.310 rg
 601.00 322.74 58.00 45.26 re f
 1.000 1.000 1.000 rg
 BT /F2 7.1 Tf 619.35 342.37 Td (17.4%) Tj ET
+0.580 0.220 0.100 RG
+1.60 w
+601.00 108.00 58.00 260.00 re S
 0.000 0.000 0.000 rg
-BT /F2 8.3 Tf 617.55 390.00 Td (N=247) Tj ET
+BT /F2 7.0 Tf 598.50 390.00 Td (N eval runs=247) Tj ET
 0.200 0.200 0.200 rg
 BT /F1 7.6 Tf 606.59 378.00 Td (mean=0.57/3) Tj ET
+0.580 0.220 0.100 rg
+BT /F2 8.4 Tf 612.36 89.00 Td (SmolVLA) Tj ET
 0.000 0.000 0.000 rg
-BT /F1 7.8 Tf 610.34 89.00 Td (Hand+auto) Tj ET
+BT /F1 7.4 Tf 611.35 78.00 Td (Hand+auto) Tj ET
 0.000 0.000 0.000 rg
-BT /F1 7.8 Tf 608.16 78.00 Td (monolithic) Tj ET
+BT /F1 7.4 Tf 582.34 67.00 Td (single-task no language) Tj ET
 0.000 0.000 0.000 rg
-BT /F1 7.8 Tf 610.34 67.00 Td (\(prelim.\)) Tj ET
+BT /F1 7.4 Tf 615.50 56.00 Td (prelim.) Tj ET
 0.420 0.450 0.500 rg
 118.00 20.00 11.00 11.00 re f
 0.000 0.000 0.000 rg
@@ -202,5 +215,5 @@ xref
 trailer
 << /Size 7 /Root 1 0 R >>
 startxref
-5778
+6109
 %%EOF
