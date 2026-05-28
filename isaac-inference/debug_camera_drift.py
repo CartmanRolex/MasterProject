@@ -63,17 +63,26 @@ _capture: dict = {}
 def _wrapped_randomize(env, env_ids, asset_cfg, pose_range, convention="ros", _orig=None):
     asset = env.scene[asset_cfg.name]
 
-    # REFERENCE: exactly what the original event uses as its baseline.
-    ref_pos = asset.data.pos_w[0].clone()
+    # Fallback reference for the old event implementation, which used
+    # asset.data as its baseline.
+    fallback_ref_pos = asset.data.pos_w[0].clone()
     if convention == "ros":
-        ref_quat = asset.data.quat_w_ros[0].clone()
+        fallback_ref_quat = asset.data.quat_w_ros[0].clone()
     elif convention == "opengl":
-        ref_quat = asset.data.quat_w_opengl[0].clone()
+        fallback_ref_quat = asset.data.quat_w_opengl[0].clone()
     else:
-        ref_quat = asset.data.quat_w_world[0].clone()
+        fallback_ref_quat = asset.data.quat_w_world[0].clone()
 
     # Run the real randomization.
     _orig(env, env_ids, asset_cfg, pose_range, convention)
+
+    cached_default_pose = getattr(asset, f"_leisaac_randomize_camera_uniform_defaults_{convention}", None)
+    if cached_default_pose is None:
+        ref_pos = fallback_ref_pos
+        ref_quat = fallback_ref_quat
+    else:
+        ref_pos = cached_default_pose[0][0].clone()
+        ref_quat = cached_default_pose[1][0].clone()
 
     # APPLIED: read the true pose from the USD view, NOT data.pos_w (which is
     # only refreshed by _update_poses at a machine-dependent time). The view
