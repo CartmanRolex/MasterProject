@@ -1,7 +1,10 @@
 import datetime
 import json
 import logging
+import os
 import signal
+import subprocess
+import sys
 import threading
 import time
 from pathlib import Path
@@ -38,6 +41,7 @@ instruction = "Place the orange into plate"
 
 EVAL_RESUME = True
 EVAL_CHECKPOINT_PATH = None
+ENABLE_LIVESTREAM = False
 
 dataset_features = {
     "observation.images.front": {"dtype": "video", "shape": (3, 480, 640), "names": ["front"]},
@@ -45,6 +49,42 @@ dataset_features = {
     "observation.state": {"dtype": "float32", "shape": (6,), "names": ["state"]},
     "action": {"dtype": "float32", "shape": (6,), "names": ["action"]},
 }
+
+KNOWN_BAD_DRIVER_PREFIXES = ("595.",)
+
+
+def check_isaac_driver_compatibility():
+    try:
+        output = subprocess.check_output(
+            [
+                "nvidia-smi",
+                "--query-gpu=name,driver_version",
+                "--format=csv,noheader",
+            ],
+            text=True,
+            stderr=subprocess.DEVNULL,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return
+
+    for line in output.splitlines():
+        if not line.strip():
+            continue
+        name, _, driver = line.partition(",")
+        gpu_name = name.strip()
+        driver_version = driver.strip()
+        is_blackwell_geforce = "RTX 50" in gpu_name or "RTX 5080" in gpu_name or "RTX 5090" in gpu_name
+        if is_blackwell_geforce and driver_version.startswith(KNOWN_BAD_DRIVER_PREFIXES):
+            print(
+                "\nIsaac Sim is likely to crash before Python can handle it.\n"
+                f"Detected GPU/driver: {gpu_name}, driver {driver_version}.\n"
+                "Isaac Sim 5.1 has known RTX renderer startup crashes with 595.xx drivers on Blackwell GPUs.\n"
+                "Install NVIDIA's Isaac Sim 5.1 validated Linux driver, 580.65.06, or another non-595 driver,\n"
+                "then rerun this script.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
 
 def tensor_to_bool(value):
     if isinstance(value, torch.Tensor):
@@ -277,6 +317,15 @@ class ResetController:
 # ==========================================
 # 2. Environment & Policy Initialization
 # ==========================================
+os.environ["ENABLE_CAMERAS"] = "1"
+if ENABLE_LIVESTREAM:
+    os.environ["LIVESTREAM"] = "2"
+else:
+    os.environ["LIVESTREAM"] = "0"
+    os.environ["HEADLESS"] = "1"
+
+check_isaac_driver_compatibility()
+
 print("Loading LeIsaac Environment...")
 envs_dict = make_env("LightwheelAI/leisaac_env:envs/so101_pick_orange.py", n_envs=1, trust_remote_code=True)
 suite_name = next(iter(envs_dict))
