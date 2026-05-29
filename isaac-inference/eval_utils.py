@@ -26,6 +26,10 @@ _SO101_REST_POSE_DEG = {
     "gripper":       ( -40.0,  20.0),   # -10°
 }
 
+PLATE_RADIUS = 0.10
+PLATE_Z_MIN  = -0.01
+PLATE_Z_MAX  = 0.065
+
 import numpy as np
 import torch
 from tqdm import tqdm
@@ -181,54 +185,78 @@ def classify_orange_positions(orange_positions: dict) -> dict:
 # Scene-State Helpers
 # ============================================================
 
+def _position_component(pos, idx):
+    value = pos[idx]
+    if isinstance(value, torch.Tensor):
+        return value.item()
+    if isinstance(value, np.generic):
+        return value.item()
+    return float(value)
+
+
+def plate_position_metrics(plate_pos, orange_pos,
+                           plate_radius=PLATE_RADIUS,
+                           plate_z_min=PLATE_Z_MIN,
+                           plate_z_max=PLATE_Z_MAX):
+    """Return shared plate-occupancy geometry for an orange COM position."""
+    px, py, pz = (_position_component(plate_pos, i) for i in range(3))
+    ox, oy, oz = (_position_component(orange_pos, i) for i in range(3))
+    xy_dist = ((ox - px) ** 2 + (oy - py) ** 2) ** 0.5
+    z_offset = oz - pz
+    in_plate = xy_dist < plate_radius and plate_z_min < z_offset < plate_z_max
+    return xy_dist, z_offset, in_plate
+
+
+def is_orange_position_in_plate(plate_pos, orange_pos,
+                                plate_radius=PLATE_RADIUS,
+                                plate_z_min=PLATE_Z_MIN,
+                                plate_z_max=PLATE_Z_MAX):
+    """Return True when an orange COM is inside the shared plate volume."""
+    _, _, in_plate = plate_position_metrics(
+        plate_pos,
+        orange_pos,
+        plate_radius=plate_radius,
+        plate_z_min=plate_z_min,
+        plate_z_max=plate_z_max,
+    )
+    return in_plate
+
+
 def save_positions(env, plate_name="Plate",
                    orange_names=("Orange001", "Orange002", "Orange003")):
-    """Snapshot current world positions of the plate and all oranges, relative to env origin.
+    """Snapshot plate root position and orange COM positions, relative to env origin.
 
     Should be called every step. The last snapshot before done=True reflects the
     true final state before the env auto-resets.
 
     Returns:
-        dict mapping "plate" and each orange name to a cloned position tensor.
+        dict mapping "plate" to its root position and each orange name to its
+        centre-of-mass position.
     """
     origin = env.scene.env_origins[0]
     positions = {"plate": env.scene[plate_name].data.root_pos_w[0].clone() - origin}
     for name in orange_names:
-        positions[name] = env.scene[name].data.root_pos_w[0].clone() - origin
+        positions[name] = env.scene[name].data.root_com_pos_w[0].clone() - origin
     return positions
 
 
 def count_oranges_in_plate(positions,
-                           orange_names=("Orange001", "Orange002", "Orange003"),
-                           x_range=(-0.10, 0.10),
-                           y_range=(-0.10, 0.10),
-                           height_range=(-0.01, 0.05)):
-    """Count how many oranges are currently within the plate bounds.
+                           orange_names=("Orange001", "Orange002", "Orange003")):
+    """Count orange COMs inside the shared cylindrical plate volume.
 
     Performs a pure geometric check with no stability requirement — intended as
     a final-state snapshot, not a real-time event detector.
 
     Args:
-        positions:    dict returned by save_positions().
+        positions:    dict returned by save_positions(); orange values are COM positions.
         orange_names: scene entity names of the oranges.
-        x_range:      acceptable x offset from plate centre (m).
-        y_range:      acceptable y offset from plate centre (m).
-        height_range: acceptable z offset from plate centre (m).
 
     Returns:
         int — number of oranges currently inside the plate bounds.
     """
-    px, py, pz = (positions["plate"][i] for i in range(3))
-
     count = 0
     for name in orange_names:
-        ox, oy, oz = (positions[name][i] for i in range(3))
-        in_plate = (
-            (px + x_range[0] < ox < px + x_range[1])
-            and (py + y_range[0] < oy < py + y_range[1])
-            and (pz + height_range[0] < oz < pz + height_range[1])
-        )
-        if in_plate:
+        if name in positions and is_orange_position_in_plate(positions["plate"], positions[name]):
             count += 1
 
     return count
@@ -237,6 +265,182 @@ def count_oranges_in_plate(positions,
 # ============================================================
 # Evaluation Tracker
 # ============================================================
+
+class EpisodeStory:
+    """Compact structured trace of one orchestrated evaluation episode."""
+
+    SCHEMA_VERSION = 1
+
+    def __init__(self, episode, model_id):
+        self.episode = int(episode)
+        self.model_id = model_id
+        self.initial_scene = None
+        self.final_scene = None
+        self.timeline = []
+        self.subtask_attempts = []
+        self._active_attempt = None
+        self._attempt_id = 0
+
+    @staticmethod
+    def _scalar(value):
+        if isinstance(value, torch.Tensor):
+            return float(value.detach().cpu().item())
+        if isinstance(value, np.generic):
+            return float(value)
+        return float(value)
+
+    @classmethod
+    def _vec(cls, value):
+        if isinstance(value, torch.Tensor):
+            value = value.detach().cpu().tolist()
+        elif isinstance(value, np.ndarray):
+            value = value.tolist()
+        return [round(cls._scalar(v), 5) for v in value]
+
+    @classmethod
+    def _scene(cls, plate_pos, orange_positions, labels=None,
+               placed_oranges=None, abandoned_oranges=None):
+        labels = labels or {}
+        placed_oranges = set(placed_oranges or ())
+        abandoned_oranges = set(abandoned_oranges or ())
+        oranges = {}
+        for name, pos in sorted(orange_positions.items()):
+            if name in placed_oranges:
+                status = "placed"
+            elif name in abandoned_oranges:
+                status = "abandoned"
+            elif placed_oranges or abandoned_oranges:
+                status = "unplaced"
+            else:
+                status = "unknown"
+            oranges[name] = {
+                "label": labels.get(name),
+                "position": cls._vec(pos),
+                "status": status,
+            }
+        return {
+            "plate_position": cls._vec(plate_pos) if plate_pos is not None else None,
+            "oranges": oranges,
+        }
+
+    def record_initial_scene(self, step, plate_pos, orange_positions):
+        labels = classify_orange_positions(orange_positions)
+        self.initial_scene = self._scene(plate_pos, orange_positions, labels)
+        self.add_event(step, "episode_started", phase="SELECT_TARGET")
+
+    def add_event(self, step, event_type, phase=None, requested_orange=None,
+                  requested_label=None, actual_orange=None, outcome=None,
+                  reason=None, **details):
+        event = {
+            "step": int(step),
+            "event_type": event_type,
+            "phase": phase,
+            "requested_orange": requested_orange,
+            "requested_label": requested_label,
+            "actual_orange": actual_orange,
+            "outcome": outcome,
+            "reason": reason,
+        }
+        if details:
+            event["details"] = details
+        self.timeline.append(event)
+
+    def start_attempt(self, step, subtask, prompt, n_placed,
+                      requested_orange, requested_label):
+        if self._active_attempt is not None:
+            self.finish_attempt(
+                step,
+                result="failure",
+                failure_reason="interrupted_by_new_attempt",
+            )
+        self._attempt_id += 1
+        self._active_attempt = {
+            "attempt_id": self._attempt_id,
+            "subtask": subtask,
+            "start_step": int(step),
+            "end_step": None,
+            "duration_steps": None,
+            "prompt": prompt,
+            "n_placed_start": int(n_placed),
+            "requested_orange": requested_orange,
+            "requested_label": requested_label,
+            "actual_orange": None,
+            "target_match": None,
+            "result": None,
+            "failure_reason": None,
+        }
+        self.add_event(
+            step,
+            f"{subtask.lower()}_started",
+            phase=subtask,
+            requested_orange=requested_orange,
+            requested_label=requested_label,
+            outcome="started",
+        )
+
+    def finish_attempt(self, step, result, actual_orange=None, failure_reason=None):
+        if self._active_attempt is None:
+            return
+        attempt = self._active_attempt
+        requested = attempt["requested_orange"]
+        if actual_orange is not None:
+            attempt["actual_orange"] = actual_orange
+        elif result == "success" and attempt["actual_orange"] is None:
+            attempt["actual_orange"] = requested
+        if requested is None or attempt["actual_orange"] is None:
+            attempt["target_match"] = None
+        else:
+            attempt["target_match"] = requested == attempt["actual_orange"]
+        attempt["end_step"] = int(step)
+        attempt["duration_steps"] = int(step) - attempt["start_step"]
+        attempt["result"] = result
+        attempt["failure_reason"] = failure_reason
+        self.subtask_attempts.append(attempt)
+        self._active_attempt = None
+
+    def finish_active_as_episode_ended(self, step, reason):
+        if self._active_attempt is not None:
+            self.finish_attempt(step, result="failure", failure_reason=reason)
+
+    def build_record(self, step_count, oranges_in_plate, end_reason, is_success,
+                     plate_pos, orange_positions, placed_oranges,
+                     abandoned_oranges):
+        self.finish_active_as_episode_ended(step_count, end_reason)
+        initial_labels = {}
+        if self.initial_scene:
+            initial_labels = {
+                name: data.get("label")
+                for name, data in self.initial_scene.get("oranges", {}).items()
+            }
+        self.final_scene = self._scene(
+            plate_pos,
+            orange_positions,
+            labels=initial_labels,
+            placed_oranges=placed_oranges,
+            abandoned_oranges=abandoned_oranges,
+        )
+        self.add_event(
+            step_count,
+            "episode_finished",
+            outcome="success" if is_success else "failure",
+            reason=end_reason,
+            oranges_in_plate=int(oranges_in_plate),
+        )
+        return {
+            "episode_summary": {
+                "episode": self.episode,
+                "model_id": self.model_id,
+                "total_steps": int(step_count),
+                "final_oranges_in_plate": int(oranges_in_plate),
+                "end_reason": end_reason,
+                "success": bool(is_success),
+            },
+            "initial_scene": self.initial_scene,
+            "final_scene": self.final_scene,
+            "timeline": self.timeline,
+            "subtask_attempts": self.subtask_attempts,
+        }
+
 
 class EvaluationTracker:
     """Tracks per-episode outcomes, timing, and oranges placed across a full evaluation run.
@@ -411,6 +615,7 @@ class EvaluationTracker:
         self.checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
         checkpoint = {
             "model_id": self.model_id,
+            "trace_schema_version": EpisodeStory.SCHEMA_VERSION,
             "target_n_episodes": self.n_episodes,
             "completed_episodes": len(self.episode_records),
             "last_update": datetime.datetime.now().isoformat(timespec="seconds"),
@@ -463,7 +668,7 @@ class EvaluationTracker:
 
     def end_episode(self, episode, step_count, is_terminated, oranges_in_plate,
                     n_local_retries=0, n_redirections=0, n_oranges_abandoned=0,
-                    camera_images=None):
+                    camera_images=None, episode_story=None):
         """Record episode result, print a summary line, and advance the progress bar."""
         n_infer_calls  = len(self._infer_times)
         last_infer     = self._infer_times[-1] if self._infer_times else float("nan")
@@ -484,6 +689,8 @@ class EvaluationTracker:
             "n_redirections": int(n_redirections),
             "n_oranges_abandoned": int(n_oranges_abandoned),
         }
+        if episode_story:
+            record.update(episode_story)
         self.episode_records = [r for r in self.episode_records if r["episode"] != episode]
         self.episode_records.append(record)
         self.episode_records.sort(key=lambda r: r["episode"])
@@ -544,11 +751,12 @@ class SubtaskTracker:
     """
 
     # Cylindrical plate bounds relative to plate centre (m).
-    PLATE_RADIUS = 0.10    # XY radius of the cylinder
-    PLATE_Z_MIN  = -0.01   # bottom of the cylinder (relative to plate centre Z)
-    PLATE_Z_MAX  =  0.065   # top of the cylinder
+    PLATE_RADIUS = PLATE_RADIUS  # XY radius of the cylinder
+    PLATE_Z_MIN  = PLATE_Z_MIN   # bottom of the cylinder (relative to plate centre Z)
+    PLATE_Z_MAX  = PLATE_Z_MAX   # top of the cylinder
 
     DEBUG_DRAW            = False  # set to True to visualize the grip axis in the Isaac Sim viewport
+    DEBUG_DRAW_PLATE_BOUNDS = False  # set to True to draw the plate occupancy cylinder
     ORANGE_HELD_MAX_DIST  = 0.06   # max tip-to-orange distance (m) to consider orange still held
     PLACE_GRIPPER_Z_MIN   = 0.04   # gripper tip must be at or above this env-relative Z to confirm place
     GRASP_APPROACH_DIST   = 0.10   # tip-to-orange distance (m) beyond which only V_approach contributes
@@ -660,10 +868,13 @@ class SubtaskTracker:
         """Return True if orange_pos is inside the cylindrical plate bounds."""
         if self._plate_pos is None:
             return False
-        px, py, pz = self._plate_pos[0].item(), self._plate_pos[1].item(), self._plate_pos[2].item()
-        ox, oy, oz = orange_pos[0].item(), orange_pos[1].item(), orange_pos[2].item()
-        xy_dist = ((ox - px)**2 + (oy - py)**2) ** 0.5
-        return xy_dist < self.PLATE_RADIUS and pz + self.PLATE_Z_MIN < oz < pz + self.PLATE_Z_MAX
+        return is_orange_position_in_plate(
+            self._plate_pos,
+            orange_pos,
+            plate_radius=self.PLATE_RADIUS,
+            plate_z_min=self.PLATE_Z_MIN,
+            plate_z_max=self.PLATE_Z_MAX,
+        )
 
     def _is_orange_held(self, orange_pos) -> tuple[bool, float]:
         """Return (held, min_dist) — True if the closest tip is within ORANGE_HELD_MAX_DIST."""
@@ -705,7 +916,7 @@ class SubtaskTracker:
 
     def _draw_plate_cylinder(self):
         """Draw the cylindrical plate check volume in the Isaac Sim viewport."""
-        if not self.DEBUG_DRAW or self._origin is None or self._plate_pos is None:
+        if not (self.DEBUG_DRAW or self.DEBUG_DRAW_PLATE_BOUNDS) or self._origin is None or self._plate_pos is None:
             return
         try:
             import omni.debugdraw
@@ -720,18 +931,29 @@ class SubtaskTracker:
         z0 = cz + self.PLATE_Z_MIN
         z1 = cz + self.PLATE_Z_MAX
         r  = self.PLATE_RADIUS
-        color, w, N = 0xFFFF8800, 2.0, 24  # orange, line width, segments
+        color, center_color, w, N = 0xFFFF8800, 0xFFFFFF00, 2.5, 48  # orange/yellow, line width, segments
+        z_levels = [z0, (z0 + z1) * 0.5, z1]
 
-        pts_bot = [carb.Float3(cx + r * math.cos(2*math.pi*i/N),
-                               cy + r * math.sin(2*math.pi*i/N), z0) for i in range(N)]
-        pts_top = [carb.Float3(cx + r * math.cos(2*math.pi*i/N),
-                               cy + r * math.sin(2*math.pi*i/N), z1) for i in range(N)]
+        rings = []
+        for z in z_levels:
+            rings.append([
+                carb.Float3(cx + r * math.cos(2 * math.pi * i / N),
+                            cy + r * math.sin(2 * math.pi * i / N), z)
+                for i in range(N)
+            ])
 
-        for i in range(N):
-            j = (i + 1) % N
-            draw.draw_line(pts_bot[i], color, w, pts_bot[j], color, w)  # bottom ring
-            draw.draw_line(pts_top[i], color, w, pts_top[j], color, w)  # top ring
-            draw.draw_line(pts_bot[i], color, w, pts_top[i], color, w)  # vertical edge
+        center_bottom = carb.Float3(cx, cy, z0)
+        center_top    = carb.Float3(cx, cy, z1)
+        draw.draw_line(center_bottom, center_color, w, center_top, center_color, w)
+
+        for ring in rings:
+            for i in range(N):
+                draw.draw_line(ring[i], color, w, ring[(i + 1) % N], color, w)
+
+        for i in range(0, N, 4):
+            draw.draw_line(rings[0][i], color, w, rings[-1][i], color, w)
+            draw.draw_line(center_bottom, color, 1.5, rings[0][i], color, 1.5)
+            draw.draw_line(center_top, color, 1.5, rings[-1][i], color, 1.5)
 
     def draw_debug(self, gripper_tip, jaw_tip, orange_positions):
         """Draw grip axis debug geometry every step regardless of active prompt."""
@@ -927,7 +1149,7 @@ class SubtaskTracker:
         if self._place_confirmed:
             return
 
-        px, py, pz   = plate_pos[0].item(), plate_pos[1].item(), plate_pos[2].item()
+        pz = plate_pos[2].item()
         gripper_open = gripper_pos > self.grasp_threshold
 
         target     = self.active_orange
@@ -941,11 +1163,12 @@ class SubtaskTracker:
         for name, opos in candidates.items():
             if name in self.placed_oranges:
                 continue
-            ox, oy, oz = opos[0].item(), opos[1].item(), opos[2].item()
-            xy_dist  = ((ox - px)**2 + (oy - py)**2) ** 0.5
-            in_plate = (
-                xy_dist < self.PLATE_RADIUS
-                and pz + self.PLATE_Z_MIN < oz < pz + self.PLATE_Z_MAX
+            _xy_dist, _z_offset, in_plate = plate_position_metrics(
+                plate_pos,
+                opos,
+                plate_radius=self.PLATE_RADIUS,
+                plate_z_min=self.PLATE_Z_MIN,
+                plate_z_max=self.PLATE_Z_MAX,
             )
             if not in_plate:
                 self._stability[name] = (0, None)
@@ -967,17 +1190,18 @@ class SubtaskTracker:
         g_sym   = "✓" if gripper_open else "✗"
         if target and target in orange_positions:
             opos  = orange_positions[target]
-            ox, oy, oz = opos[0].item(), opos[1].item(), opos[2].item()
-            xy_dist  = ((ox - px)**2 + (oy - py)**2) ** 0.5
-            in_plate = (
-                xy_dist < self.PLATE_RADIUS
-                and pz + self.PLATE_Z_MIN < oz < pz + self.PLATE_Z_MAX
+            xy_dist, z_offset, in_plate = plate_position_metrics(
+                plate_pos,
+                opos,
+                plate_radius=self.PLATE_RADIUS,
+                plate_z_min=self.PLATE_Z_MIN,
+                plate_z_max=self.PLATE_Z_MAX,
             )
             stable_frames, _ = self._stability.get(target, (0, None))
             held, held_dist  = self._is_orange_held(opos)
             gripper_z = (self._gripper_tip[2].item() - pz) if self._gripper_tip is not None else float("nan")
             r_sym  = "✓" if xy_dist < self.PLATE_RADIUS else "✗"
-            z_sym  = "✓" if pz + self.PLATE_Z_MIN < oz < pz + self.PLATE_Z_MAX else "✗"
+            z_sym  = "✓" if self.PLATE_Z_MIN < z_offset < self.PLATE_Z_MAX else "✗"
             s_sym  = "✓" if stable_frames >= self.stability_frames else "✗"
             d_sym  = "✓" if held else "✗"
             gz_sym = "✓" if gripper_z >= self.PLACE_GRIPPER_Z_MIN else "✗"
@@ -986,7 +1210,7 @@ class SubtaskTracker:
                 f"  🍊 PLACE [{display}]  step {step_count}",
                 f"     Held:       {held_dist:.4f} < {self.ORANGE_HELD_MAX_DIST}  {d_sym}  (info)",
                 f"     XY dist:    {xy_dist:.4f} < {self.PLATE_RADIUS}  {r_sym}",
-                f"     Orange Z:   {oz - pz:.4f}  ∈ [{self.PLATE_Z_MIN}, {self.PLATE_Z_MAX}]  {z_sym}",
+                f"     Orange Z:   {z_offset:.4f}  ∈ [{self.PLATE_Z_MIN}, {self.PLATE_Z_MAX}]  {z_sym}",
                 f"     Tip-Plate Z:{gripper_z:.4f} >= {self.PLACE_GRIPPER_Z_MIN}  {gz_sym}",
                 f"     Stable:     {stable_frames}/{self.stability_frames}  {s_sym}",
                 f"     Open:       {gripper_pos:.4f} > {self.grasp_threshold}  {g_sym}",

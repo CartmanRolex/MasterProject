@@ -16,8 +16,9 @@ use these names:
 
 2. **Spatial reset** — a PRECONDITION, not recovery. VLA language
    conditioning only switches targets reliably when the arm is far from
-   all oranges. Implemented as a SCRIPTED joint-space interpolation to
-   home (NOT a VLA prompt). Required before any target change.
+   all oranges. Current implementation is fully scripted: first move
+   only `shoulder_lift` toward the episode-start value, then move all
+   joints to home. Required before any target change.
 
 3. **Target redirection** — goal ABANDONMENT, not recovery. Repeated
    GRASP failure on orange A → give up on A, attempt orange B. Improves
@@ -82,9 +83,9 @@ In order. Do not start item N+1 until N is done and acknowledged.
 
 | File | Purpose |
 |------|---------|
-| `inference_autonomous_orders.py` | **Main entry point** — orchestrator + eval loop. Target architecture: state machine over GRASP / LIFT / PLACE subtasks, with scripted GO_HOME primitive and explicit RETRY_SAME / REDIRECT / ABANDON_ORANGE transitions. |
+| `inference_autonomous_orders.py` | **Main entry point** — orchestrator + eval loop. Target architecture: state machine over GRASP / LIFT / PLACE subtasks, with two-stage scripted GO_HOME reset and explicit RETRY_SAME / REDIRECT / ABANDON_ORANGE transitions. |
 | `dataset_recorder.py` | Buffers frames per subtask; commits on success, discards on failure. Crash-safe via `checkpoint.json`. |
-| `eval_utils.py` | `SubtaskTracker`, `EvaluationTracker`, `HomeChecker`, position/scene helpers. |
+| `eval_utils.py` | `SubtaskTracker`, `EvaluationTracker`, `EpisodeStory`, `HomeChecker`, position/scene helpers. |
 | `robot_utils.py` | Joint-space conversions: LeIsaac (radians) ↔ LeRobot (normalized degrees). |
 | `remote.sh` | Isaac Sim launcher — sets `ENABLE_LIVESTREAM`, `LEISAAC_ASSETS_ROOT`, then calls `python "$@"`. |
 | `commands.txt` | Reference commands (training, inference, teleop, dataset conversion). |
@@ -147,6 +148,10 @@ RECORD_LOCAL_PATH = "/home/gal/Documents/MasterProject/isaac-inference/synthetic
 All evaluation summaries land in `results/` next to this file,
 regardless of working directory (`eval_utils.py` uses
 `Path(__file__).parent / "results"`). Results are git-tracked.
+Orchestrated `checkpoint.json` files include `trace_schema_version`
+and per-episode story fields (`episode_summary`, `initial_scene`,
+`final_scene`, `timeline`, `subtask_attempts`) so each run can be
+reconstructed without console logs.
 `results/plot.py` generates comparison bar charts across models.
 
 ## Gitignored paths

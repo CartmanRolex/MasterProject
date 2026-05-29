@@ -18,6 +18,7 @@ from robot_utils import (
 )
 from eval_utils import (
     EvaluationTracker,
+    EpisodeStory,
     HomeChecker,
     SubtaskTracker,
     classify_orange_positions,
@@ -31,7 +32,7 @@ from dataset_recorder import SubtaskRecorder, SYNTHETIC_DATASETS_DIR, merge_stag
 # 1. Configuration & Setup
 # ==========================================
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model_id = "MasterProject2026/Gal-merged-tailed-auto"
+model_id = "MasterProject2026/Gal-pick-orange-tailedCH20"
 
 # Number of full robot sessions to run.
 # One inference run = env reset → robot picks all oranges → done.
@@ -58,7 +59,7 @@ FREEZE_FRAMES       = 20     # freeze frames appended at the end of each subtask
 FULL_SUCCESS_DATA_GENERATION = False
 
 # --- Evaluation metrics ---
-EVAL_RESUME          = True   # True: resume completed-run metrics from results/<model>/checkpoint.json
+EVAL_RESUME          = False  # True: resume completed-run metrics from results/<model>/checkpoint.json
 EVAL_CHECKPOINT_PATH = None   # None: use model-specific default in results/
 
 TIMEOUT_STEPS = {
@@ -66,13 +67,17 @@ TIMEOUT_STEPS = {
     "LIFT":  400,
     "PLACE": 500,
 }
-SPATIAL_RESET_STEPS = 40          # total steps for a spatial reset (scripted: reach home in
-                                  # SPATIAL_RESET_INTERP_STEPS then hold; VLA: prompt-driven)
+
+# --- Debug visualization ---
+DEBUG_DRAW_PLATE_BOUNDS = False    # Draw the COM/radius/z plate occupancy cylinder in Isaac viewport
 
 # --- Scripted spatial reset ---
 SCRIPTED_SPATIAL_RESET     = True  # False → fall back to VLA "Go back to start position" prompt
-SPATIAL_RESET_INTERP_STEPS = 20    # steps to interpolate from failure pose to episode-start pose
-                                   # (= action tm size); arm holds at home for remaining steps
+SHOULDER_LIFT_JOINT_INDEX = 1      # joint order: shoulder_pan, shoulder_lift, elbow, wrist_flex, wrist_roll, gripper
+SPATIAL_RESET_SHOULDER_LIFT_STEPS = 40  # first move only shoulder_lift to the episode-start value
+SPATIAL_RESET_FULL_STEPS = 60      # then move all joints to the episode-start pose
+SPATIAL_RESET_STEPS = SPATIAL_RESET_SHOULDER_LIFT_STEPS + SPATIAL_RESET_FULL_STEPS
+SPATIAL_RESET_INTERP_STEPS = SPATIAL_RESET_FULL_STEPS
 
 dataset_features = {
     "observation.images.front": {"dtype": "video", "shape": (3, 480, 640), "names": ["front"]},
@@ -143,6 +148,65 @@ def build_task_prompt(phase: str, label: Optional[str]) -> str:
     if phase == "ABORT_HOME":
         return "Go back to start position"
     return "Pick it up"
+
+
+def is_spatial_reset_shoulder_lift_stage(controller) -> bool:
+    return (
+        SCRIPTED_SPATIAL_RESET
+        and SPATIAL_RESET_SHOULDER_LIFT_STEPS > 0
+        and controller.phase in ("SPATIAL_RESET", "ABORT_HOME")
+        and controller._spatial_reset_remaining > SPATIAL_RESET_FULL_STEPS
+    )
+
+
+def spatial_reset_shoulder_lift_pose(start_joint, home_joint, progress):
+    pose = start_joint.copy()
+    idx = SHOULDER_LIFT_JOINT_INDEX
+    pose[idx] = (1.0 - progress) * start_joint[idx] + progress * home_joint[idx]
+    return pose
+
+
+def exhausted_oranges(controller):
+    return {name for name, count in controller._timeout_count.items() if count >= 2}
+
+
+def finish_story_episode(story, step_count, oranges_in_plate, end_reason,
+                         is_success, plate_pos, orange_positions,
+                         sub_tracker, controller):
+    if story is None:
+        return None
+    placed_oranges = set(sub_tracker.placed_oranges)
+    for name, pos in orange_positions.items():
+        if sub_tracker._is_orange_in_plate(pos):
+            placed_oranges.add(name)
+    return story.build_record(
+        step_count=step_count,
+        oranges_in_plate=oranges_in_plate,
+        end_reason=end_reason,
+        is_success=is_success,
+        plate_pos=plate_pos,
+        orange_positions=orange_positions,
+        placed_oranges=placed_oranges,
+        abandoned_oranges=exhausted_oranges(controller),
+    )
+
+
+def fallback_scene(last_plate_pos, last_orange_positions, last_positions, orange_names):
+    plate_pos = last_plate_pos
+    orange_positions = last_orange_positions
+    if plate_pos is None and last_positions:
+        plate_pos = last_positions.get("plate")
+    if not orange_positions and last_positions:
+        orange_positions = {
+            name: last_positions[name]
+            for name in orange_names
+            if name in last_positions
+        }
+    return plate_pos, orange_positions
+
+
+def orchestrated_oranges_in_plate(positions, sub_tracker):
+    return max(count_oranges_in_plate(positions), len(sub_tracker.placed_oranges))
 
 
 class OrderController:
@@ -439,6 +503,7 @@ tracker = EvaluationTracker(
     resume=EVAL_RESUME,
 )
 sub_tracker = SubtaskTracker(block=False)
+sub_tracker.DEBUG_DRAW_PLATE_BOUNDS = DEBUG_DRAW_PLATE_BOUNDS
 controller = OrderController(sub_tracker.orange_names)
 home_checker     = HomeChecker()
 reset_controller = ResetController()
@@ -556,9 +621,13 @@ try:
         step_count = 0
         last_model_prompt = None
         last_positions = save_positions(env)
+        last_plate_pos = None
+        last_orange_positions = {}
         last_camera_images = None
         episode_start_joint_pos   = None  # arm pose at episode start (LeIsaac radians); scripted reset target
         spatial_reset_start_joint = None  # arm pose when SPATIAL_RESET/ABORT_HOME begins
+        episode_story = EpisodeStory(run_idx, model_id) if not _fs_active else None
+        story_initial_scene_recorded = False
 
         while not done:
             # --- Stop check ---
@@ -568,12 +637,20 @@ try:
                 if recorder:
                     recorder.discard()
                 if not _fs_active:
-                    oranges_in_plate = count_oranges_in_plate(last_positions)
+                    oranges_in_plate = orchestrated_oranges_in_plate(last_positions, sub_tracker)
+                    plate_pos, orange_positions_for_story = fallback_scene(
+                        last_plate_pos, last_orange_positions, last_positions, controller.orange_names
+                    )
+                    story_record = finish_story_episode(
+                        episode_story, step_count, oranges_in_plate, "manual_stop", False,
+                        plate_pos, orange_positions_for_story, sub_tracker, controller
+                    )
                     tracker.end_episode(run_idx, step_count, False, oranges_in_plate,
                                         n_local_retries=controller.n_local_retries,
                                         n_redirections=controller.n_redirections,
                                         n_oranges_abandoned=sum(1 for c in controller._timeout_count.values() if c >= 2),
-                                        camera_images=last_camera_images)
+                                        camera_images=last_camera_images,
+                                        episode_story=story_record)
                 done = True
                 break
 
@@ -584,25 +661,47 @@ try:
                 if recorder:
                     recorder.discard()
                 if not _fs_active:
-                    oranges_in_plate = count_oranges_in_plate(last_positions)
+                    oranges_in_plate = orchestrated_oranges_in_plate(last_positions, sub_tracker)
+                    plate_pos, orange_positions_for_story = fallback_scene(
+                        last_plate_pos, last_orange_positions, last_positions, controller.orange_names
+                    )
+                    story_record = finish_story_episode(
+                        episode_story, step_count, oranges_in_plate, "manual_reset", False,
+                        plate_pos, orange_positions_for_story, sub_tracker, controller
+                    )
                     tracker.end_episode(run_idx, step_count, False, oranges_in_plate,
                                         n_local_retries=controller.n_local_retries,
                                         n_redirections=controller.n_redirections,
                                         n_oranges_abandoned=sum(1 for c in controller._timeout_count.values() if c >= 2),
-                                        camera_images=last_camera_images)
+                                        camera_images=last_camera_images,
+                                        episode_story=story_record)
                 done = True
                 break
 
             # --- Pre-step: select target + init orange heights (prompt must be ready before inference) ---
-            *_, orange_positions = sub_tracker._get_env_data(env)
+            _, _, _, _, _, plate_pos, orange_positions = sub_tracker._get_env_data(env)
+            last_plate_pos = plate_pos
+            last_orange_positions = orange_positions
             if step_count == 1:
                 # Step 0 still has stale Isaac Sim buffers from the previous episode.
                 # Heights and _select_target are deferred to step 1 (first valid scene state).
                 for name, pos in orange_positions.items():
                     sub_tracker.initial_orange_z[name] = pos[2].item()
+                if episode_story and not story_initial_scene_recorded:
+                    episode_story.record_initial_scene(step_count, plate_pos, orange_positions)
+                    story_initial_scene_recorded = True
             if controller.phase == "SELECT_TARGET" and step_count > 0:
                 if controller._needs_episode_reset:
                     sub_tracker.reset_display()
+                    if episode_story:
+                        episode_story.add_event(
+                            step_count,
+                            "episode_reset_needed",
+                            phase="SELECT_TARGET",
+                            outcome="failure",
+                            reason="all_targets_exhausted",
+                            abandoned_oranges=sorted(exhausted_oranges(controller)),
+                        )
                     if _fs_active:
                         # Immediate abort — discard staging, no HOME commit.
                         print("\n⛔ Aborting episode (full-success mode).")
@@ -614,16 +713,41 @@ try:
                         if recorder:
                             recorder.commit("Go back to start position",
                                            n_placed=len(sub_tracker.placed_oranges))
-                        oranges_in_plate = count_oranges_in_plate(last_positions)
+                        oranges_in_plate = orchestrated_oranges_in_plate(last_positions, sub_tracker)
+                        story_record = finish_story_episode(
+                            episode_story, step_count, oranges_in_plate, "all_targets_exhausted", False,
+                            plate_pos, orange_positions, sub_tracker, controller
+                        )
                         tracker.end_episode(run_idx, step_count, False, oranges_in_plate,
                                             n_local_retries=controller.n_local_retries,
                                             n_redirections=controller.n_redirections,
                                             n_oranges_abandoned=sum(1 for c in controller._timeout_count.values() if c >= 2),
-                                            camera_images=last_camera_images)
+                                            camera_images=last_camera_images,
+                                            episode_story=story_record)
                     torch.cuda.empty_cache()
                     done = True
                     break
+                retry_target_before = controller._retry_target
                 controller._select_target(sub_tracker, orange_positions)
+                if episode_story and controller.phase == "GRASP":
+                    reason = "retry_after_timeout" if retry_target_before == controller.target_name else "new_target"
+                    episode_story.add_event(
+                        step_count,
+                        "target_selected",
+                        phase="GRASP",
+                        requested_orange=controller.target_name,
+                        requested_label=controller.target_label,
+                        outcome="selected",
+                        reason=reason,
+                    )
+                    episode_story.start_attempt(
+                        step_count,
+                        "GRASP",
+                        controller.current_prompt(),
+                        len(sub_tracker.placed_oranges),
+                        controller.target_name,
+                        controller.target_label,
+                    )
                 # Arm the recorder for the GRASP that just started. This must happen here
                 # because the SELECT_TARGET→GRASP transition occurs in the pre-step, so
                 # phase_before == phase_after == "GRASP" by the time the post-step recording
@@ -638,6 +762,16 @@ try:
                 print(f"\n{'─' * 50}")
                 print(f"  ACTIVE PROMPT → \"{task_prompt}\"")
                 print(f"{'─' * 50}\n")
+                if episode_story:
+                    episode_story.add_event(
+                        step_count,
+                        "prompt_changed",
+                        phase=controller.phase,
+                        requested_orange=controller.target_name,
+                        requested_label=controller.target_label,
+                        outcome="prompt_active",
+                        prompt=task_prompt,
+                    )
                 last_model_prompt = task_prompt
 
             # --- Observation ---
@@ -651,8 +785,8 @@ try:
             if step_count == 1 and SCRIPTED_SPATIAL_RESET:
                 episode_start_joint_pos = policy_obs["joint_pos"][0].cpu().numpy()
 
-            # Snapshot arm pose on the first step of a scripted spatial reset so the
-            # interpolation always starts from the actual failure configuration.
+            # Snapshot arm pose on the first step of reset; stage 1 moves only
+            # shoulder_lift away from the oranges, stage 2 moves all joints home.
             if (SCRIPTED_SPATIAL_RESET
                     and controller.phase in ("SPATIAL_RESET", "ABORT_HOME")
                     and controller._spatial_reset_remaining == SPATIAL_RESET_STEPS):
@@ -677,11 +811,23 @@ try:
                     and controller.phase in ("SPATIAL_RESET", "ABORT_HOME")
                     and episode_start_joint_pos is not None
                     and spatial_reset_start_joint is not None):
-                # Linearly interpolate from the failure pose to the episode-start pose
-                # over SPATIAL_RESET_INTERP_STEPS steps, then hold at home.
-                steps_elapsed = SPATIAL_RESET_STEPS - controller._spatial_reset_remaining
-                t = min(steps_elapsed / SPATIAL_RESET_INTERP_STEPS, 1.0)
-                scripted_joint = (1.0 - t) * spatial_reset_start_joint + t * episode_start_joint_pos
+                if is_spatial_reset_shoulder_lift_stage(controller):
+                    steps_elapsed = SPATIAL_RESET_STEPS - controller._spatial_reset_remaining
+                    t = min(steps_elapsed / SPATIAL_RESET_SHOULDER_LIFT_STEPS, 1.0)
+                    scripted_joint = spatial_reset_shoulder_lift_pose(
+                        spatial_reset_start_joint,
+                        episode_start_joint_pos,
+                        t,
+                    )
+                else:
+                    shoulder_lift_pose = spatial_reset_shoulder_lift_pose(
+                        spatial_reset_start_joint,
+                        episode_start_joint_pos,
+                        1.0,
+                    )
+                    steps_elapsed = SPATIAL_RESET_FULL_STEPS - controller._spatial_reset_remaining
+                    t = min(steps_elapsed / SPATIAL_RESET_INTERP_STEPS, 1.0)
+                    scripted_joint = (1.0 - t) * shoulder_lift_pose + t * episode_start_joint_pos
                 step_action = torch.from_numpy(scripted_joint[None, :]).to(device)
                 action_np   = convert_leisaac_action_to_lerobot(scripted_joint[None, :])
                 infer_time_ms = 0.0
@@ -728,6 +874,12 @@ try:
             # home_checker fires, not True because we just called home_checker.check()).
             phase_before      = controller.phase
             target_before     = controller.target_name
+            label_before      = controller.target_label
+            active_before     = sub_tracker.active_orange
+            placed_before     = set(sub_tracker.placed_oranges)
+            retries_before    = controller.n_local_retries
+            redirects_before  = controller.n_redirections
+            exhausted_before  = exhausted_oranges(controller)
             home_fired_before = home_checker._fired
 
             if controller.phase == "GRASP":
@@ -745,6 +897,250 @@ try:
             sub_tracker.draw_debug(gripper_tip, jaw_tip, orange_positions)
             controller.update_after_step(sub_tracker, orange_positions, step_count)
             phase_after = controller.phase
+            placed_after = set(sub_tracker.placed_oranges)
+            exhausted_after = exhausted_oranges(controller)
+
+            if phase_before not in ("SPATIAL_RESET", "ABORT_HOME") and phase_after in ("SPATIAL_RESET", "ABORT_HOME"):
+                policy.reset()
+                spatial_reset_start_joint = None
+
+            if episode_story:
+                if phase_before in ("GRASP", "LIFT", "PLACE") and phase_after != phase_before:
+                    actual_orange = None
+                    result = "failure"
+                    failure_reason = None
+
+                    if phase_before == "GRASP":
+                        actual_orange = sub_tracker.active_orange or controller.target_name
+                        if phase_after == "LIFT":
+                            result = "success"
+                            if target_before and actual_orange and target_before != actual_orange:
+                                failure_reason = "wrong_orange"
+                                episode_story.add_event(
+                                    step_count,
+                                    "wrong_orange_grasped",
+                                    phase="GRASP",
+                                    requested_orange=target_before,
+                                    requested_label=label_before,
+                                    actual_orange=actual_orange,
+                                    outcome="success",
+                                    reason="requested_orange_did_not_match_grasped_orange",
+                                )
+                            episode_story.add_event(
+                                step_count,
+                                "grasp_success",
+                                phase="GRASP",
+                                requested_orange=target_before,
+                                requested_label=label_before,
+                                actual_orange=actual_orange,
+                                outcome="success",
+                                reason=failure_reason,
+                            )
+                        elif phase_after in ("SPATIAL_RESET", "ABORT_HOME"):
+                            result = "timeout"
+                            failure_reason = "timeout"
+                            episode_story.add_event(
+                                step_count,
+                                "grasp_timeout",
+                                phase="GRASP",
+                                requested_orange=target_before,
+                                requested_label=label_before,
+                                outcome="timeout",
+                                reason="timeout",
+                            )
+                        else:
+                            failure_reason = "phase_changed"
+
+                    elif phase_before == "LIFT":
+                        actual_orange = active_before or target_before
+                        if phase_after == "PLACE":
+                            result = "success"
+                            episode_story.add_event(
+                                step_count,
+                                "lift_success",
+                                phase="LIFT",
+                                requested_orange=target_before,
+                                requested_label=label_before,
+                                actual_orange=actual_orange,
+                                outcome="success",
+                            )
+                        elif phase_after == "GRASP":
+                            failure_reason = "dropped_during_lift"
+                            episode_story.add_event(
+                                step_count,
+                                "orange_dropped",
+                                phase="LIFT",
+                                requested_orange=target_before,
+                                requested_label=label_before,
+                                actual_orange=actual_orange,
+                                outcome="failure",
+                                reason=failure_reason,
+                            )
+                            episode_story.add_event(
+                                step_count,
+                                "lift_failure",
+                                phase="LIFT",
+                                requested_orange=target_before,
+                                requested_label=label_before,
+                                actual_orange=actual_orange,
+                                outcome="failure",
+                                reason=failure_reason,
+                            )
+                        elif phase_after in ("SPATIAL_RESET", "ABORT_HOME"):
+                            result = "timeout"
+                            failure_reason = "timeout"
+                            episode_story.add_event(
+                                step_count,
+                                "lift_timeout",
+                                phase="LIFT",
+                                requested_orange=target_before,
+                                requested_label=label_before,
+                                actual_orange=actual_orange,
+                                outcome="timeout",
+                                reason="timeout",
+                            )
+                        else:
+                            failure_reason = "phase_changed"
+
+                    elif phase_before == "PLACE":
+                        newly_placed = sorted(placed_after - placed_before)
+                        actual_orange = newly_placed[0] if newly_placed else target_before
+                        if target_before in placed_after or newly_placed:
+                            result = "success"
+                            if target_before and actual_orange and target_before != actual_orange:
+                                failure_reason = "wrong_orange"
+                            episode_story.add_event(
+                                step_count,
+                                "place_success",
+                                phase="PLACE",
+                                requested_orange=target_before,
+                                requested_label=label_before,
+                                actual_orange=actual_orange,
+                                outcome="success",
+                                reason=failure_reason,
+                            )
+                        elif phase_after == "GRASP":
+                            failure_reason = "dropped_during_place"
+                            episode_story.add_event(
+                                step_count,
+                                "orange_dropped",
+                                phase="PLACE",
+                                requested_orange=target_before,
+                                requested_label=label_before,
+                                actual_orange=actual_orange,
+                                outcome="failure",
+                                reason=failure_reason,
+                            )
+                            episode_story.add_event(
+                                step_count,
+                                "place_failure",
+                                phase="PLACE",
+                                requested_orange=target_before,
+                                requested_label=label_before,
+                                actual_orange=actual_orange,
+                                outcome="failure",
+                                reason=failure_reason,
+                            )
+                        elif phase_after in ("SPATIAL_RESET", "ABORT_HOME"):
+                            result = "timeout"
+                            failure_reason = "timeout"
+                            episode_story.add_event(
+                                step_count,
+                                "place_timeout",
+                                phase="PLACE",
+                                requested_orange=target_before,
+                                requested_label=label_before,
+                                actual_orange=actual_orange,
+                                outcome="timeout",
+                                reason="timeout",
+                            )
+                        else:
+                            failure_reason = "phase_changed"
+
+                    episode_story.finish_attempt(
+                        step_count,
+                        result=result,
+                        actual_orange=actual_orange,
+                        failure_reason=failure_reason,
+                    )
+
+                if controller.n_local_retries > retries_before:
+                    if phase_before in ("LIFT", "PLACE") and phase_after == "GRASP":
+                        retry_reason = f"dropped_during_{phase_before.lower()}"
+                    elif phase_after == "SPATIAL_RESET":
+                        retry_reason = "timeout"
+                    else:
+                        retry_reason = "local_retry"
+                    episode_story.add_event(
+                        step_count,
+                        "local_retry",
+                        phase=phase_after,
+                        requested_orange=target_before or controller.target_name,
+                        requested_label=label_before or controller.target_label,
+                        actual_orange=active_before or target_before,
+                        outcome="retry_same_target",
+                        reason=retry_reason,
+                    )
+
+                abandoned_now = sorted(exhausted_after - exhausted_before)
+                for abandoned in abandoned_now:
+                    episode_story.add_event(
+                        step_count,
+                        "orange_abandoned",
+                        phase=phase_after,
+                        requested_orange=abandoned,
+                        requested_label=label_before if abandoned == target_before else None,
+                        actual_orange=abandoned,
+                        outcome="abandoned",
+                        reason="second_timeout",
+                    )
+
+                if controller.n_redirections > redirects_before:
+                    available = [
+                        name for name in controller.orange_names
+                        if name not in placed_after
+                        and name not in exhausted_after
+                        and name in orange_positions
+                    ]
+                    episode_story.add_event(
+                        step_count,
+                        "target_redirection",
+                        phase=phase_after,
+                        requested_orange=target_before,
+                        requested_label=label_before,
+                        outcome="redirect",
+                        reason="target_abandoned_after_repeated_failure",
+                        available_oranges=available,
+                    )
+
+                if phase_before not in ("SPATIAL_RESET", "ABORT_HOME") and phase_after in ("SPATIAL_RESET", "ABORT_HOME"):
+                    episode_story.add_event(
+                        step_count,
+                        "spatial_reset",
+                        phase=phase_after,
+                        requested_orange=target_before,
+                        requested_label=label_before,
+                        outcome="started",
+                        reason="target_change_precondition" if controller.n_redirections > redirects_before else "retry_after_timeout",
+                    )
+                elif phase_before in ("SPATIAL_RESET", "ABORT_HOME") and phase_after == "SELECT_TARGET":
+                    episode_story.add_event(
+                        step_count,
+                        "spatial_reset_finished",
+                        phase=phase_after,
+                        outcome="finished",
+                        reason="abort_home_complete" if phase_before == "ABORT_HOME" else "reset_complete",
+                    )
+
+                if phase_before != phase_after and phase_after in ("GRASP", "LIFT", "PLACE"):
+                    episode_story.start_attempt(
+                        step_count,
+                        phase_after,
+                        build_task_prompt(phase_after, controller.target_label),
+                        len(sub_tracker.placed_oranges),
+                        controller.target_name,
+                        controller.target_label,
+                    )
 
             # End the episode immediately when the third orange is placed.
             # FULL_SUCCESS mode additionally flips episode_succeeded inside the
@@ -814,12 +1210,27 @@ try:
                 if recorder and not episode_succeeded:
                     recorder.discard()
                 if not _fs_active:
-                    oranges_in_plate = count_oranges_in_plate(last_positions)
+                    final_positions = save_positions(env)
+                    oranges_in_plate = orchestrated_oranges_in_plate(final_positions, sub_tracker)
+                    story_success = len(sub_tracker.placed_oranges) >= len(controller.orange_names) or oranges_in_plate == 3
+                    if story_success:
+                        end_reason = "success_3_oranges"
+                    elif is_terminated:
+                        end_reason = "env_terminated"
+                    elif is_truncated:
+                        end_reason = "env_truncated"
+                    else:
+                        end_reason = "episode_finished"
+                    story_record = finish_story_episode(
+                        episode_story, step_count, oranges_in_plate, end_reason, story_success,
+                        plate_pos, orange_positions, sub_tracker, controller
+                    )
                     tracker.end_episode(run_idx, step_count, is_terminated, oranges_in_plate,
                                         n_local_retries=controller.n_local_retries,
                                         n_redirections=controller.n_redirections,
                                         n_oranges_abandoned=sum(1 for c in controller._timeout_count.values() if c >= 2),
-                                        camera_images=last_camera_images)
+                                        camera_images=last_camera_images,
+                                        episode_story=story_record)
 
         # --- Post-episode: merge staging on full success ---
         if _fs_active and RECORD_ENABLED:
