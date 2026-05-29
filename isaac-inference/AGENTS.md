@@ -109,10 +109,11 @@ One-shot scripts for building and transforming the training dataset. Run from `i
 
 | Script | Purpose |
 |--------|---------|
-| `merge_datasets.py` | Concatenate two or more LeRobot v3.0 datasets into one. Episode indices are shifted and task strings are unioned. Re-encodes video to h264 (faster decode on non-RTX-40 hardware). |
+| `merge_datasets.py` | Concatenate two or more LeRobot v3.0 datasets into one. Episode indices are shifted and task strings are unioned. Re-encodes video to h264 (faster decode on non-RTX-40 hardware). Writes `meta/stats.json` (scalar features recomputed from the merged data parquet; image features count-weighted-aggregated from the sources). |
 | `balance_dataset.py` | Create a balanced subset across the 9 subtask slots (3 oranges × Grasp / Pick up / Place). N = min episode count per bucket; total output = 9×N. HOME episodes excluded. |
 | `consolidate_dataset_videos.py` | Merge per-episode chunk files into one large file per camera. Eliminates torchcodec decoder re-init overhead at training time. Idempotent — safe to re-run. |
 | `fix_merged_lengths.py` | Repair per-episode length drift that can appear after `consolidate_dataset_videos.py`. Run if episode lengths in `meta/episodes.parquet` look inconsistent. |
+| `tail_split.py` | Properly "tail" a teleop-derived dataset by **appending** `N=20` freeze frames to every episode (inverse of `strip_lang_and_tail.py`). Drops `"Go back to start position"` episodes and reproduces `dataset_recorder.py`'s per-subtask freeze: GRASP / LIFT hold the last commanded gripper action (closing force), PLACE freezes fully (action = state). Clones the last video frame (ffmpeg `tpad`), reconciles clip lengths, consolidates, writes `stats.json`. Used to rebuild `Gal_split` → `Gal_split_tailed` before merging into `Gal-merged-tailed-auto`. |
 | `strip_lang_and_tail.py` | Produce a no-language-conditioning clone with the last 20 frozen frames of every episode removed. Hardcoded paths: `Gal-merged-tailed-auto` → `Gal-merged-tailed-auto-no-lang-no-home`. |
 | `plot_dataset_stats.py` | Plot task distribution and composition statistics for a synthetic dataset. |
 

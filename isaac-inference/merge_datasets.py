@@ -367,6 +367,49 @@ def maybe_copy_subtask_metadata(first_source: Path, dest: Path) -> None:
         shutil.copy2(src, dest / "subtask_metadata.jsonl")
 
 
+# ── meta/stats.json ─────────────────────────────────────────────────────────
+
+def write_merged_stats(dest: Path, sources: list[Path]) -> None:
+    """Write meta/stats.json for the merged dataset.
+
+    Scalar features (action, observation.state, and the index/timestamp
+    bookkeeping columns) are recomputed exactly from the merged data parquet.
+    Image features are count-weighted-aggregated from the sources' stats.json —
+    we re-encode video but never decode pixels, so per-source image stats are the
+    source of truth. Skips silently if any source lacks meta/stats.json."""
+    import numpy as np
+    from lerobot.datasets.compute_stats import aggregate_stats
+    from strip_lang_and_tail import _quantiles
+
+    src_stats = []
+    for s in sources:
+        p = s / "meta" / "stats.json"
+        if not p.exists():
+            print(f"  {s.name} has no meta/stats.json — skipping merged stats.json")
+            return
+        src_stats.append(json.loads(p.read_text()))
+
+    img_keys = [k for k in src_stats[0] if k.startswith("observation.images.")]
+    img_inputs = [
+        {k: {kk: np.array(vv) for kk, vv in s[k].items()} for k in img_keys if k in s}
+        for s in src_stats
+    ]
+    agg_img = aggregate_stats(img_inputs) if img_keys else {}
+
+    df = pd.read_parquet(dest / "data" / "chunk-000" / "file-000.parquet")
+    stats: dict = {}
+    stats["action"] = _quantiles(np.stack(df["action"].values))
+    stats["observation.state"] = _quantiles(np.stack(df["observation.state"].values))
+    for col in ("timestamp", "frame_index", "episode_index", "index", "task_index"):
+        stats[col] = _quantiles(df[col].to_numpy())
+    for k, v in agg_img.items():
+        stats[k] = {kk: np.asarray(vv).tolist() for kk, vv in v.items()}
+
+    with open(dest / "meta" / "stats.json", "w") as f:
+        json.dump(stats, f, indent=4)
+    print(f"  Wrote meta/stats.json ({len(stats)} features)")
+
+
 # ── main ──────────────────────────────────────────────────────────────────────
 
 def main() -> None:
@@ -503,6 +546,10 @@ def main() -> None:
     # Avoid one multi-hour MP4: torchcodec's timestamp tolerance path uses
     # float32 internally, so very long videos can exceed tolerance_s=1e-4.
     consolidate(dest, episodes_per_file=100)
+
+    # ── 11. meta/stats.json ───────────────────────────────────────────────────
+    print("\nWriting meta/stats.json ...")
+    write_merged_stats(dest, sources)
 
     print(f"\nDone.")
     print(f"  Output: {dest}")

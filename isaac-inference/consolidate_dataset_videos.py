@@ -188,7 +188,8 @@ def consolidate(dataset_path: Path, episodes_per_file: int = 0) -> None:
                 frame_cursor += ep_lengths[i]
 
         # Clean up empty non-chunk-000 video directories
-        for d in sorted((dataset_path / f"videos/{cam}").iterdir()):
+        cam_dir = dataset_path / f"videos/{cam}"
+        for d in sorted(cam_dir.iterdir()) if cam_dir.exists() else []:
             if d.name != "chunk-000" and d.is_dir():
                 try:
                     d.rmdir()
