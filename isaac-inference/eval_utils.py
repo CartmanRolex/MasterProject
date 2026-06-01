@@ -185,6 +185,24 @@ def classify_orange_positions(orange_positions: dict) -> dict:
 # Scene-State Helpers
 # ============================================================
 
+_MATH_UTILS = None
+
+
+def _math_utils():
+    """Lazily import isaaclab.utils.math.
+
+    eval_utils is imported before the Isaac SimulationApp is launched, and
+    importing isaaclab eagerly requires a running app. Deferring the import to
+    first use (same pattern as inference_privileged_grasp.py) keeps module import
+    cheap and app-independent.
+    """
+    global _MATH_UTILS
+    if _MATH_UTILS is None:
+        import isaaclab.utils.math as math_utils
+        _MATH_UTILS = math_utils
+    return _MATH_UTILS
+
+
 def _position_component(pos, idx):
     value = pos[idx]
     if isinstance(value, torch.Tensor):
@@ -197,12 +215,26 @@ def _position_component(pos, idx):
 def plate_position_metrics(plate_pos, orange_pos,
                            plate_radius=PLATE_RADIUS,
                            plate_z_min=PLATE_Z_MIN,
-                           plate_z_max=PLATE_Z_MAX):
-    """Return shared plate-occupancy geometry for an orange COM position."""
-    px, py, pz = (_position_component(plate_pos, i) for i in range(3))
-    ox, oy, oz = (_position_component(orange_pos, i) for i in range(3))
-    xy_dist = ((ox - px) ** 2 + (oy - py) ** 2) ** 0.5
-    z_offset = oz - pz
+                           plate_z_max=PLATE_Z_MAX,
+                           plate_quat=None):
+    """Return shared plate-occupancy geometry for an orange COM position.
+
+    When plate_quat (w,x,y,z) is given, the orange is transformed into the
+    plate's local frame so the cylinder follows plate tilt. When None, the
+    legacy world-axis-aligned cylinder is used.
+    """
+    if plate_quat is not None:
+        plate_pos  = torch.as_tensor(plate_pos)
+        orange_pos = torch.as_tensor(orange_pos, dtype=plate_pos.dtype, device=plate_pos.device)
+        plate_quat = torch.as_tensor(plate_quat, dtype=plate_pos.dtype, device=plate_pos.device)
+        local = _math_utils().quat_apply_inverse(plate_quat, orange_pos - plate_pos)
+        xy_dist  = (local[0] ** 2 + local[1] ** 2).item() ** 0.5
+        z_offset = local[2].item()
+    else:
+        px, py, pz = (_position_component(plate_pos, i) for i in range(3))
+        ox, oy, oz = (_position_component(orange_pos, i) for i in range(3))
+        xy_dist = ((ox - px) ** 2 + (oy - py) ** 2) ** 0.5
+        z_offset = oz - pz
     in_plate = xy_dist < plate_radius and plate_z_min < z_offset < plate_z_max
     return xy_dist, z_offset, in_plate
 
@@ -210,7 +242,8 @@ def plate_position_metrics(plate_pos, orange_pos,
 def is_orange_position_in_plate(plate_pos, orange_pos,
                                 plate_radius=PLATE_RADIUS,
                                 plate_z_min=PLATE_Z_MIN,
-                                plate_z_max=PLATE_Z_MAX):
+                                plate_z_max=PLATE_Z_MAX,
+                                plate_quat=None):
     """Return True when an orange COM is inside the shared plate volume."""
     _, _, in_plate = plate_position_metrics(
         plate_pos,
@@ -218,6 +251,7 @@ def is_orange_position_in_plate(plate_pos, orange_pos,
         plate_radius=plate_radius,
         plate_z_min=plate_z_min,
         plate_z_max=plate_z_max,
+        plate_quat=plate_quat,
     )
     return in_plate
 
@@ -230,11 +264,13 @@ def save_positions(env, plate_name="Plate",
     true final state before the env auto-resets.
 
     Returns:
-        dict mapping "plate" to its root position and each orange name to its
+        dict mapping "plate" to its root position, "plate_quat" to the plate's
+        orientation quaternion (w,x,y,z), and each orange name to its
         centre-of-mass position.
     """
     origin = env.scene.env_origins[0]
     positions = {"plate": env.scene[plate_name].data.root_pos_w[0].clone() - origin}
+    positions["plate_quat"] = env.scene[plate_name].data.root_quat_w[0].clone()
     for name in orange_names:
         positions[name] = env.scene[name].data.root_com_pos_w[0].clone() - origin
     return positions
@@ -256,7 +292,9 @@ def count_oranges_in_plate(positions,
     """
     count = 0
     for name in orange_names:
-        if name in positions and is_orange_position_in_plate(positions["plate"], positions[name]):
+        if name in positions and is_orange_position_in_plate(
+                positions["plate"], positions[name],
+                plate_quat=positions.get("plate_quat")):
             count += 1
 
     return count
@@ -804,6 +842,7 @@ class SubtaskTracker:
         self._status_lines     = 0       # lines currently held by the live display block
         self._origin           = None    # cached env origin for debug drawing
         self._plate_pos        = None    # cached plate position for debug drawing
+        self._plate_quat       = None    # cached plate orientation (w,x,y,z) for oriented check
         self._gripper_tip      = None    # cached tip positions for held-check in lift/place
         self._jaw_tip          = None
         self._stability: dict[str, tuple[int, torch.Tensor | None]] = {}
@@ -841,6 +880,7 @@ class SubtaskTracker:
         gripper_pos = env.scene["robot"].data.joint_pos[0, -1].item()
         plate_pos         = env.scene["Plate"].data.root_pos_w[0] - self._origin
         self._plate_pos   = plate_pos
+        self._plate_quat  = env.scene["Plate"].data.root_quat_w[0]
         orange_positions = {
             name: env.scene[name].data.root_com_pos_w[0] - self._origin
             for name in self.orange_names
@@ -874,6 +914,7 @@ class SubtaskTracker:
             plate_radius=self.PLATE_RADIUS,
             plate_z_min=self.PLATE_Z_MIN,
             plate_z_max=self.PLATE_Z_MAX,
+            plate_quat=self._plate_quat,
         )
 
     def _is_orange_held(self, orange_pos) -> tuple[bool, float]:
@@ -926,24 +967,32 @@ class SubtaskTracker:
         except Exception:
             return
 
-        p  = self._plate_pos + self._origin
-        cx, cy, cz = p[0].item(), p[1].item(), p[2].item()
-        z0 = cz + self.PLATE_Z_MIN
-        z1 = cz + self.PLATE_Z_MAX
+        base = self._plate_pos + self._origin
+        q    = self._plate_quat
+        z0 = self.PLATE_Z_MIN
+        z1 = self.PLATE_Z_MAX
         r  = self.PLATE_RADIUS
         color, center_color, w, N = 0xFFFF8800, 0xFFFFFF00, 2.5, 48  # orange/yellow, line width, segments
         z_levels = [z0, (z0 + z1) * 0.5, z1]
 
+        def to_world(lx, ly, lz):
+            """Map a plate-local offset to a world-space carb.Float3, applying plate tilt."""
+            v = torch.tensor([lx, ly, lz], dtype=base.dtype, device=base.device)
+            if q is not None:
+                v = _math_utils().quat_apply(q, v)
+            v = v + base
+            return carb.Float3(v[0].item(), v[1].item(), v[2].item())
+
         rings = []
         for z in z_levels:
             rings.append([
-                carb.Float3(cx + r * math.cos(2 * math.pi * i / N),
-                            cy + r * math.sin(2 * math.pi * i / N), z)
+                to_world(r * math.cos(2 * math.pi * i / N),
+                         r * math.sin(2 * math.pi * i / N), z)
                 for i in range(N)
             ])
 
-        center_bottom = carb.Float3(cx, cy, z0)
-        center_top    = carb.Float3(cx, cy, z1)
+        center_bottom = to_world(0.0, 0.0, z0)
+        center_top    = to_world(0.0, 0.0, z1)
         draw.draw_line(center_bottom, center_color, w, center_top, center_color, w)
 
         for ring in rings:
@@ -1169,6 +1218,7 @@ class SubtaskTracker:
                 plate_radius=self.PLATE_RADIUS,
                 plate_z_min=self.PLATE_Z_MIN,
                 plate_z_max=self.PLATE_Z_MAX,
+                plate_quat=self._plate_quat,
             )
             if not in_plate:
                 self._stability[name] = (0, None)
@@ -1196,6 +1246,7 @@ class SubtaskTracker:
                 plate_radius=self.PLATE_RADIUS,
                 plate_z_min=self.PLATE_Z_MIN,
                 plate_z_max=self.PLATE_Z_MAX,
+                plate_quat=self._plate_quat,
             )
             stable_frames, _ = self._stability.get(target, (0, None))
             held, held_dist  = self._is_orange_held(opos)

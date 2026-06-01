@@ -32,7 +32,7 @@ from dataset_recorder import SubtaskRecorder, SYNTHETIC_DATASETS_DIR, merge_stag
 # 1. Configuration & Setup
 # ==========================================
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model_id = "MasterProject2026/Gal-pick-orange-tailedCH20"
+model_id = "MasterProject2026/Gal-merged-tailed-auto"
 
 # Number of full robot sessions to run.
 # One inference run = env reset → robot picks all oranges → done.
@@ -59,7 +59,7 @@ FREEZE_FRAMES       = 20     # freeze frames appended at the end of each subtask
 FULL_SUCCESS_DATA_GENERATION = False
 
 # --- Evaluation metrics ---
-EVAL_RESUME          = False  # True: resume completed-run metrics from results/<model>/checkpoint.json
+EVAL_RESUME          = True  # True: resume completed-run metrics from results/<model>/checkpoint.json
 EVAL_CHECKPOINT_PATH = None   # None: use model-specific default in results/
 
 TIMEOUT_STEPS = {
@@ -175,7 +175,10 @@ def finish_story_episode(story, step_count, oranges_in_plate, end_reason,
                          sub_tracker, controller):
     if story is None:
         return None
-    placed_oranges = set(sub_tracker.placed_oranges)
+    # Build the recorded placed_oranges purely from the final geometric snapshot so
+    # it agrees with oranges_in_plate. Real-time placed_oranges credit is intentionally
+    # not seeded here — an orange that bounced out must not be recorded as placed.
+    placed_oranges = set()
     for name, pos in orange_positions.items():
         if sub_tracker._is_orange_in_plate(pos):
             placed_oranges.add(name)
@@ -206,7 +209,11 @@ def fallback_scene(last_plate_pos, last_orange_positions, last_positions, orange
 
 
 def orchestrated_oranges_in_plate(positions, sub_tracker):
-    return max(count_oranges_in_plate(positions), len(sub_tracker.placed_oranges))
+    # Pure geometric snapshot of the final frame — must agree with what is
+    # actually in the (possibly tilted) plate. placed_oranges is a real-time
+    # control signal only and must not inflate the final count, otherwise an
+    # orange that bounced out after being confirmed stays counted forever.
+    return count_oranges_in_plate(positions)
 
 
 class OrderController:
@@ -1212,7 +1219,7 @@ try:
                 if not _fs_active:
                     final_positions = save_positions(env)
                     oranges_in_plate = orchestrated_oranges_in_plate(final_positions, sub_tracker)
-                    story_success = len(sub_tracker.placed_oranges) >= len(controller.orange_names) or oranges_in_plate == 3
+                    story_success = oranges_in_plate >= len(controller.orange_names)
                     if story_success:
                         end_reason = "success_3_oranges"
                     elif is_terminated:
