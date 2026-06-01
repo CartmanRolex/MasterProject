@@ -23,6 +23,7 @@ from eval_utils import (
     SubtaskTracker,
     classify_orange_positions,
     count_oranges_in_plate,
+    perturb_plate_debug,
     save_positions,
 )
 from dataset_recorder import SubtaskRecorder, SYNTHETIC_DATASETS_DIR, merge_staging_into
@@ -868,6 +869,7 @@ try:
 
             # --- Step ---
             last_positions = save_positions(env)
+            perturb_plate_debug(env, step_count)   # no-op unless DEBUG_PERTURB_PLATE
             t_step_start = time.perf_counter()
             obs, reward, terminated, truncated, info = env.step(step_action[0].unsqueeze(0))
             step_time_ms = (time.perf_counter() - t_step_start) * 1000

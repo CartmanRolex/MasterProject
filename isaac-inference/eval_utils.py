@@ -276,6 +276,49 @@ def save_positions(env, plate_name="Plate",
     return positions
 
 
+# Debug aid: when True, perturb_plate_debug() oscillates and tilts the plate each
+# step so the plate-oriented in-plate check box (DEBUG_DRAW_PLATE_BOUNDS) can be
+# verified to track the plate. This intentionally disrupts the manipulation task —
+# for visual debugging of the bounds only.
+DEBUG_PERTURB_PLATE = True   # DEBUG: plate wobbles/tilts to verify the check box — turn OFF for real eval
+
+_perturb_anchor: dict = {}
+
+
+def perturb_plate_debug(env, step_count, plate_name="Plate",
+                        xy_amp=0.06, tilt_amp_deg=25.0, period=160):
+    """Kinematically wobble and tilt the plate for debugging the oriented check box.
+
+    No-op unless DEBUG_PERTURB_PLATE is True. Re-anchors to the plate's resting
+    pose at the start of each episode (step_count <= 0) and writes a smoothly
+    oscillating pose every step. Call right before env.step(). The plate is driven
+    kinematically (pose + zero velocity each step), so the task is disrupted — this
+    is purely to confirm the check box follows the plate's position and tilt.
+    """
+    if not DEBUG_PERTURB_PLATE:
+        return
+    import math
+    plate = env.scene[plate_name]
+    if step_count <= 0 or "pos" not in _perturb_anchor:
+        _perturb_anchor["pos"] = plate.data.root_pos_w[0].clone()
+    anchor = _perturb_anchor["pos"]
+    device = anchor.device
+    phase = 2 * math.pi * step_count / period
+    new_pos = anchor.clone()
+    new_pos[0] += xy_amp * math.sin(phase)
+    new_pos[1] += xy_amp * math.cos(0.7 * phase)
+    roll  = math.radians(tilt_amp_deg) * math.sin(phase)
+    pitch = math.radians(tilt_amp_deg) * math.cos(0.9 * phase)
+    quat = _math_utils().quat_from_euler_xyz(
+        torch.tensor([roll],  device=device),
+        torch.tensor([pitch], device=device),
+        torch.tensor([0.0],   device=device),
+    )[0]
+    pose = torch.cat([new_pos, quat]).unsqueeze(0)
+    plate.write_root_pose_to_sim(pose)
+    plate.write_root_velocity_to_sim(torch.zeros((1, 6), device=device))
+
+
 def count_oranges_in_plate(positions,
                            orange_names=("Orange001", "Orange002", "Orange003")):
     """Count orange COMs inside the shared cylindrical plate volume.
@@ -794,7 +837,7 @@ class SubtaskTracker:
     PLATE_Z_MAX  = PLATE_Z_MAX   # top of the cylinder
 
     DEBUG_DRAW            = False  # set to True to visualize the grip axis in the Isaac Sim viewport
-    DEBUG_DRAW_PLATE_BOUNDS = False  # set to True to draw the plate occupancy cylinder
+    DEBUG_DRAW_PLATE_BOUNDS = True   # DEBUG: draw the plate occupancy cylinder — turn OFF for real eval
     ORANGE_HELD_MAX_DIST  = 0.06   # max tip-to-orange distance (m) to consider orange still held
     PLACE_GRIPPER_Z_MIN   = 0.04   # gripper tip must be at or above this env-relative Z to confirm place
     GRASP_APPROACH_DIST   = 0.10   # tip-to-orange distance (m) beyond which only V_approach contributes
