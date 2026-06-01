@@ -26,9 +26,36 @@ _SO101_REST_POSE_DEG = {
     "gripper":       ( -40.0,  20.0),   # -10°
 }
 
-PLATE_RADIUS = 0.10
-PLATE_Z_MIN  = -0.01
-PLATE_Z_MAX  = 0.065
+# Plate interior geometry. The interior is a truncated cone from
+# PLATE_INNER_RADIUS (at PLATE_Z_MIN) widening to PLATE_RADIUS at
+# PLATE_Z_MIN + PLATE_CONE_HEIGHT, then a straight cylinder of PLATE_RADIUS
+# up to PLATE_Z_MAX.
+PLATE_RADIUS       = 0.10    # XY radius of the cylindrical upper section
+PLATE_INNER_RADIUS = 0.06    # XY radius at the bottom of the plate interior
+PLATE_CONE_HEIGHT  = 0.035    # height of the truncated-cone section above PLATE_Z_MIN
+PLATE_Z_MIN        = 0
+PLATE_Z_MAX        = 0.065
+
+
+def plate_radius_at_height(z_offset,
+                           plate_radius=PLATE_RADIUS,
+                           inner_radius=PLATE_INNER_RADIUS,
+                           cone_height=PLATE_CONE_HEIGHT,
+                           plate_z_min=PLATE_Z_MIN):
+    """Allowed XY radius of the plate interior at a height above the plate centre.
+
+    Linearly interpolates from inner_radius at plate_z_min up to plate_radius at
+    plate_z_min + cone_height (the truncated cone), then stays at plate_radius
+    (the cylinder).
+    """
+    if cone_height <= 0:
+        return plate_radius
+    t = (z_offset - plate_z_min) / cone_height
+    if t <= 0:
+        return inner_radius
+    if t >= 1:
+        return plate_radius
+    return inner_radius + t * (plate_radius - inner_radius)
 
 import numpy as np
 import torch
@@ -216,12 +243,16 @@ def plate_position_metrics(plate_pos, orange_pos,
                            plate_radius=PLATE_RADIUS,
                            plate_z_min=PLATE_Z_MIN,
                            plate_z_max=PLATE_Z_MAX,
-                           plate_quat=None):
+                           plate_quat=None,
+                           inner_radius=PLATE_INNER_RADIUS,
+                           cone_height=PLATE_CONE_HEIGHT):
     """Return shared plate-occupancy geometry for an orange COM position.
 
-    When plate_quat (w,x,y,z) is given, the orange is transformed into the
-    plate's local frame so the cylinder follows plate tilt. When None, the
-    legacy world-axis-aligned cylinder is used.
+    The interior is a truncated cone (inner_radius → plate_radius over
+    cone_height) topped by a straight cylinder, so the allowed XY radius grows
+    with height near the bottom. When plate_quat (w,x,y,z) is given, the orange
+    is transformed into the plate's local frame so the volume follows plate
+    tilt. When None, the legacy world-axis-aligned volume is used.
     """
     if plate_quat is not None:
         plate_pos  = torch.as_tensor(plate_pos)
@@ -235,7 +266,10 @@ def plate_position_metrics(plate_pos, orange_pos,
         ox, oy, oz = (_position_component(orange_pos, i) for i in range(3))
         xy_dist = ((ox - px) ** 2 + (oy - py) ** 2) ** 0.5
         z_offset = oz - pz
-    in_plate = xy_dist < plate_radius and plate_z_min < z_offset < plate_z_max
+    allowed_radius = plate_radius_at_height(
+        z_offset, plate_radius, inner_radius, cone_height, plate_z_min
+    )
+    in_plate = xy_dist < allowed_radius and plate_z_min < z_offset < plate_z_max
     return xy_dist, z_offset, in_plate
 
 
@@ -243,7 +277,9 @@ def is_orange_position_in_plate(plate_pos, orange_pos,
                                 plate_radius=PLATE_RADIUS,
                                 plate_z_min=PLATE_Z_MIN,
                                 plate_z_max=PLATE_Z_MAX,
-                                plate_quat=None):
+                                plate_quat=None,
+                                inner_radius=PLATE_INNER_RADIUS,
+                                cone_height=PLATE_CONE_HEIGHT):
     """Return True when an orange COM is inside the shared plate volume."""
     _, _, in_plate = plate_position_metrics(
         plate_pos,
@@ -252,6 +288,8 @@ def is_orange_position_in_plate(plate_pos, orange_pos,
         plate_z_min=plate_z_min,
         plate_z_max=plate_z_max,
         plate_quat=plate_quat,
+        inner_radius=inner_radius,
+        cone_height=cone_height,
     )
     return in_plate
 
@@ -280,7 +318,7 @@ def save_positions(env, plate_name="Plate",
 # step so the plate-oriented in-plate check box (DEBUG_DRAW_PLATE_BOUNDS) can be
 # verified to track the plate. This intentionally disrupts the manipulation task —
 # for visual debugging of the bounds only.
-DEBUG_PERTURB_PLATE = True   # DEBUG: plate wobbles/tilts to verify the check box — turn OFF for real eval
+DEBUG_PERTURB_PLATE = False   # DEBUG: plate wobbles/tilts to verify the check box — turn OFF for real eval
 
 _perturb_anchor: dict = {}
 
@@ -831,10 +869,12 @@ class SubtaskTracker:
     Each confirmation fires a single persistent print and then goes silent.
     """
 
-    # Cylindrical plate bounds relative to plate centre (m).
-    PLATE_RADIUS = PLATE_RADIUS  # XY radius of the cylinder
-    PLATE_Z_MIN  = PLATE_Z_MIN   # bottom of the cylinder (relative to plate centre Z)
-    PLATE_Z_MAX  = PLATE_Z_MAX   # top of the cylinder
+    # Plate bounds relative to plate centre (m): truncated cone then cylinder.
+    PLATE_RADIUS       = PLATE_RADIUS        # XY radius of the cylindrical upper section
+    PLATE_INNER_RADIUS = PLATE_INNER_RADIUS  # XY radius at the bottom of the interior
+    PLATE_CONE_HEIGHT  = PLATE_CONE_HEIGHT   # height of the cone section above PLATE_Z_MIN
+    PLATE_Z_MIN  = PLATE_Z_MIN   # bottom of the volume (relative to plate centre Z)
+    PLATE_Z_MAX  = PLATE_Z_MAX   # top of the volume
 
     DEBUG_DRAW            = False  # set to True to visualize the grip axis in the Isaac Sim viewport
     DEBUG_DRAW_PLATE_BOUNDS = True   # DEBUG: draw the plate occupancy cylinder — turn OFF for real eval
@@ -958,6 +998,8 @@ class SubtaskTracker:
             plate_z_min=self.PLATE_Z_MIN,
             plate_z_max=self.PLATE_Z_MAX,
             plate_quat=self._plate_quat,
+            inner_radius=self.PLATE_INNER_RADIUS,
+            cone_height=self.PLATE_CONE_HEIGHT,
         )
 
     def _is_orange_held(self, orange_pos) -> tuple[bool, float]:
@@ -999,7 +1041,7 @@ class SubtaskTracker:
 
 
     def _draw_plate_cylinder(self):
-        """Draw the cylindrical plate check volume in the Isaac Sim viewport."""
+        """Draw the plate check volume (truncated cone + cylinder) in the viewport."""
         if not (self.DEBUG_DRAW or self.DEBUG_DRAW_PLATE_BOUNDS) or self._origin is None or self._plate_pos is None:
             return
         try:
@@ -1014,9 +1056,15 @@ class SubtaskTracker:
         q    = self._plate_quat
         z0 = self.PLATE_Z_MIN
         z1 = self.PLATE_Z_MAX
-        r  = self.PLATE_RADIUS
+        z_cone = z0 + self.PLATE_CONE_HEIGHT
         color, center_color, w, N = 0xFFFF8800, 0xFFFFFF00, 2.5, 48  # orange/yellow, line width, segments
-        z_levels = [z0, (z0 + z1) * 0.5, z1]
+
+        # Ring levels as (z, radius): bottom of cone, cone top, cylinder top.
+        # The cone-top ring is only added when the cone fits below PLATE_Z_MAX.
+        levels = [(z0, self.PLATE_INNER_RADIUS)]
+        if z0 < z_cone < z1:
+            levels.append((z_cone, self.PLATE_RADIUS))
+        levels.append((z1, self.PLATE_RADIUS))
 
         def to_world(lx, ly, lz):
             """Map a plate-local offset to a world-space carb.Float3, applying plate tilt."""
@@ -1027,7 +1075,7 @@ class SubtaskTracker:
             return carb.Float3(v[0].item(), v[1].item(), v[2].item())
 
         rings = []
-        for z in z_levels:
+        for z, r in levels:
             rings.append([
                 to_world(r * math.cos(2 * math.pi * i / N),
                          r * math.sin(2 * math.pi * i / N), z)
@@ -1042,8 +1090,10 @@ class SubtaskTracker:
             for i in range(N):
                 draw.draw_line(ring[i], color, w, ring[(i + 1) % N], color, w)
 
+        # Vertical/sloped wall connectors traced through every ring level.
         for i in range(0, N, 4):
-            draw.draw_line(rings[0][i], color, w, rings[-1][i], color, w)
+            for k in range(len(rings) - 1):
+                draw.draw_line(rings[k][i], color, w, rings[k + 1][i], color, w)
             draw.draw_line(center_bottom, color, 1.5, rings[0][i], color, 1.5)
             draw.draw_line(center_top, color, 1.5, rings[-1][i], color, 1.5)
 
@@ -1262,6 +1312,8 @@ class SubtaskTracker:
                 plate_z_min=self.PLATE_Z_MIN,
                 plate_z_max=self.PLATE_Z_MAX,
                 plate_quat=self._plate_quat,
+                inner_radius=self.PLATE_INNER_RADIUS,
+                cone_height=self.PLATE_CONE_HEIGHT,
             )
             if not in_plate:
                 self._stability[name] = (0, None)
@@ -1290,11 +1342,17 @@ class SubtaskTracker:
                 plate_z_min=self.PLATE_Z_MIN,
                 plate_z_max=self.PLATE_Z_MAX,
                 plate_quat=self._plate_quat,
+                inner_radius=self.PLATE_INNER_RADIUS,
+                cone_height=self.PLATE_CONE_HEIGHT,
             )
             stable_frames, _ = self._stability.get(target, (0, None))
             held, held_dist  = self._is_orange_held(opos)
             gripper_z = (self._gripper_tip[2].item() - pz) if self._gripper_tip is not None else float("nan")
-            r_sym  = "✓" if xy_dist < self.PLATE_RADIUS else "✗"
+            allowed_r = plate_radius_at_height(
+                z_offset, self.PLATE_RADIUS, self.PLATE_INNER_RADIUS,
+                self.PLATE_CONE_HEIGHT, self.PLATE_Z_MIN,
+            )
+            r_sym  = "✓" if xy_dist < allowed_r else "✗"
             z_sym  = "✓" if self.PLATE_Z_MIN < z_offset < self.PLATE_Z_MAX else "✗"
             s_sym  = "✓" if stable_frames >= self.stability_frames else "✗"
             d_sym  = "✓" if held else "✗"
@@ -1303,7 +1361,7 @@ class SubtaskTracker:
             lines = [
                 f"  🍊 PLACE [{display}]  step {step_count}",
                 f"     Held:       {held_dist:.4f} < {self.ORANGE_HELD_MAX_DIST}  {d_sym}  (info)",
-                f"     XY dist:    {xy_dist:.4f} < {self.PLATE_RADIUS}  {r_sym}",
+                f"     XY dist:    {xy_dist:.4f} < {allowed_r:.4f}  {r_sym}",
                 f"     Orange Z:   {z_offset:.4f}  ∈ [{self.PLATE_Z_MIN}, {self.PLATE_Z_MAX}]  {z_sym}",
                 f"     Tip-Plate Z:{gripper_z:.4f} >= {self.PLACE_GRIPPER_Z_MIN}  {gz_sym}",
                 f"     Stable:     {stable_frames}/{self.stability_frames}  {s_sym}",
