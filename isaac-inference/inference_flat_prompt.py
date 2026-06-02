@@ -35,7 +35,7 @@ from robot_utils import (
 # ==========================================
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model_id = "MasterProject2026/Gal-merged-tailed-auto-no-lang-no-home"
-n_inference_runs = 500
+n_inference_runs = 100
 max_steps = 5000
 instruction = "Place the orange into plate"
 
@@ -464,8 +464,15 @@ try:
             done = is_terminated or is_truncated
 
             if done:
-                last_positions = post_step_positions
-                oranges_in_plate = count_oranges_in_plate(last_positions)
+                # Isaac Lab auto-resets during env.step() when truncated/terminated fires,
+                # so post_step_positions reflects the reset state (count=0) in those cases.
+                # Only use it when our own stability check triggered done; otherwise use
+                # last_positions (captured before the resetting step), which matches the snapshot.
+                if stable_plate_count >= STABLE_PLATE_FRAMES:
+                    count_positions = post_step_positions
+                else:
+                    count_positions = last_positions
+                oranges_in_plate = count_oranges_in_plate(count_positions)
                 tracker.end_episode(
                     episode,
                     step_count,

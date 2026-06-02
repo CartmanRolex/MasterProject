@@ -39,7 +39,7 @@ model_id = "MasterProject2026/Gal-merged-tailed-auto"
 # One inference run = env reset → robot picks all oranges → done.
 # Each successful subtask within a run produces one subtask recording
 # in the dataset (what LeRobot calls an "episode").
-n_inference_runs = 500
+n_inference_runs = 100
 
 max_steps = 5000
 
@@ -1219,7 +1219,10 @@ try:
                 if recorder and not episode_succeeded:
                     recorder.discard()
                 if not _fs_active:
-                    final_positions = save_positions(env)
+                    # Isaac Lab auto-resets during env.step() when truncated fires, so a
+                    # fresh save_positions() would return the reset state (count=0). Use
+                    # last_positions (captured before the resetting step) in that case.
+                    final_positions = last_positions if is_truncated else save_positions(env)
                     oranges_in_plate = orchestrated_oranges_in_plate(final_positions, sub_tracker)
                     story_success = oranges_in_plate >= len(controller.orange_names)
                     if story_success:
