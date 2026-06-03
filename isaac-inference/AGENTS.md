@@ -91,6 +91,7 @@ In order. Do not start item N+1 until N is done and acknowledged.
 | `commands.txt` | Reference commands (training, inference, teleop, dataset conversion). |
 | `inference_privileged_grasp.py` | Privileged grasp policy — uses DLS (Damped Least Squares) IK to position the gripper above each orange's exact XY from Isaac privileged state. Fully scripted/geometric; no VLA. |
 | `inference_flat_prompt.py` | Flat single-instruction SmolVLA eval — one fixed prompt ("Place the orange into plate"), no subtask sequencing. Used to evaluate the no-lang-no-home model variant. |
+| `inference_act_flat_prompt.py` | ACT policy eval — same flat single-instruction structure as `inference_flat_prompt.py` but uses `ACTPolicy` with chunked action execution (`predict_action_chunk`, `actions_per_chunk=50`). Saves to `results/<model>/act_checkpoint.json` and `act_latest.txt`. |
 
 ## Legacy / alternative entry points (do not modify without reason)
 

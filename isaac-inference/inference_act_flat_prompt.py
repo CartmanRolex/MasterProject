@@ -7,19 +7,19 @@ import subprocess
 import sys
 import threading
 import time
+from collections import deque
 from pathlib import Path
 
 import torch
 from lerobot.envs.factory import make_env
+from lerobot.policies.act.modeling_act import ACTPolicy
 from lerobot.policies.factory import make_pre_post_processors
-from lerobot.policies.smolvla.modeling_smolvla import SmolVLAPolicy
 from lerobot.policies.utils import build_inference_frame
 from tqdm import tqdm
 
 from eval_utils import (
     count_oranges_in_plate,
-    evaluation_checkpoint_path,
-    evaluation_summary_path,
+    evaluation_result_dir,
     save_episode_camera_snapshots,
     save_positions,
     short_model_name,
@@ -34,10 +34,11 @@ from robot_utils import (
 # 1. Configuration & Setup
 # ==========================================
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model_id = "MasterProject2026/pick-orange-mimic"
+model_id = "MasterProject2026/ACT-pick-orange"
 n_inference_runs = 100
 max_steps = 5000
 instruction = "Place the orange into plate"
+actions_per_chunk = 50
 
 EVAL_RESUME = True
 EVAL_CHECKPOINT_PATH = None
@@ -92,7 +93,7 @@ def tensor_to_bool(value):
     return bool(value)
 
 
-class FlatEvaluationTracker:
+class ACTEvaluationTracker:
     INFER_THRESHOLD_MS = 5.0
 
     def __init__(self, n_episodes, model_id, checkpoint_path=None, resume=True):
@@ -120,11 +121,11 @@ class FlatEvaluationTracker:
 
     @classmethod
     def _default_checkpoint_path(cls, model_id):
-        return evaluation_checkpoint_path(model_id, flat=True)
+        return evaluation_result_dir(model_id) / "act_checkpoint.json"
 
     @classmethod
     def _default_summary_path(cls, model_id):
-        return evaluation_summary_path(model_id, flat=True)
+        return evaluation_result_dir(model_id) / "act_latest.txt"
 
     @property
     def next_episode_index(self):
@@ -140,13 +141,13 @@ class FlatEvaluationTracker:
             with open(self.checkpoint_path) as f:
                 checkpoint = json.load(f)
         except Exception as exc:
-            tqdm.write(f"  Could not read flat evaluation checkpoint {self.checkpoint_path}: {exc}")
+            tqdm.write(f"  Could not read ACT evaluation checkpoint {self.checkpoint_path}: {exc}")
             return
 
         checkpoint_model = checkpoint.get("model_id")
         if checkpoint_model and checkpoint_model != self.model_id:
             tqdm.write(
-                f"  Ignoring flat evaluation checkpoint for {checkpoint_model}; "
+                f"  Ignoring ACT evaluation checkpoint for {checkpoint_model}; "
                 f"current model is {self.model_id}"
             )
             return
@@ -158,7 +159,7 @@ class FlatEvaluationTracker:
         )
         if self.episode_records:
             tqdm.write(
-                f"  Resuming flat evaluation: {len(self.episode_records)} "
+                f"  Resuming ACT evaluation: {len(self.episode_records)} "
                 f"completed run(s) loaded from {self.checkpoint_path}"
             )
 
@@ -206,13 +207,13 @@ class FlatEvaluationTracker:
             try:
                 save_episode_camera_snapshots(
                     self.model_id,
-                    "flat",
+                    "act",
                     episode,
                     camera_images.get("front"),
                     camera_images.get("wrist"),
                 )
             except Exception as exc:
-                tqdm.write(f"  Could not save flat episode camera snapshots: {exc}")
+                tqdm.write(f"  Could not save ACT episode camera snapshots: {exc}")
         self.save_checkpoint()
         self.write_summary()
 
@@ -226,16 +227,16 @@ class FlatEvaluationTracker:
         avg_oranges = sum(oranges) / n_eval if n_eval else 0
         mean_success_steps = sum(success_steps) / len(success_steps) if success_steps else float("nan")
         header = (
-            "FLAT-PROMPT EVALUATION COMPLETE"
+            "ACT EVALUATION COMPLETE"
             if n_eval == self.n_episodes
-            else f"FLAT-PROMPT EVALUATION SUMMARY (stopped after {n_eval}/{self.n_episodes} runs)"
+            else f"ACT EVALUATION SUMMARY (stopped after {n_eval}/{self.n_episodes} runs)"
         )
 
         return (
             f"\n========================================\n"
             f"{header}\n"
             f"Model ID:             {self.model_id}\n"
-            f"Prompt:               {instruction}\n"
+            f"Actions per chunk:    {actions_per_chunk}\n"
             f"Success Rate:         {successes}/{n_eval} ({pct(successes):.2f}%)\n"
             f"Avg oranges in plate: {avg_oranges:.2f}/3\n"
             f"Mean steps (success): {mean_success_steps:.1f}\n"
@@ -251,7 +252,7 @@ class FlatEvaluationTracker:
         self.checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
         checkpoint = {
             "model_id": self.model_id,
-            "prompt": instruction,
+            "actions_per_chunk": actions_per_chunk,
             "target_n_episodes": self.n_episodes,
             "completed_episodes": len(self.episode_records),
             "last_update": datetime.datetime.now().isoformat(timespec="seconds"),
@@ -332,13 +333,15 @@ suite_name = next(iter(envs_dict))
 env = envs_dict[suite_name][0].envs[0].unwrapped
 env.cfg.episode_length_s = max_steps * env.cfg.sim.dt * env.cfg.decimation
 
-print(f"Loading trained policy: {model_id}...")
-policy = SmolVLAPolicy.from_pretrained(model_id).to(device).eval()
+print(f"Loading trained ACT policy: {model_id}...")
+policy = ACTPolicy.from_pretrained(model_id).to(device).eval()
 
+device_override = {"device": str(device)}
 preprocess, postprocess = make_pre_post_processors(
     policy.config,
     model_id,
-    preprocessor_overrides={"device_processor": {"device": str(device)}},
+    preprocessor_overrides={"device_processor": device_override},
+    postprocessor_overrides={"device_processor": device_override},
 )
 
 logging.getLogger("omni").setLevel(logging.ERROR)
@@ -354,7 +357,7 @@ except ImportError:
 # ==========================================
 # 3. Evaluation Loop
 # ==========================================
-tracker = FlatEvaluationTracker(
+tracker = ACTEvaluationTracker(
     n_inference_runs,
     model_id=model_id,
     checkpoint_path=EVAL_CHECKPOINT_PATH,
@@ -373,9 +376,9 @@ signal.signal(signal.SIGTERM, _shutdown_handler)
 
 print(f"""
 {'=' * 52}
-  FLAT-PROMPT EVALUATION
+  ACT EVALUATION
   Model:          {model_id}
-  Prompt:         "{instruction}"
+  Actions/chunk:  {actions_per_chunk}
   Inference runs: {n_inference_runs}
   Max steps:      {max_steps}
   Completed runs: {len(tracker.episode_records)} already tracked
@@ -385,9 +388,8 @@ print(f"""
 try:
     for episode in range(tracker.next_episode_index, n_inference_runs):
         print(f"\n{'-' * 52}")
-        print(f"  Flat-prompt run {episode + 1} / {n_inference_runs}")
+        print(f"  ACT run {episode + 1} / {n_inference_runs}")
         print(f"{'-' * 52}")
-        print(f'  ACTIVE PROMPT -> "{instruction}"')
 
         obs, _ = env.reset()
         policy.reset()
@@ -395,6 +397,7 @@ try:
 
         done = False
         step_count = 0
+        action_queue = deque()
         last_positions = save_positions(env)
         last_camera_images = None
         STABLE_PLATE_FRAMES = 10
@@ -419,35 +422,57 @@ try:
             raw_front = policy_obs["front"][0].cpu().numpy()
             raw_wrist = policy_obs["wrist"][0].cpu().numpy()
             last_camera_images = {"front": raw_front, "wrist": raw_wrist}
-            joint_pos_converted = convert_leisaac_action_to_lerobot(policy_obs["joint_pos"].cpu().numpy())
 
-            obs_frame = build_inference_frame(
-                observation={
-                    "front": raw_front,
-                    "wrist": raw_wrist,
-                    "state": joint_pos_converted[0],
-                },
-                ds_features=dataset_features,
-                device=device,
-                task=instruction,
-            )
+            infer_time_ms = None
 
-            batch = preprocess(obs_frame)
-            t_infer_start = time.perf_counter()
-            with torch.inference_mode():
-                action_output = policy.select_action(batch)
-            infer_time_ms = (time.perf_counter() - t_infer_start) * 1000
+            if len(action_queue) == 0:
+                joint_pos_converted = convert_leisaac_action_to_lerobot(policy_obs["joint_pos"].cpu().numpy())
 
-            action_dict = postprocess(action_output)
-            final_action = action_dict.get("action", action_dict) if isinstance(action_dict, dict) else action_dict
-            action_np = final_action.cpu().numpy()
-            if action_np.ndim == 1:
-                action_np = action_np[None, :]
-            step_action = torch.from_numpy(convert_lerobot_action_to_leisaac(action_np)).to(device)
+                obs_frame = build_inference_frame(
+                    observation={
+                        "front": raw_front,
+                        "wrist": raw_wrist,
+                        "state": joint_pos_converted[0],
+                    },
+                    ds_features=dataset_features,
+                    device=device,
+                    task=instruction,
+                )
+
+                batch = preprocess(obs_frame)
+
+                # ACT expects no temporal dimension on state and images
+                if "observation.state" in batch and batch["observation.state"].ndim == 3:
+                    batch["observation.state"] = batch["observation.state"][:, 0, :]
+                for cam in ["observation.images.front", "observation.images.wrist"]:
+                    if cam in batch and batch[cam].ndim == 5:
+                        batch[cam] = batch[cam][:, 0, :, :, :]
+
+                t_infer_start = time.perf_counter()
+                with torch.inference_mode():
+                    action_tensor = policy.predict_action_chunk(batch)
+                infer_time_ms = (time.perf_counter() - t_infer_start) * 1000
+
+                if action_tensor.ndim != 3:
+                    action_tensor = action_tensor.unsqueeze(0)
+                action_tensor = action_tensor[:, :actions_per_chunk, :]
+
+                _, chunk_size, _ = action_tensor.shape
+                processed_actions = []
+                for i in range(chunk_size):
+                    single_action = action_tensor[:, i, :]
+                    processed_actions.append(postprocess(single_action))
+
+                action_chunk = torch.stack(processed_actions, dim=1).squeeze(0).cpu().numpy()
+                action_chunk_converted = convert_lerobot_action_to_leisaac(action_chunk)
+                for i in range(action_chunk_converted.shape[0]):
+                    action_queue.append(torch.from_numpy(action_chunk_converted[i]).to(device))
+
+            step_action = action_queue.popleft()
 
             last_positions = save_positions(env)
             t_step_start = time.perf_counter()
-            obs, _reward, terminated, truncated, _info = env.step(step_action[0].unsqueeze(0))
+            obs, _reward, terminated, truncated, _info = env.step(step_action.unsqueeze(0))
             step_time_ms = (time.perf_counter() - t_step_start) * 1000
 
             tracker.record_timing(infer_time_ms, step_time_ms)
@@ -464,10 +489,6 @@ try:
             done = is_terminated or is_truncated
 
             if done:
-                # Isaac Lab auto-resets during env.step() when truncated/terminated fires,
-                # so post_step_positions reflects the reset state (count=0) in those cases.
-                # Only use it when our own stability check triggered done; otherwise use
-                # last_positions (captured before the resetting step), which matches the snapshot.
                 if stable_plate_count >= STABLE_PLATE_FRAMES:
                     count_positions = post_step_positions
                 else:
@@ -485,7 +506,7 @@ try:
             break
 
 except KeyboardInterrupt:
-    print("\nInterrupted - saving flat evaluation summary.")
+    print("\nInterrupted - saving ACT evaluation summary.")
 except Exception as exc:
     print(f"\nCRASH DETECTED: {exc}")
     import traceback
