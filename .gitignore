@@ -18,6 +18,7 @@ cluster-training/outputs/
 # ── Debug snapshots ─────────────────────────────────────────────────────
 isaac-inference/debug/
 isaac-inference/explore_tests/
+isaac-inference/results/**/snapshots/
 
 # ── Inference run logs ───────────────────────────────────────────────────
 isaac-inference/logs/
