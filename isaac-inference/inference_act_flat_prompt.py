@@ -38,7 +38,6 @@ model_id = "MasterProject2026/ACT-pick-orange"
 n_inference_runs = 100
 max_steps = 5000
 instruction = "Place the orange into plate"
-actions_per_chunk = 50
 
 EVAL_RESUME = True
 EVAL_CHECKPOINT_PATH = None
@@ -236,7 +235,6 @@ class ACTEvaluationTracker:
             f"\n========================================\n"
             f"{header}\n"
             f"Model ID:             {self.model_id}\n"
-            f"Actions per chunk:    {actions_per_chunk}\n"
             f"Success Rate:         {successes}/{n_eval} ({pct(successes):.2f}%)\n"
             f"Avg oranges in plate: {avg_oranges:.2f}/3\n"
             f"Mean steps (success): {mean_success_steps:.1f}\n"
@@ -252,7 +250,6 @@ class ACTEvaluationTracker:
         self.checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
         checkpoint = {
             "model_id": self.model_id,
-            "actions_per_chunk": actions_per_chunk,
             "target_n_episodes": self.n_episodes,
             "completed_episodes": len(self.episode_records),
             "last_update": datetime.datetime.now().isoformat(timespec="seconds"),
@@ -378,7 +375,7 @@ print(f"""
 {'=' * 52}
   ACT EVALUATION
   Model:          {model_id}
-  Actions/chunk:  {actions_per_chunk}
+  Chunk size:     {policy.config.chunk_size} (from model config)
   Inference runs: {n_inference_runs}
   Max steps:      {max_steps}
   Completed runs: {len(tracker.episode_records)} already tracked
@@ -455,7 +452,6 @@ try:
 
                 if action_tensor.ndim != 3:
                     action_tensor = action_tensor.unsqueeze(0)
-                action_tensor = action_tensor[:, :actions_per_chunk, :]
 
                 _, chunk_size, _ = action_tensor.shape
                 processed_actions = []
