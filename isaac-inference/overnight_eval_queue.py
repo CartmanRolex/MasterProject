@@ -23,6 +23,9 @@ REMOTE = SCRIPT_DIR / "remote.sh"
 QUEUE_ROOT = SCRIPT_DIR / "logs" / "overnight_queue"
 SEED_LIST_PATH = SCRIPT_DIR / "eval_seeds" / "pick_orange_reference_100_v1.json"
 CONDA_ENV = os.environ.get("CONDA_ENV", "leisaac_envhub")
+BASE_HTTP_PORT = int(os.environ.get("QUEUE_BASE_HTTP_PORT", "8011"))
+BASE_HTTPS_PORT = int(os.environ.get("QUEUE_BASE_HTTPS_PORT", "8433"))
+BASE_LIVESTREAM_PORT = int(os.environ.get("QUEUE_BASE_LIVESTREAM_PORT", "49100"))
 MAX_CONCURRENT = int(os.environ.get("QUEUE_MAX_CONCURRENT", "3"))
 STARTUP_GRACE_SECONDS = int(os.environ.get("QUEUE_STARTUP_GRACE_SECONDS", str(20 * 60)))
 STALL_SECONDS = int(os.environ.get("QUEUE_STALL_SECONDS", str(75 * 60)))
@@ -149,6 +152,28 @@ ARCHIVE_RESULT_NAMES = [
     "ACT-pick-orange-chunk20",
     "ACT-pick-orange-chunk100",
 ]
+
+
+def job_port_index(job: EvalJob) -> int:
+    return JOBS.index(job)
+
+
+def job_kit_args(job: EvalJob) -> list[str]:
+    index = job_port_index(job)
+    return [
+        f"--/exts/omni.services.transport.server.http/port={BASE_HTTP_PORT + index}",
+        f"--/exts/omni.services.transport.server.http/https/port={BASE_HTTPS_PORT + index}",
+        f"--/app/livestream/port={BASE_LIVESTREAM_PORT + index}",
+    ]
+
+
+def job_ports(job: EvalJob) -> dict[str, int]:
+    index = job_port_index(job)
+    return {
+        "http_port": BASE_HTTP_PORT + index,
+        "https_port": BASE_HTTPS_PORT + index,
+        "livestream_port": BASE_LIVESTREAM_PORT + index,
+    }
 
 
 def now_stamp() -> str:
@@ -398,7 +423,7 @@ def run_remote_for_smoke(job: EvalJob, run_id: str, label: str, timeout: int) ->
         result_name=smoke_result_name,
     )
     proc = subprocess.Popen(
-        ["bash", str(REMOTE), job.script],
+        ["bash", str(REMOTE), job.script, *job_kit_args(job)],
         cwd=SCRIPT_DIR,
         env=env,
         stdout=subprocess.DEVNULL,
@@ -482,7 +507,7 @@ def concurrency_smoke_test(run_id: str) -> None:
             result_name=smoke_result_name,
         )
         proc = subprocess.Popen(
-            ["bash", str(REMOTE), job.script],
+            ["bash", str(REMOTE), job.script, *job_kit_args(job)],
             cwd=SCRIPT_DIR,
             env=env,
             stdout=subprocess.DEVNULL,
@@ -650,10 +675,11 @@ def start_real_job(job: EvalJob, state: dict, run_id: str, session: str) -> None
         "REMOTE_LOG_FILE",
         "INSTRUCTION",
     })
+    remote_cmd = " ".join(shlex.quote(arg) for arg in ["./remote.sh", job.script, *job_kit_args(job)])
     inner = (
         "set -o pipefail; "
         f"cd {shlex.quote(str(SCRIPT_DIR))}; "
-        f"{exports} ./remote.sh {shlex.quote(job.script)}; "
+        f"{exports} {remote_cmd}; "
         "rc=$?; "
         f"echo $rc > {shlex.quote(str(rc_file))}; "
         "exit $rc"
@@ -689,10 +715,15 @@ def start_real_job(job: EvalJob, state: dict, run_id: str, session: str) -> None
             "log_file": str(job_log),
             "rc_file": str(rc_file),
             "checkpoint_file": str(job.checkpoint_path),
+            **job_ports(job),
             "message": f"started attempt {attempt}",
         }
     )
-    print(f"Started {job.name} attempt {attempt} in tmux window {window_id}")
+    ports = job_ports(job)
+    print(
+        f"Started {job.name} attempt {attempt} in tmux window {window_id} "
+        f"(http={ports['http_port']}, livestream={ports['livestream_port']})"
+    )
 
 
 def finish_or_retry_job(job: EvalJob, state: dict, reason: str, run_id: str, session: str) -> None:
@@ -771,6 +802,7 @@ def run_manager(run_id: str, session: str) -> None:
             "target_runs": job.n_runs,
             "actions_per_chunk": job.actions_per_chunk,
             "fresh": job.fresh,
+            **job_ports(job),
         }
         for job in JOBS
     }
@@ -867,7 +899,9 @@ def print_status(run_id: str | None) -> None:
         print(
             f"{name:<18} {state.get('status'):<8} "
             f"{state.get('completed', 0):>3}/{state.get('target_runs', '?')} "
-            f"attempts={state.get('attempts')} {state.get('message', '')}"
+            f"attempts={state.get('attempts')} "
+            f"http={state.get('http_port', '-')} live={state.get('livestream_port', '-')} "
+            f"{state.get('message', '')}"
         )
 
 
