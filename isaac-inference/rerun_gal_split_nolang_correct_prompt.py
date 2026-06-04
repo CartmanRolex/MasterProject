@@ -28,6 +28,8 @@ CONDA_ENV = os.environ.get("CONDA_ENV", "leisaac_envhub")
 MAX_RETRIES = int(os.environ.get("GAL_SPLIT_RERUN_MAX_RETRIES", "2"))
 STALL_SECONDS = int(os.environ.get("GAL_SPLIT_RERUN_STALL_SECONDS", str(75 * 60)))
 STARTUP_GRACE_SECONDS = int(os.environ.get("GAL_SPLIT_RERUN_STARTUP_GRACE_SECONDS", str(20 * 60)))
+BASE_HTTP_PORT = int(os.environ.get("GAL_SPLIT_RERUN_BASE_HTTP_PORT", "8011"))
+BASE_LIVESTREAM_PORT = int(os.environ.get("GAL_SPLIT_RERUN_BASE_LIVESTREAM_PORT", "49100"))
 
 
 @dataclass(frozen=True)
@@ -78,6 +80,14 @@ def shard_log(run_id: str, shard: Shard, attempt: int) -> Path:
 
 def shard_rc(run_id: str, shard: Shard, attempt: int) -> Path:
     return run_root(run_id) / shard.name / f"attempt{attempt}.rc"
+
+
+def shard_http_port(shard: Shard) -> int:
+    return BASE_HTTP_PORT + shard.index
+
+
+def shard_livestream_port(shard: Shard) -> int:
+    return BASE_LIVESTREAM_PORT + shard.index
 
 
 def shards() -> list[Shard]:
@@ -230,7 +240,7 @@ def start_shard(run_id: str, session: str, shard: Shard, state: dict) -> None:
         "INSTRUCTION": PROMPT,
         "N_INFERENCE_RUNS": str(shard.n_runs),
         "MAX_STEPS": "5000",
-        "EVAL_RESUME": "0",
+        "EVAL_RESUME": "1" if shard_checkpoint(run_id, shard).exists() else "0",
         "EVAL_CHECKPOINT_PATH": str(shard_checkpoint(run_id, shard)),
         "EVAL_SUMMARY_PATH": str(shard_summary(run_id, shard)),
         "SAVE_CAMERA_SNAPSHOTS": "0",
@@ -240,10 +250,16 @@ def start_shard(run_id: str, session: str, shard: Shard, state: dict) -> None:
         "REMOTE_LOG_FILE": str(log_path),
     }
     exports = " ".join(f"{key}={shlex.quote(value)}" for key, value in sorted(env.items()))
+    kit_args = [
+        f"--/exts/omni.services.transport.server.http/port={shard_http_port(shard)}",
+        f"--/exts/omni.services.transport.server.http/https/port={8433 + shard.index}",
+        f"--/app/livestream/port={shard_livestream_port(shard)}",
+    ]
+    remote_cmd = " ".join(shlex.quote(arg) for arg in ["./remote.sh", "inference_flat_prompt.py", *kit_args])
     inner = (
         "set -o pipefail; "
         f"cd {shlex.quote(str(SCRIPT_DIR))}; "
-        f"{exports} ./remote.sh inference_flat_prompt.py; "
+        f"{exports} {remote_cmd}; "
         "rc=$?; "
         f"echo $rc > {shlex.quote(str(rc_path))}; "
         "exit $rc"
@@ -278,10 +294,15 @@ def start_shard(run_id: str, session: str, shard: Shard, state: dict) -> None:
             "completed": checkpoint_completed(shard_checkpoint(run_id, shard)),
             "log": str(log_path),
             "rc": str(rc_path),
+            "http_port": shard_http_port(shard),
+            "livestream_port": shard_livestream_port(shard),
             "message": f"started attempt {attempt}",
         }
     )
-    print(f"Started {shard.name} attempt {attempt} in {window_id}")
+    print(
+        f"Started {shard.name} attempt {attempt} in {window_id} "
+        f"(http={shard_http_port(shard)}, livestream={shard_livestream_port(shard)})"
+    )
 
 
 def mark_done_or_retry(run_id: str, session: str, shard: Shard, state: dict, reason: str) -> None:
@@ -471,7 +492,14 @@ def status(run_id: str | None) -> None:
     data = json.loads(state_path.read_text())
     print(f"Run {data['run_id']} updated {data['updated_at']}")
     for name, state in data["states"].items():
-        print(f"{name:<8} {state.get('status'):<8} {state.get('completed', 0):>3}/{state.get('target')} {state.get('message', '')}")
+        ports = ""
+        if state.get("http_port"):
+            ports = f" http={state.get('http_port')} livestream={state.get('livestream_port')}"
+        print(
+            f"{name:<8} {state.get('status'):<8} "
+            f"{state.get('completed', 0):>3}/{state.get('target')} "
+            f"{state.get('message', '')}{ports}"
+        )
     if final_checkpoint_path().exists():
         print(f"Final completed: {checkpoint_completed(final_checkpoint_path())}/{TOTAL_EPISODES}")
 

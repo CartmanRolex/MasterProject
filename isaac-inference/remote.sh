@@ -1,10 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 
-# Configuration pour le streaming à distance
-export LIVESTREAM=2
-export ENABLE_LIVESTREAM=1
-export ENABLE_CAMERAS=1
+# Configuration pour le streaming à distance. Callers may override these when
+# launching concurrent Isaac jobs that need separate service ports.
+export LIVESTREAM="${LIVESTREAM:-2}"
+export ENABLE_LIVESTREAM="${ENABLE_LIVESTREAM:-1}"
+export ENABLE_CAMERAS="${ENABLE_CAMERAS:-1}"
 
 export LEISAAC_ASSETS_ROOT="$HOME/Documents/leisaac/assets"
 
