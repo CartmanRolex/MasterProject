@@ -21,6 +21,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 RESULTS_DIR = SCRIPT_DIR / "results"
 REMOTE = SCRIPT_DIR / "remote.sh"
 QUEUE_ROOT = SCRIPT_DIR / "logs" / "overnight_queue"
+SEED_LIST_PATH = SCRIPT_DIR / "eval_seeds" / "pick_orange_reference_100_v1.json"
 CONDA_ENV = os.environ.get("CONDA_ENV", "leisaac_envhub")
 MAX_CONCURRENT = int(os.environ.get("QUEUE_MAX_CONCURRENT", "3"))
 STARTUP_GRACE_SECONDS = int(os.environ.get("QUEUE_STARTUP_GRACE_SECONDS", str(20 * 60)))
@@ -42,10 +43,13 @@ class EvalJob:
     resume: bool = True
     fresh: bool = False
     instruction: str | None = None
+    actions_per_chunk: int = 20
+    result_name: str | None = None
 
     @property
     def result_dir(self) -> Path:
-        return RESULTS_DIR / self.model_id.rstrip("/").split("/")[-1]
+        name = self.result_name or self.model_id.rstrip("/").split("/")[-1]
+        return RESULTS_DIR / name
 
     @property
     def checkpoint_path(self) -> Path:
@@ -72,6 +76,7 @@ JOBS = [
         kind="autonomous",
         resume=False,
         fresh=True,
+        actions_per_chunk=20,
     ),
     EvalJob(
         name="gal_merged_auto",
@@ -80,32 +85,70 @@ JOBS = [
         kind="autonomous",
         resume=False,
         fresh=True,
+        actions_per_chunk=20,
     ),
     EvalJob(
         name="gal_split_nolang",
         script="inference_flat_prompt.py",
         model_id="MasterProject2026/Gal_split_nolang",
         kind="flat",
-        resume=True,
-        instruction="Grab orange and place into plate",
+        resume=False,
+        fresh=True,
+        instruction="Place the orange into plate",
+        actions_per_chunk=20,
     ),
     EvalJob(
-        name="act_pick_orange",
-        script="inference_act_flat_prompt.py",
-        model_id="MasterProject2026/ACT-pick-orange",
-        kind="act",
-        resume=True,
+        name="gal_merged_nolang_nohome",
+        script="inference_flat_prompt.py",
+        model_id="MasterProject2026/Gal-merged-tailed-auto-no-lang-no-home",
+        kind="flat",
+        resume=False,
+        fresh=True,
+        instruction="Place the orange into plate",
+        actions_per_chunk=20,
     ),
     EvalJob(
         name="pick_orange_mimic",
         script="inference_flat_prompt.py",
         model_id="MasterProject2026/pick-orange-mimic",
         kind="flat",
-        resume=True,
+        resume=False,
+        fresh=True,
         instruction="Grab orange and place into plate",
+        actions_per_chunk=20,
+    ),
+    EvalJob(
+        name="act_pick_orange_ch20",
+        script="inference_act_flat_prompt.py",
+        model_id="MasterProject2026/ACT-pick-orange",
+        kind="act",
+        resume=False,
+        fresh=True,
+        actions_per_chunk=20,
+        result_name="ACT-pick-orange-chunk20",
+    ),
+    EvalJob(
+        name="act_pick_orange_ch100",
+        script="inference_act_flat_prompt.py",
+        model_id="MasterProject2026/ACT-pick-orange",
+        kind="act",
+        resume=False,
+        fresh=True,
+        actions_per_chunk=100,
+        result_name="ACT-pick-orange-chunk100",
     ),
 ]
 JOBS_BY_NAME = {job.name: job for job in JOBS}
+ARCHIVE_RESULT_NAMES = [
+    "Gal-pick-orange-tailedCH20",
+    "Gal-merged-tailed-auto",
+    "Gal_split_nolang",
+    "Gal-merged-tailed-auto-no-lang-no-home",
+    "pick-orange-mimic",
+    "ACT-pick-orange",
+    "ACT-pick-orange-chunk20",
+    "ACT-pick-orange-chunk100",
+]
 
 
 def now_stamp() -> str:
@@ -170,7 +213,9 @@ def base_job_env(
     summary_path: Path | None = None,
     log_path: Path | None = None,
     save_snapshots: bool = True,
+    result_name: str | None = None,
 ) -> dict[str, str]:
+    effective_result_name = result_name or job.result_name
     env = os.environ.copy()
     env.update(
         {
@@ -178,7 +223,9 @@ def base_job_env(
             "MODEL_ID": job.model_id,
             "N_INFERENCE_RUNS": str(n_runs),
             "MAX_STEPS": str(max_steps),
+            "ACTIONS_PER_CHUNK": str(job.actions_per_chunk),
             "EVAL_RESUME": "1" if resume else "0",
+            "EVAL_SEED_LIST_PATH": str(SEED_LIST_PATH),
             "SAVE_CAMERA_SNAPSHOTS": "1" if save_snapshots else "0",
             "LIVESTREAM": "2",
             "ENABLE_LIVESTREAM": "1",
@@ -191,6 +238,8 @@ def base_job_env(
         env["EVAL_SUMMARY_PATH"] = str(summary_path)
     if log_path:
         env["REMOTE_LOG_FILE"] = str(log_path)
+    if effective_result_name:
+        env["EVAL_RESULT_NAME"] = effective_result_name
     if job.instruction is not None:
         env["INSTRUCTION"] = job.instruction
     return env
@@ -206,6 +255,15 @@ def static_preflight() -> None:
         "overnight_eval_queue.py",
     ]
     run_checked(conda_python_cmd("-m", "py_compile", *scripts), timeout=120)
+
+    print("Static preflight: reference seed list")
+    seed_code = (
+        "from eval_utils import load_eval_seed_set; "
+        f"s=load_eval_seed_set({str(SEED_LIST_PATH)!r}, min_count=100); "
+        "assert s['count'] == 100, s; "
+        "print(s['name'], s['sha256'])"
+    )
+    run_checked(conda_python_cmd("-c", seed_code), timeout=120)
 
     print("Static preflight: imports in leisaac_envhub")
     run_checked(
@@ -228,7 +286,7 @@ def static_preflight() -> None:
     run_checked(conda_python_cmd("-c", cuda_code), timeout=120)
 
     print("Static preflight: Hugging Face model configs")
-    models = [job.model_id for job in JOBS]
+    models = sorted({job.model_id for job in JOBS})
     hf_code = (
         "from huggingface_hub import HfApi; "
         f"models={models!r}; "
@@ -269,11 +327,43 @@ def kill_process_group(proc: subprocess.Popen, grace_seconds=60) -> None:
     proc.wait(timeout=10)
 
 
-def smoke_success_ready(checkpoint_path: Path, summary_path: Path, log_path: Path) -> tuple[bool, str]:
+def smoke_start_snapshot_path(result_name: str, kind: str) -> Path:
+    return RESULTS_DIR / result_name / "snapshots" / kind / "episode_000000_start_front.png"
+
+
+def smoke_success_ready(
+    checkpoint_path: Path,
+    summary_path: Path,
+    log_path: Path,
+    *,
+    job: EvalJob | None = None,
+    result_name: str | None = None,
+    require_snapshot: bool = False,
+) -> tuple[bool, str]:
     if checkpoint_completed(checkpoint_path) < 1:
         return False, "checkpoint has no completed episode"
+    try:
+        checkpoint = json.loads(checkpoint_path.read_text())
+    except Exception as exc:
+        return False, f"checkpoint is unreadable: {exc}"
+    episodes = checkpoint.get("episodes", [])
+    first_episode = episodes[0] if episodes and isinstance(episodes[0], dict) else {}
+    required_record_fields = ["seed", "seed_index", "seed_set_name", "seed_set_hash"]
+    missing_record_fields = [field for field in required_record_fields if field not in first_episode]
+    if missing_record_fields:
+        return False, f"episode record missing {missing_record_fields}"
+    if "initial_scene" not in first_episode and "initial_scene_audit" not in first_episode:
+        return False, "episode record missing initial scene audit"
+    if not checkpoint.get("seed_set", {}).get("sha256"):
+        return False, "checkpoint missing seed_set hash"
     if not summary_path.exists():
         return False, "summary file is missing"
+    if require_snapshot:
+        if not job or not result_name:
+            return False, "snapshot check missing job/result name"
+        snapshot_path = smoke_start_snapshot_path(result_name, job.kind)
+        if not snapshot_path.exists():
+            return False, f"start snapshot is missing: {snapshot_path}"
     text = log_path.read_text(errors="ignore") if log_path.exists() else ""
     required = ["Loading LeIsaac Environment", "Loading trained", "Summary saved to"]
     missing = [needle for needle in required if needle not in text]
@@ -288,9 +378,13 @@ def run_remote_for_smoke(job: EvalJob, run_id: str, label: str, timeout: int) ->
     checkpoint_path = preflight_dir / f"{job.name}_{label}_checkpoint.json"
     summary_path = preflight_dir / f"{job.name}_{label}_summary.txt"
     log_path = preflight_dir / f"{job.name}_{label}.log"
+    smoke_result_name = f"_preflight_{run_id}_{job.name}_{label}"[:96]
+    smoke_result_dir = RESULTS_DIR / smoke_result_name
     for path in (checkpoint_path, summary_path, log_path):
         if path.exists():
             path.unlink()
+    if smoke_result_dir.exists():
+        shutil.rmtree(smoke_result_dir)
 
     env = base_job_env(
         job,
@@ -300,7 +394,8 @@ def run_remote_for_smoke(job: EvalJob, run_id: str, label: str, timeout: int) ->
         checkpoint_path=checkpoint_path,
         summary_path=summary_path,
         log_path=log_path,
-        save_snapshots=False,
+        save_snapshots=True,
+        result_name=smoke_result_name,
     )
     proc = subprocess.Popen(
         ["bash", str(REMOTE), job.script],
@@ -312,10 +407,18 @@ def run_remote_for_smoke(job: EvalJob, run_id: str, label: str, timeout: int) ->
     )
     deadline = time.time() + timeout
     while time.time() < deadline:
-        ready, _ = smoke_success_ready(checkpoint_path, summary_path, log_path)
+        ready, _ = smoke_success_ready(
+            checkpoint_path,
+            summary_path,
+            log_path,
+            job=job,
+            result_name=smoke_result_name,
+            require_snapshot=True,
+        )
         if ready:
             if proc.poll() is None:
                 kill_process_group(proc, grace_seconds=10)
+            shutil.rmtree(smoke_result_dir, ignore_errors=True)
             return True, f"{job.name} smoke OK; log: {log_path}"
         if proc.poll() is not None:
             break
@@ -326,9 +429,17 @@ def run_remote_for_smoke(job: EvalJob, run_id: str, label: str, timeout: int) ->
         return False, f"{job.name} smoke timed out; log: {log_path}"
     if proc.returncode != 0:
         return False, f"{job.name} smoke exited {proc.returncode}; log: {log_path}"
-    ready, reason = smoke_success_ready(checkpoint_path, summary_path, log_path)
+    ready, reason = smoke_success_ready(
+        checkpoint_path,
+        summary_path,
+        log_path,
+        job=job,
+        result_name=smoke_result_name,
+        require_snapshot=True,
+    )
     if not ready:
         return False, f"{job.name} smoke did not finish cleanly ({reason}); log: {log_path}"
+    shutil.rmtree(smoke_result_dir, ignore_errors=True)
     return True, f"{job.name} smoke OK; log: {log_path}"
 
 
@@ -352,9 +463,13 @@ def concurrency_smoke_test(run_id: str) -> None:
         checkpoint_path = preflight_dir / f"{job.name}_concurrent_checkpoint.json"
         summary_path = preflight_dir / f"{job.name}_concurrent_summary.txt"
         log_path = preflight_dir / f"{job.name}_concurrent.log"
+        smoke_result_name = f"_preflight_{run_id}_{job.name}_concurrent"[:96]
+        smoke_result_dir = RESULTS_DIR / smoke_result_name
         for path in (checkpoint_path, summary_path, log_path):
             if path.exists():
                 path.unlink()
+        if smoke_result_dir.exists():
+            shutil.rmtree(smoke_result_dir)
         env = base_job_env(
             job,
             n_runs=1,
@@ -363,7 +478,8 @@ def concurrency_smoke_test(run_id: str) -> None:
             checkpoint_path=checkpoint_path,
             summary_path=summary_path,
             log_path=log_path,
-            save_snapshots=False,
+            save_snapshots=True,
+            result_name=smoke_result_name,
         )
         proc = subprocess.Popen(
             ["bash", str(REMOTE), job.script],
@@ -373,20 +489,28 @@ def concurrency_smoke_test(run_id: str) -> None:
             stderr=subprocess.STDOUT,
             start_new_session=True,
         )
-        procs.append((job, proc, checkpoint_path, summary_path, log_path))
+        procs.append((job, proc, checkpoint_path, summary_path, log_path, smoke_result_name, smoke_result_dir))
 
     succeeded = set()
     failed = {}
     deadline = time.time() + CONCURRENCY_SMOKE_TIMEOUT_SECONDS
     while time.time() < deadline:
-        for job, proc, checkpoint_path, summary_path, log_path in procs:
+        for job, proc, checkpoint_path, summary_path, log_path, smoke_result_name, smoke_result_dir in procs:
             if job.name in succeeded or job.name in failed:
                 continue
-            ready, reason = smoke_success_ready(checkpoint_path, summary_path, log_path)
+            ready, reason = smoke_success_ready(
+                checkpoint_path,
+                summary_path,
+                log_path,
+                job=job,
+                result_name=smoke_result_name,
+                require_snapshot=True,
+            )
             if ready:
                 succeeded.add(job.name)
                 if proc.poll() is None:
                     kill_process_group(proc, grace_seconds=10)
+                shutil.rmtree(smoke_result_dir, ignore_errors=True)
                 print(f"{job.name} concurrent smoke OK; log: {log_path}")
                 continue
             if proc.poll() is not None:
@@ -395,18 +519,26 @@ def concurrency_smoke_test(run_id: str) -> None:
             break
         time.sleep(10)
     else:
-        for _, proc, _, _, _ in procs:
+        for _, proc, _, _, _, _, _ in procs:
             if proc.poll() is None:
                 kill_process_group(proc)
         raise RuntimeError("Concurrency smoke timed out")
 
     failures = list(failed.values())
-    for job, proc, checkpoint_path, summary_path, log_path in procs:
+    for job, proc, checkpoint_path, summary_path, log_path, smoke_result_name, smoke_result_dir in procs:
         if job.name in succeeded or job.name in failed:
             continue
-        ready, reason = smoke_success_ready(checkpoint_path, summary_path, log_path)
+        ready, reason = smoke_success_ready(
+            checkpoint_path,
+            summary_path,
+            log_path,
+            job=job,
+            result_name=smoke_result_name,
+            require_snapshot=True,
+        )
         if ready:
             succeeded.add(job.name)
+            shutil.rmtree(smoke_result_dir, ignore_errors=True)
             print(f"{job.name} concurrent smoke OK; log: {log_path}")
         else:
             failures.append(f"{job.name} did not finish cleanly ({reason}); log: {log_path}")
@@ -416,17 +548,18 @@ def concurrency_smoke_test(run_id: str) -> None:
 
 def archive_fresh_results(run_id: str) -> None:
     archive_root = RESULTS_DIR / "_archive" / run_id
-    for job in JOBS:
-        if not job.fresh or not job.result_dir.exists():
+    for result_name in ARCHIVE_RESULT_NAMES:
+        result_dir = RESULTS_DIR / result_name
+        if not result_dir.exists():
             continue
         archive_root.mkdir(parents=True, exist_ok=True)
-        dest = archive_root / job.result_dir.name
+        dest = archive_root / result_dir.name
         suffix = 1
         while dest.exists():
             suffix += 1
-            dest = archive_root / f"{job.result_dir.name}_{suffix}"
-        print(f"Archiving {job.result_dir} -> {dest}")
-        shutil.move(str(job.result_dir), str(dest))
+            dest = archive_root / f"{result_dir.name}_{suffix}"
+        print(f"Archiving {result_dir} -> {dest}")
+        shutil.move(str(result_dir), str(dest))
 
 
 def tmux_run(cmd: list[str], *, check=False) -> subprocess.CompletedProcess:
@@ -506,7 +639,10 @@ def start_real_job(job: EvalJob, state: dict, run_id: str, session: str) -> None
         "MODEL_ID",
         "N_INFERENCE_RUNS",
         "MAX_STEPS",
+        "ACTIONS_PER_CHUNK",
         "EVAL_RESUME",
+        "EVAL_RESULT_NAME",
+        "EVAL_SEED_LIST_PATH",
         "SAVE_CAMERA_SNAPSHOTS",
         "LIVESTREAM",
         "ENABLE_LIVESTREAM",
@@ -630,8 +766,10 @@ def run_manager(run_id: str, session: str) -> None:
             "attempts": 0,
             "completed": checkpoint_completed(job.checkpoint_path),
             "model_id": job.model_id,
+            "result_name": job.result_dir.name,
             "script": job.script,
             "target_runs": job.n_runs,
+            "actions_per_chunk": job.actions_per_chunk,
             "fresh": job.fresh,
         }
         for job in JOBS

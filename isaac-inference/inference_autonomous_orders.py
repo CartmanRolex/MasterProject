@@ -22,10 +22,13 @@ from eval_utils import (
     EpisodeStory,
     HomeChecker,
     SubtaskTracker,
+    capture_initial_scene_audit,
     classify_orange_positions,
     count_oranges_in_plate,
+    load_eval_seed_set,
     perturb_plate_debug,
     save_positions,
+    seed_metadata_for_episode,
 )
 from dataset_recorder import SubtaskRecorder, SYNTHETIC_DATASETS_DIR, merge_staging_into
 
@@ -64,6 +67,7 @@ model_id = env_value("MODEL_ID", "MasterProject2026/Gal-pick-orange-tailedCH20")
 n_inference_runs = env_int("N_INFERENCE_RUNS", 110)
 
 max_steps = env_int("MAX_STEPS", 5000)
+ACTIONS_PER_CHUNK = env_int("ACTIONS_PER_CHUNK", 20)
 
 # --- Dataset recording ---ss
 RECORD_ENABLED      = False
@@ -83,9 +87,12 @@ FULL_SUCCESS_DATA_GENERATION = False
 
 # --- Evaluation metrics ---
 EVAL_RESUME          = env_flag("EVAL_RESUME", True)  # True: resume completed-run metrics from results/<model>/checkpoint.json
+EVAL_RESULT_NAME     = env_value("EVAL_RESULT_NAME")
 EVAL_CHECKPOINT_PATH = env_value("EVAL_CHECKPOINT_PATH")   # None: use model-specific default in results/
 EVAL_SUMMARY_PATH    = env_value("EVAL_SUMMARY_PATH")
+EVAL_SEED_LIST_PATH  = env_value("EVAL_SEED_LIST_PATH")
 SAVE_CAMERA_SNAPSHOTS = env_flag("SAVE_CAMERA_SNAPSHOTS", True)
+eval_seed_set = load_eval_seed_set(EVAL_SEED_LIST_PATH, min_count=n_inference_runs)
 
 TIMEOUT_STEPS = {
     "GRASP": 700,
@@ -512,6 +519,11 @@ env.cfg.episode_length_s = max_steps * env.cfg.sim.dt * env.cfg.decimation
 
 print(f"Loading trained policy: {model_id}...")
 policy = SmolVLAPolicy.from_pretrained(model_id).to(device).eval()
+model_chunk_size = getattr(policy.config, "chunk_size", None)
+execute_actions_per_chunk = (
+    min(ACTIONS_PER_CHUNK, model_chunk_size) if isinstance(model_chunk_size, int) else ACTIONS_PER_CHUNK
+)
+policy.config.n_action_steps = execute_actions_per_chunk
 
 preprocess, postprocess = make_pre_post_processors(
     policy.config,
@@ -529,6 +541,8 @@ tracker = EvaluationTracker(
     checkpoint_path=EVAL_CHECKPOINT_PATH,
     summary_path=EVAL_SUMMARY_PATH,
     resume=EVAL_RESUME,
+    result_name=EVAL_RESULT_NAME,
+    seed_set=eval_seed_set,
 )
 sub_tracker = SubtaskTracker(block=False)
 sub_tracker.DEBUG_DRAW_PLATE_BOUNDS = DEBUG_DRAW_PLATE_BOUNDS
@@ -588,7 +602,11 @@ if FULL_SUCCESS_DATA_GENERATION:
 {'━' * 52}
   FULL-SUCCESS DATA GENERATION
   Model:                {model_id}
+  Result name:          {EVAL_RESULT_NAME or model_id.rstrip('/').split('/')[-1]}
+  Model chunk:          {model_chunk_size if model_chunk_size is not None else 'unknown'} actions
+  Execute chunk:        {execute_actions_per_chunk} actions before replanning
   Target successes:     {n_inference_runs}
+  Seed set:             {eval_seed_set['name'] if eval_seed_set else 'unseeded'}
   Subtask recordings:   {_recorded_so_far} already saved
 {'━' * 52}
 """)
@@ -599,7 +617,11 @@ else:
 {'━' * 52}
   AUTONOMOUS EVALUATION
   Model:                {model_id}
+  Result name:          {EVAL_RESULT_NAME or model_id.rstrip('/').split('/')[-1]}
+  Model chunk:          {model_chunk_size if model_chunk_size is not None else 'unknown'} actions
+  Execute chunk:        {execute_actions_per_chunk} actions before replanning
   Inference runs:       {n_inference_runs}
+  Seed set:             {eval_seed_set['name'] if eval_seed_set else 'unseeded'}
   Completed runs:       {_completed_so_far} already tracked
   Recording:            {'enabled' if RECORD_ENABLED else 'disabled'}
   Subtask recordings:   {_recorded_so_far} already saved
@@ -632,7 +654,18 @@ try:
             print(f"  Inference run {run_idx + 1} / {n_inference_runs}")
             print(f"{'─' * 52}")
 
-        obs, _ = env.reset()
+        episode_seed, seed_metadata = (None, {}) if _fs_active else seed_metadata_for_episode(eval_seed_set, run_idx)
+        if episode_seed is None:
+            obs, _ = env.reset()
+        else:
+            print(f"  Seed: {episode_seed} (index {run_idx})")
+            obs, _ = env.reset(seed=episode_seed)
+        start_policy_obs = obs["policy"]
+        start_camera_images = {
+            "front": start_policy_obs["front"][0].cpu().numpy(),
+            "wrist": start_policy_obs["wrist"][0].cpu().numpy(),
+        }
+        initial_scene_audit = capture_initial_scene_audit(env)
         policy.reset()
 
         if not _fs_active:
@@ -678,6 +711,9 @@ try:
                                         n_redirections=controller.n_redirections,
                                         n_oranges_abandoned=0,
                                         camera_images=last_camera_images if SAVE_CAMERA_SNAPSHOTS else None,
+                                        seed_metadata=seed_metadata,
+                                        initial_scene_audit=initial_scene_audit,
+                                        start_camera_images=start_camera_images if SAVE_CAMERA_SNAPSHOTS else None,
                                         episode_story=story_record)
                 done = True
                 break
@@ -702,6 +738,9 @@ try:
                                         n_redirections=controller.n_redirections,
                                         n_oranges_abandoned=0,
                                         camera_images=last_camera_images if SAVE_CAMERA_SNAPSHOTS else None,
+                                        seed_metadata=seed_metadata,
+                                        initial_scene_audit=initial_scene_audit,
+                                        start_camera_images=start_camera_images if SAVE_CAMERA_SNAPSHOTS else None,
                                         episode_story=story_record)
                 done = True
                 break
@@ -1262,6 +1301,9 @@ try:
                                         n_redirections=controller.n_redirections,
                                         n_oranges_abandoned=0,
                                         camera_images=last_camera_images if SAVE_CAMERA_SNAPSHOTS else None,
+                                        seed_metadata=seed_metadata,
+                                        initial_scene_audit=initial_scene_audit,
+                                        start_camera_images=start_camera_images if SAVE_CAMERA_SNAPSHOTS else None,
                                         episode_story=story_record)
 
         # --- Post-episode: merge staging on full success ---

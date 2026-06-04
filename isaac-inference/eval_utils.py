@@ -9,6 +9,7 @@ Provides:
 """
 
 import datetime
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -72,23 +73,99 @@ def short_model_name(model_id):
     return model_id.rstrip("/").split("/")[-1] if model_id else None
 
 
-def evaluation_result_dir(model_id):
-    model_name = short_model_name(model_id)
+def evaluation_result_dir(model_id, result_name=None):
+    model_name = short_model_name(result_name) or short_model_name(model_id)
     return _RESULTS_DIR / model_name if model_name else _RESULTS_DIR
 
 
-def evaluation_checkpoint_path(model_id, flat=False):
+def evaluation_checkpoint_path(model_id, flat=False, result_name=None):
     filename = "flat_checkpoint.json" if flat else "checkpoint.json"
-    return evaluation_result_dir(model_id) / filename
+    return evaluation_result_dir(model_id, result_name=result_name) / filename
 
 
-def evaluation_summary_path(model_id, flat=False):
+def evaluation_summary_path(model_id, flat=False, result_name=None):
     filename = "flat_latest.txt" if flat else "latest.txt"
-    return evaluation_result_dir(model_id) / filename
+    return evaluation_result_dir(model_id, result_name=result_name) / filename
 
 
-def evaluation_snapshot_dir(model_id, run_type):
-    return evaluation_result_dir(model_id) / "snapshots" / run_type
+def evaluation_snapshot_dir(model_id, run_type, result_name=None):
+    return evaluation_result_dir(model_id, result_name=result_name) / "snapshots" / run_type
+
+
+def seed_list_sha256(seeds):
+    """Hash the canonical seed array so all model runs can prove same episodes."""
+    payload = json.dumps([int(seed) for seed in seeds], separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
+def load_eval_seed_set(path, *, min_count=None):
+    """Load and validate a reference seed JSON file.
+
+    The expected format is a dict with a ``seeds`` list and optional metadata.
+    A raw JSON list is accepted for quick experiments, but tracked reference
+    files should use the dict form.
+    """
+    if not path:
+        return None
+
+    seed_path = Path(path).expanduser()
+    if not seed_path.is_absolute():
+        seed_path = Path(__file__).parent / seed_path
+    data = json.loads(seed_path.read_text())
+    if isinstance(data, list):
+        data = {"name": seed_path.stem, "seeds": data}
+    if not isinstance(data, dict) or not isinstance(data.get("seeds"), list):
+        raise ValueError(f"seed file must be a JSON object with a seeds list: {seed_path}")
+
+    seeds = [int(seed) for seed in data["seeds"]]
+    if len(set(seeds)) != len(seeds):
+        raise ValueError(f"seed file contains duplicate seeds: {seed_path}")
+    if min_count is not None and len(seeds) < int(min_count):
+        raise ValueError(f"seed file has {len(seeds)} seeds, need at least {min_count}: {seed_path}")
+
+    digest = seed_list_sha256(seeds)
+    expected = data.get("sha256")
+    if expected and str(expected) != digest:
+        raise ValueError(f"seed file hash mismatch for {seed_path}: expected {expected}, got {digest}")
+    count = data.get("count")
+    if count is not None and int(count) != len(seeds):
+        raise ValueError(f"seed file count mismatch for {seed_path}: declared {count}, got {len(seeds)}")
+
+    return {
+        "name": data.get("name") or seed_path.stem,
+        "path": str(seed_path),
+        "master_seed": data.get("master_seed"),
+        "count": len(seeds),
+        "seeds": seeds,
+        "sha256": digest,
+    }
+
+
+def seed_metadata_for_episode(seed_set, episode):
+    if not seed_set:
+        return None, {}
+    episode = int(episode)
+    if episode < 0 or episode >= len(seed_set["seeds"]):
+        raise IndexError(f"episode {episode} is outside seed set of length {len(seed_set['seeds'])}")
+    seed = int(seed_set["seeds"][episode])
+    return seed, {
+        "seed": seed,
+        "seed_index": episode,
+        "seed_set_name": seed_set["name"],
+        "seed_set_hash": seed_set["sha256"],
+    }
+
+
+def seed_set_checkpoint_metadata(seed_set):
+    if not seed_set:
+        return None
+    return {
+        "name": seed_set["name"],
+        "path": seed_set["path"],
+        "master_seed": seed_set.get("master_seed"),
+        "count": seed_set["count"],
+        "sha256": seed_set["sha256"],
+    }
 
 
 # ============================================================
@@ -122,16 +199,26 @@ def camera_image_to_hwc_uint8(img):
     return _camera_array_for_image(img)
 
 
-def save_episode_camera_snapshots(model_id, run_type, episode, raw_front, raw_wrist):
+def save_episode_camera_snapshots(
+    model_id,
+    run_type,
+    episode,
+    raw_front,
+    raw_wrist,
+    *,
+    result_name=None,
+    stage="final",
+):
     """Save final front/wrist images for an evaluated episode."""
     if raw_front is None or raw_wrist is None:
         return
 
-    snapshot_dir = evaluation_snapshot_dir(model_id, run_type)
+    snapshot_dir = evaluation_snapshot_dir(model_id, run_type, result_name=result_name)
     snapshot_dir.mkdir(parents=True, exist_ok=True)
+    stage_suffix = "" if stage in (None, "", "final") else f"_{stage}"
     for name, img in (("front", raw_front), ("wrist", raw_wrist)):
         arr = _camera_array_for_image(img)
-        Image.fromarray(arr).save(snapshot_dir / f"episode_{int(episode):06d}_{name}.png")
+        Image.fromarray(arr).save(snapshot_dir / f"episode_{int(episode):06d}{stage_suffix}_{name}.png")
 
 def save_camera_snapshots(raw_front, raw_wrist, episode, step_count,
                           target_step=15, target_episode=0):
@@ -346,6 +433,54 @@ def save_positions(env, plate_name="Plate",
     for name in orange_names:
         positions[name] = env.scene[name].data.root_com_pos_w[0].clone() - origin
     return positions
+
+
+def _serializable_vec(value, ndigits=8):
+    if isinstance(value, torch.Tensor):
+        value = value.detach().cpu().flatten().tolist()
+    elif isinstance(value, np.ndarray):
+        value = value.flatten().tolist()
+    return [round(float(v), ndigits) for v in value]
+
+
+def capture_initial_scene_audit(
+    env,
+    *,
+    plate_name="Plate",
+    orange_names=("Orange001", "Orange002", "Orange003"),
+    camera_names=("front", "wrist"),
+):
+    """Capture reset-time object poses and camera USD view poses for seed audits."""
+    origin = env.scene.env_origins[0]
+    plate = env.scene[plate_name]
+    scene = {
+        "relative_to_env_origin": True,
+        "plate": {
+            "name": plate_name,
+            "position": _serializable_vec(plate.data.root_pos_w[0] - origin),
+            "quat_wxyz": _serializable_vec(plate.data.root_quat_w[0]),
+        },
+        "oranges": {},
+        "cameras": {},
+    }
+
+    for name in orange_names:
+        orange = env.scene[name]
+        scene["oranges"][name] = {
+            "com_position": _serializable_vec(orange.data.root_com_pos_w[0] - origin),
+            "root_position": _serializable_vec(orange.data.root_pos_w[0] - origin),
+            "quat_wxyz": _serializable_vec(orange.data.root_quat_w[0]),
+        }
+
+    for name in camera_names:
+        camera = env.scene[name]
+        pos, quat = camera._view.get_world_poses()
+        scene["cameras"][name] = {
+            "view_position_world": _serializable_vec(pos[0]),
+            "view_quat_opengl": _serializable_vec(quat[0]),
+        }
+
+    return scene
 
 
 # Debug aid: when True, perturb_plate_debug() oscillates and tilts the plate each
@@ -618,14 +753,25 @@ class EvaluationTracker:
     # select_action calls below this threshold are queue-replay pops, not real model inference.
     INFER_THRESHOLD_MS = 5.0
 
-    def __init__(self, n_episodes, model_id=None, checkpoint_path=None, summary_path=None, resume=True):
+    def __init__(
+        self,
+        n_episodes,
+        model_id=None,
+        checkpoint_path=None,
+        summary_path=None,
+        resume=True,
+        result_name=None,
+        seed_set=None,
+    ):
         self.n_episodes = n_episodes
         self.model_id = model_id
-        self.checkpoint_path = Path(checkpoint_path) if checkpoint_path else self._default_checkpoint_path(model_id)
+        self.result_name = result_name
+        self.seed_set = seed_set
+        self.checkpoint_path = Path(checkpoint_path) if checkpoint_path else self._default_checkpoint_path(model_id, result_name)
         self.summary_path = (
             Path(summary_path)
             if summary_path
-            else self._default_summary_path(model_id) if self.checkpoint_path else None
+            else self._default_summary_path(model_id, result_name) if self.checkpoint_path else None
         )
         self.episode_records = []
         self.successes = 0
@@ -656,16 +802,16 @@ class EvaluationTracker:
         return short_model_name(model_id)
 
     @classmethod
-    def _default_checkpoint_path(cls, model_id):
+    def _default_checkpoint_path(cls, model_id, result_name=None):
         if not cls._short_model_name(model_id):
             return None
-        return evaluation_checkpoint_path(model_id)
+        return evaluation_checkpoint_path(model_id, result_name=result_name)
 
     @classmethod
-    def _default_summary_path(cls, model_id):
+    def _default_summary_path(cls, model_id, result_name=None):
         if not cls._short_model_name(model_id):
             return None
-        return evaluation_summary_path(model_id)
+        return evaluation_summary_path(model_id, result_name=result_name)
 
     @property
     def next_episode_index(self):
@@ -724,6 +870,8 @@ class EvaluationTracker:
         success_rate = (self.successes / n_eval * 100) if n_eval else 0
         avg_oranges  = sum(self.total_oranges_placed) / n_eval if n_eval else 0
         header       = "EVALUATION COMPLETE" if n_eval == self.n_episodes else f"EVALUATION SUMMARY (stopped after {n_eval}/{self.n_episodes} runs)"
+        seed_set = seed_set_checkpoint_metadata(self.seed_set)
+        seed_line = f"Seed set:             {seed_set['name']} ({seed_set['sha256']})\n" if seed_set else ""
 
         def fmt(subtask, n):
             s   = self._subtask_stats.get(f"{subtask}_{n}", {})
@@ -755,6 +903,8 @@ class EvaluationTracker:
             f"\n========================================\n"
             f"{header}\n"
             f"Model ID:             {model_id}\n"
+            f"Result name:          {self.result_name or short_model_name(model_id)}\n"
+            f"{seed_line}"
             f"Success Rate:         {self.successes}/{n_eval} ({success_rate:.2f}%)\n"
             f"Avg oranges in plate: {avg_oranges:.2f}/3\n"
             f"Mean steps (success): {mean_steps:.1f}\n"
@@ -776,6 +926,8 @@ class EvaluationTracker:
         self.checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
         checkpoint = {
             "model_id": self.model_id,
+            "result_name": self.result_name,
+            "seed_set": seed_set_checkpoint_metadata(self.seed_set),
             "trace_schema_version": EpisodeStory.SCHEMA_VERSION,
             "target_n_episodes": self.n_episodes,
             "completed_episodes": len(self.episode_records),
@@ -829,7 +981,9 @@ class EvaluationTracker:
 
     def end_episode(self, episode, step_count, is_terminated, oranges_in_plate,
                     n_local_retries=0, n_redirections=0, n_oranges_abandoned=0,
-                    camera_images=None, episode_story=None):
+                    camera_images=None, episode_story=None,
+                    seed_metadata=None, initial_scene_audit=None,
+                    start_camera_images=None):
         """Record episode result, print a summary line, and advance the progress bar."""
         n_infer_calls  = len(self._infer_times)
         last_infer     = self._infer_times[-1] if self._infer_times else float("nan")
@@ -850,6 +1004,10 @@ class EvaluationTracker:
             "n_redirections": int(n_redirections),
             "n_oranges_abandoned": int(n_oranges_abandoned),
         }
+        if seed_metadata:
+            record.update(seed_metadata)
+        if initial_scene_audit:
+            record["initial_scene_audit"] = initial_scene_audit
         if episode_story:
             record.update(episode_story)
         self.episode_records = [r for r in self.episode_records if r["episode"] != episode]
@@ -869,6 +1027,19 @@ class EvaluationTracker:
         )
         if was_new_episode:
             self._pbar.update(1)
+        if start_camera_images:
+            try:
+                save_episode_camera_snapshots(
+                    self.model_id,
+                    "autonomous",
+                    episode,
+                    start_camera_images.get("front"),
+                    start_camera_images.get("wrist"),
+                    result_name=self.result_name,
+                    stage="start",
+                )
+            except Exception as exc:
+                tqdm.write(f"  ⚠ Could not save episode start camera snapshots: {exc}")
         if camera_images:
             try:
                 save_episode_camera_snapshots(
@@ -877,6 +1048,7 @@ class EvaluationTracker:
                     episode,
                     camera_images.get("front"),
                     camera_images.get("wrist"),
+                    result_name=self.result_name,
                 )
             except Exception as exc:
                 tqdm.write(f"  ⚠ Could not save episode camera snapshots: {exc}")

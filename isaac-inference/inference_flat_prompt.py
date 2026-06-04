@@ -18,12 +18,16 @@ from tqdm import tqdm
 
 from eval_utils import (
     camera_image_to_hwc_uint8,
+    capture_initial_scene_audit,
     count_oranges_in_plate,
     evaluation_checkpoint_path,
     evaluation_summary_path,
     is_plate_upside_down,
+    load_eval_seed_set,
     save_episode_camera_snapshots,
     save_positions,
+    seed_metadata_for_episode,
+    seed_set_checkpoint_metadata,
     short_model_name,
 )
 from robot_utils import (
@@ -64,9 +68,12 @@ ACTIONS_PER_CHUNK = env_int("ACTIONS_PER_CHUNK", 20)
 instruction = env_value("INSTRUCTION", "Grab orange and place into plate")
 
 EVAL_RESUME = env_flag("EVAL_RESUME", True)
+EVAL_RESULT_NAME = env_value("EVAL_RESULT_NAME")
 EVAL_CHECKPOINT_PATH = env_value("EVAL_CHECKPOINT_PATH")
 EVAL_SUMMARY_PATH = env_value("EVAL_SUMMARY_PATH")
+EVAL_SEED_LIST_PATH = env_value("EVAL_SEED_LIST_PATH")
 SAVE_CAMERA_SNAPSHOTS = env_flag("SAVE_CAMERA_SNAPSHOTS", True)
+eval_seed_set = load_eval_seed_set(EVAL_SEED_LIST_PATH, min_count=n_inference_runs)
 
 
 ENABLE_LIVESTREAM = env_flag("ENABLE_LIVESTREAM", env_flag("LIVESTREAM", False))
@@ -123,11 +130,22 @@ def tensor_to_bool(value):
 class FlatEvaluationTracker:
     INFER_THRESHOLD_MS = 5.0
 
-    def __init__(self, n_episodes, model_id, checkpoint_path=None, summary_path=None, resume=True):
+    def __init__(
+        self,
+        n_episodes,
+        model_id,
+        checkpoint_path=None,
+        summary_path=None,
+        resume=True,
+        result_name=None,
+        seed_set=None,
+    ):
         self.n_episodes = n_episodes
         self.model_id = model_id
-        self.checkpoint_path = Path(checkpoint_path) if checkpoint_path else self._default_checkpoint_path(model_id)
-        self.summary_path = Path(summary_path) if summary_path else self._default_summary_path(model_id)
+        self.result_name = result_name
+        self.seed_set = seed_set
+        self.checkpoint_path = Path(checkpoint_path) if checkpoint_path else self._default_checkpoint_path(model_id, result_name)
+        self.summary_path = Path(summary_path) if summary_path else self._default_summary_path(model_id, result_name)
         self.episode_records = []
         self._infer_times = []
         self._step_times = []
@@ -147,12 +165,12 @@ class FlatEvaluationTracker:
         return short_model_name(model_id)
 
     @classmethod
-    def _default_checkpoint_path(cls, model_id):
-        return evaluation_checkpoint_path(model_id, flat=True)
+    def _default_checkpoint_path(cls, model_id, result_name=None):
+        return evaluation_checkpoint_path(model_id, flat=True, result_name=result_name)
 
     @classmethod
-    def _default_summary_path(cls, model_id):
-        return evaluation_summary_path(model_id, flat=True)
+    def _default_summary_path(cls, model_id, result_name=None):
+        return evaluation_summary_path(model_id, flat=True, result_name=result_name)
 
     @property
     def next_episode_index(self):
@@ -200,7 +218,17 @@ class FlatEvaluationTracker:
         if step_time_ms is not None:
             self._step_times.append(step_time_ms)
 
-    def end_episode(self, episode, step_count, is_terminated, oranges_in_plate, camera_images=None):
+    def end_episode(
+        self,
+        episode,
+        step_count,
+        is_terminated,
+        oranges_in_plate,
+        camera_images=None,
+        seed_metadata=None,
+        initial_scene=None,
+        start_camera_images=None,
+    ):
         n_infer_calls = len(self._infer_times)
         last_infer = self._infer_times[-1] if self._infer_times else float("nan")
         avg_step = (sum(self._step_times) / len(self._step_times)) if self._step_times else float("nan")
@@ -217,6 +245,10 @@ class FlatEvaluationTracker:
             "avg_step_ms": avg_step,
             "ended_at": datetime.datetime.now().isoformat(timespec="seconds"),
         }
+        if seed_metadata:
+            record.update(seed_metadata)
+        if initial_scene:
+            record["initial_scene"] = initial_scene
         self.episode_records = [r for r in self.episode_records if r["episode"] != episode]
         self.episode_records.append(record)
         self.episode_records.sort(key=lambda r: r["episode"])
@@ -230,6 +262,19 @@ class FlatEvaluationTracker:
         )
         if was_new_episode:
             self._pbar.update(1)
+        if SAVE_CAMERA_SNAPSHOTS and start_camera_images:
+            try:
+                save_episode_camera_snapshots(
+                    self.model_id,
+                    "flat",
+                    episode,
+                    start_camera_images.get("front"),
+                    start_camera_images.get("wrist"),
+                    result_name=self.result_name,
+                    stage="start",
+                )
+            except Exception as exc:
+                tqdm.write(f"  Could not save flat episode start camera snapshots: {exc}")
         if SAVE_CAMERA_SNAPSHOTS and camera_images:
             try:
                 save_episode_camera_snapshots(
@@ -238,6 +283,7 @@ class FlatEvaluationTracker:
                     episode,
                     camera_images.get("front"),
                     camera_images.get("wrist"),
+                    result_name=self.result_name,
                 )
             except Exception as exc:
                 tqdm.write(f"  Could not save flat episode camera snapshots: {exc}")
@@ -258,12 +304,16 @@ class FlatEvaluationTracker:
             if n_eval == self.n_episodes
             else f"FLAT-PROMPT EVALUATION SUMMARY (stopped after {n_eval}/{self.n_episodes} runs)"
         )
+        seed_set = seed_set_checkpoint_metadata(self.seed_set)
+        seed_line = f"Seed set:             {seed_set['name']} ({seed_set['sha256']})\n" if seed_set else ""
 
         return (
             f"\n========================================\n"
             f"{header}\n"
             f"Model ID:             {self.model_id}\n"
+            f"Result name:          {self.result_name or short_model_name(self.model_id)}\n"
             f"Prompt:               {instruction}\n"
+            f"{seed_line}"
             f"Success Rate:         {successes}/{n_eval} ({pct(successes):.2f}%)\n"
             f"Avg oranges in plate: {avg_oranges:.2f}/3\n"
             f"Mean steps (success): {mean_success_steps:.1f}\n"
@@ -279,7 +329,9 @@ class FlatEvaluationTracker:
         self.checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
         checkpoint = {
             "model_id": self.model_id,
+            "result_name": self.result_name,
             "prompt": instruction,
+            "seed_set": seed_set_checkpoint_metadata(self.seed_set),
             "target_n_episodes": self.n_episodes,
             "completed_episodes": len(self.episode_records),
             "last_update": datetime.datetime.now().isoformat(timespec="seconds"),
@@ -396,6 +448,8 @@ tracker = FlatEvaluationTracker(
     checkpoint_path=EVAL_CHECKPOINT_PATH,
     summary_path=EVAL_SUMMARY_PATH,
     resume=EVAL_RESUME,
+    result_name=EVAL_RESULT_NAME,
+    seed_set=eval_seed_set,
 )
 reset_controller = ResetController()
 reset_controller.start()
@@ -412,11 +466,13 @@ print(f"""
 {'=' * 52}
   FLAT-PROMPT EVALUATION
   Model:          {model_id}
+  Result name:    {EVAL_RESULT_NAME or short_model_name(model_id)}
   Prompt:         "{instruction}"
   Model chunk:    {model_chunk_size if model_chunk_size is not None else 'unknown'} actions
   Execute chunk:  {execute_actions_per_chunk} actions before replanning
   Inference runs: {n_inference_runs}
   Max steps:      {max_steps}
+  Seed set:       {eval_seed_set['name'] if eval_seed_set else 'unseeded'}
   Completed runs: {len(tracker.episode_records)} already tracked
 {'=' * 52}
 """)
@@ -428,7 +484,18 @@ try:
         print(f"{'-' * 52}")
         print(f'  ACTIVE PROMPT -> "{instruction}"')
 
-        obs, _ = env.reset()
+        episode_seed, seed_metadata = seed_metadata_for_episode(eval_seed_set, episode)
+        if episode_seed is None:
+            obs, _ = env.reset()
+        else:
+            print(f"  Seed: {episode_seed} (index {episode})")
+            obs, _ = env.reset(seed=episode_seed)
+        start_policy_obs = obs["policy"]
+        start_camera_images = {
+            "front": camera_image_to_hwc_uint8(start_policy_obs["front"][0].cpu().numpy()),
+            "wrist": camera_image_to_hwc_uint8(start_policy_obs["wrist"][0].cpu().numpy()),
+        }
+        initial_scene = capture_initial_scene_audit(env)
         policy.reset()
         tracker.start_episode()
 
@@ -443,14 +510,32 @@ try:
             if reset_controller.stop_requested:
                 print("\nStop requested - ending current episode as failed.")
                 oranges_in_plate = count_oranges_in_plate(last_positions)
-                tracker.end_episode(episode, step_count, False, oranges_in_plate, camera_images=last_camera_images)
+                tracker.end_episode(
+                    episode,
+                    step_count,
+                    False,
+                    oranges_in_plate,
+                    camera_images=last_camera_images,
+                    seed_metadata=seed_metadata,
+                    initial_scene=initial_scene,
+                    start_camera_images=start_camera_images,
+                )
                 done = True
                 break
 
             if reset_controller.get_and_clear_reset():
                 print("\nEpisode reset requested - ending current episode as failed.")
                 oranges_in_plate = count_oranges_in_plate(last_positions)
-                tracker.end_episode(episode, step_count, False, oranges_in_plate, camera_images=last_camera_images)
+                tracker.end_episode(
+                    episode,
+                    step_count,
+                    False,
+                    oranges_in_plate,
+                    camera_images=last_camera_images,
+                    seed_metadata=seed_metadata,
+                    initial_scene=initial_scene,
+                    start_camera_images=start_camera_images,
+                )
                 done = True
                 break
 
@@ -495,7 +580,16 @@ try:
             post_step_positions = save_positions(env)
             if is_plate_upside_down(post_step_positions):
                 print("\nPlate flipped upside down - truncating episode as failure.")
-                tracker.end_episode(episode, step_count, False, 0, camera_images=last_camera_images)
+                tracker.end_episode(
+                    episode,
+                    step_count,
+                    False,
+                    0,
+                    camera_images=last_camera_images,
+                    seed_metadata=seed_metadata,
+                    initial_scene=initial_scene,
+                    start_camera_images=start_camera_images,
+                )
                 done = True
                 break
 
@@ -524,6 +618,9 @@ try:
                     is_terminated,
                     oranges_in_plate,
                     camera_images=last_camera_images,
+                    seed_metadata=seed_metadata,
+                    initial_scene=initial_scene,
+                    start_camera_images=start_camera_images,
                 )
 
         if reset_controller.stop_requested:
