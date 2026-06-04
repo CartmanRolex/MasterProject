@@ -35,6 +35,7 @@ PLATE_INNER_RADIUS = 0.06    # XY radius at the bottom of the plate interior
 PLATE_CONE_HEIGHT  = 0.035    # height of the truncated-cone section above PLATE_Z_MIN
 PLATE_Z_MIN        = 0
 PLATE_Z_MAX        = 0.065
+PLATE_UPSIDE_DOWN_Z_THRESHOLD = 0.0
 
 
 def plate_radius_at_height(z_offset,
@@ -114,6 +115,11 @@ def _camera_array_for_image(img):
             arr = arr * 255.0
         arr = np.clip(arr, 0, 255).astype(np.uint8)
     return arr
+
+
+def camera_image_to_hwc_uint8(img):
+    """Return a camera image as HWC uint8 for LeRobot inference helpers."""
+    return _camera_array_for_image(img)
 
 
 def save_episode_camera_snapshots(model_id, run_type, episode, raw_front, raw_wrist):
@@ -239,6 +245,34 @@ def _position_component(pos, idx):
     return float(value)
 
 
+def plate_up_vector_z(plate_quat):
+    """Return the world-Z component of the plate local +Z axis."""
+    if plate_quat is None:
+        return 1.0
+
+    quat = torch.as_tensor(plate_quat, dtype=torch.float32).flatten()
+    if quat.numel() != 4:
+        return 1.0
+
+    norm = torch.linalg.vector_norm(quat)
+    if norm.item() <= 0:
+        return 1.0
+
+    quat = quat / norm
+    _w, x, y, _z = quat
+    return (1.0 - 2.0 * (x * x + y * y)).item()
+
+
+def is_plate_upside_down(positions_or_quat,
+                         z_threshold=PLATE_UPSIDE_DOWN_Z_THRESHOLD):
+    """Return True when the plate's local +Z axis points below world-horizontal."""
+    if isinstance(positions_or_quat, dict):
+        plate_quat = positions_or_quat.get("plate_quat")
+    else:
+        plate_quat = positions_or_quat
+    return plate_up_vector_z(plate_quat) < z_threshold
+
+
 def plate_position_metrics(plate_pos, orange_pos,
                            plate_radius=PLATE_RADIUS,
                            plate_z_min=PLATE_Z_MIN,
@@ -362,7 +396,8 @@ def count_oranges_in_plate(positions,
     """Count orange COMs inside the shared cylindrical plate volume.
 
     Performs a pure geometric check with no stability requirement — intended as
-    a final-state snapshot, not a real-time event detector.
+    a final-state snapshot, not a real-time event detector. If the plate is
+    upside down, the scene is a failure and the count is forced to 0.
 
     Args:
         positions:    dict returned by save_positions(); orange values are COM positions.
@@ -371,6 +406,9 @@ def count_oranges_in_plate(positions,
     Returns:
         int — number of oranges currently inside the plate bounds.
     """
+    if is_plate_upside_down(positions):
+        return 0
+
     count = 0
     for name in orange_names:
         if name in positions and is_orange_position_in_plate(
@@ -580,11 +618,15 @@ class EvaluationTracker:
     # select_action calls below this threshold are queue-replay pops, not real model inference.
     INFER_THRESHOLD_MS = 5.0
 
-    def __init__(self, n_episodes, model_id=None, checkpoint_path=None, resume=True):
+    def __init__(self, n_episodes, model_id=None, checkpoint_path=None, summary_path=None, resume=True):
         self.n_episodes = n_episodes
         self.model_id = model_id
         self.checkpoint_path = Path(checkpoint_path) if checkpoint_path else self._default_checkpoint_path(model_id)
-        self.summary_path = self._default_summary_path(model_id) if self.checkpoint_path else None
+        self.summary_path = (
+            Path(summary_path)
+            if summary_path
+            else self._default_summary_path(model_id) if self.checkpoint_path else None
+        )
         self.episode_records = []
         self.successes = 0
         self.total_oranges_placed = []

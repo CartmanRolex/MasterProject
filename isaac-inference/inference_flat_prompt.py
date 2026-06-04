@@ -17,9 +17,11 @@ from lerobot.policies.utils import build_inference_frame
 from tqdm import tqdm
 
 from eval_utils import (
+    camera_image_to_hwc_uint8,
     count_oranges_in_plate,
     evaluation_checkpoint_path,
     evaluation_summary_path,
+    is_plate_upside_down,
     save_episode_camera_snapshots,
     save_positions,
     short_model_name,
@@ -33,19 +35,45 @@ from robot_utils import (
 # ==========================================
 # 1. Configuration & Setup
 # ==========================================
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model_id = "MasterProject2026/pick-orange-mimic"
-n_inference_runs = 100
-max_steps = 5000
-instruction = "Place the orange into plate"
+def env_flag(name, default=False):
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on", "2"}
 
-EVAL_RESUME = True
-EVAL_CHECKPOINT_PATH = None
-ENABLE_LIVESTREAM = False
+
+def env_int(name, default):
+    value = os.environ.get(name)
+    if value is None or value.strip() == "":
+        return default
+    return int(value)
+
+
+def env_value(name, default=None):
+    value = os.environ.get(name)
+    if value is None or value.strip() == "":
+        return default
+    return value
+
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model_id = env_value("MODEL_ID", "MasterProject2026/pick-orange-mimic")
+n_inference_runs = env_int("N_INFERENCE_RUNS", 100)
+max_steps = env_int("MAX_STEPS", 5000)
+ACTIONS_PER_CHUNK = env_int("ACTIONS_PER_CHUNK", 20)
+instruction = env_value("INSTRUCTION", "Grab orange and place into plate")
+
+EVAL_RESUME = env_flag("EVAL_RESUME", True)
+EVAL_CHECKPOINT_PATH = env_value("EVAL_CHECKPOINT_PATH")
+EVAL_SUMMARY_PATH = env_value("EVAL_SUMMARY_PATH")
+SAVE_CAMERA_SNAPSHOTS = env_flag("SAVE_CAMERA_SNAPSHOTS", True)
+
+
+ENABLE_LIVESTREAM = env_flag("ENABLE_LIVESTREAM", env_flag("LIVESTREAM", False))
 
 dataset_features = {
-    "observation.images.front": {"dtype": "video", "shape": (3, 480, 640), "names": ["front"]},
-    "observation.images.wrist": {"dtype": "video", "shape": (3, 480, 640), "names": ["wrist"]},
+    "observation.images.front": {"dtype": "video", "shape": (480, 640, 3), "names": ["front"]},
+    "observation.images.wrist": {"dtype": "video", "shape": (480, 640, 3), "names": ["wrist"]},
     "observation.state": {"dtype": "float32", "shape": (6,), "names": ["state"]},
     "action": {"dtype": "float32", "shape": (6,), "names": ["action"]},
 }
@@ -95,11 +123,11 @@ def tensor_to_bool(value):
 class FlatEvaluationTracker:
     INFER_THRESHOLD_MS = 5.0
 
-    def __init__(self, n_episodes, model_id, checkpoint_path=None, resume=True):
+    def __init__(self, n_episodes, model_id, checkpoint_path=None, summary_path=None, resume=True):
         self.n_episodes = n_episodes
         self.model_id = model_id
         self.checkpoint_path = Path(checkpoint_path) if checkpoint_path else self._default_checkpoint_path(model_id)
-        self.summary_path = self._default_summary_path(model_id)
+        self.summary_path = Path(summary_path) if summary_path else self._default_summary_path(model_id)
         self.episode_records = []
         self._infer_times = []
         self._step_times = []
@@ -202,7 +230,7 @@ class FlatEvaluationTracker:
         )
         if was_new_episode:
             self._pbar.update(1)
-        if camera_images:
+        if SAVE_CAMERA_SNAPSHOTS and camera_images:
             try:
                 save_episode_camera_snapshots(
                     self.model_id,
@@ -319,10 +347,12 @@ class ResetController:
 # ==========================================
 os.environ["ENABLE_CAMERAS"] = "1"
 if ENABLE_LIVESTREAM:
-    os.environ["LIVESTREAM"] = "2"
+    os.environ["LIVESTREAM"] = os.environ.get("LIVESTREAM", "2")
+    os.environ["HEADLESS"] = "0"
 else:
     os.environ["LIVESTREAM"] = "0"
     os.environ["HEADLESS"] = "1"
+print(f"Livestream: {'enabled' if ENABLE_LIVESTREAM else 'disabled'} (LIVESTREAM={os.environ['LIVESTREAM']})")
 
 check_isaac_driver_compatibility()
 
@@ -334,6 +364,12 @@ env.cfg.episode_length_s = max_steps * env.cfg.sim.dt * env.cfg.decimation
 
 print(f"Loading trained policy: {model_id}...")
 policy = SmolVLAPolicy.from_pretrained(model_id).to(device).eval()
+model_chunk_size = getattr(policy.config, "chunk_size", None)
+execute_actions_per_chunk = (
+    min(ACTIONS_PER_CHUNK, model_chunk_size) if isinstance(model_chunk_size, int) else ACTIONS_PER_CHUNK
+)
+policy.config.n_action_steps = execute_actions_per_chunk
+policy.reset()
 
 preprocess, postprocess = make_pre_post_processors(
     policy.config,
@@ -358,6 +394,7 @@ tracker = FlatEvaluationTracker(
     n_inference_runs,
     model_id=model_id,
     checkpoint_path=EVAL_CHECKPOINT_PATH,
+    summary_path=EVAL_SUMMARY_PATH,
     resume=EVAL_RESUME,
 )
 reset_controller = ResetController()
@@ -376,6 +413,8 @@ print(f"""
   FLAT-PROMPT EVALUATION
   Model:          {model_id}
   Prompt:         "{instruction}"
+  Model chunk:    {model_chunk_size if model_chunk_size is not None else 'unknown'} actions
+  Execute chunk:  {execute_actions_per_chunk} actions before replanning
   Inference runs: {n_inference_runs}
   Max steps:      {max_steps}
   Completed runs: {len(tracker.episode_records)} already tracked
@@ -416,8 +455,8 @@ try:
                 break
 
             policy_obs = obs["policy"]
-            raw_front = policy_obs["front"][0].cpu().numpy()
-            raw_wrist = policy_obs["wrist"][0].cpu().numpy()
+            raw_front = camera_image_to_hwc_uint8(policy_obs["front"][0].cpu().numpy())
+            raw_wrist = camera_image_to_hwc_uint8(policy_obs["wrist"][0].cpu().numpy())
             last_camera_images = {"front": raw_front, "wrist": raw_wrist}
             joint_pos_converted = convert_leisaac_action_to_lerobot(policy_obs["joint_pos"].cpu().numpy())
 
@@ -454,6 +493,12 @@ try:
             step_count += 1
 
             post_step_positions = save_positions(env)
+            if is_plate_upside_down(post_step_positions):
+                print("\nPlate flipped upside down - truncating episode as failure.")
+                tracker.end_episode(episode, step_count, False, 0, camera_images=last_camera_images)
+                done = True
+                break
+
             if count_oranges_in_plate(post_step_positions) >= 3:
                 stable_plate_count += 1
             else:
