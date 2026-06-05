@@ -1,0 +1,1009 @@
+{
+  "model_id": "MasterProject2026/Gal-merged-tailed-auto-no-lang-no-home",
+  "prompt": "Place the orange into plate",
+  "target_n_episodes": 100,
+  "completed_episodes": 100,
+  "last_update": "2026-06-03T04:33:13",
+  "episodes": [
+    {
+      "episode": 0,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 2,
+      "n_infer_calls": 374,
+      "last_infer_ms": 106.68821400031447,
+      "avg_step_ms": 43.86128381495655,
+      "ended_at": "2026-06-02T20:56:56"
+    },
+    {
+      "episode": 1,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 0,
+      "n_infer_calls": 391,
+      "last_infer_ms": 5.055677000200376,
+      "avg_step_ms": 44.09000119899574,
+      "ended_at": "2026-06-02T21:02:09"
+    },
+    {
+      "episode": 2,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 0,
+      "n_infer_calls": 379,
+      "last_infer_ms": 5.3174649947322905,
+      "avg_step_ms": 44.140436408953974,
+      "ended_at": "2026-06-02T21:07:23"
+    },
+    {
+      "episode": 3,
+      "step_count": 2156,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 165,
+      "last_infer_ms": 8.288409997476265,
+      "avg_step_ms": 44.196383309204094,
+      "ended_at": "2026-06-02T21:09:38"
+    },
+    {
+      "episode": 4,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 2,
+      "n_infer_calls": 395,
+      "last_infer_ms": 5.4024499986553565,
+      "avg_step_ms": 44.411271101396416,
+      "ended_at": "2026-06-02T21:14:52"
+    },
+    {
+      "episode": 5,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 1,
+      "n_infer_calls": 376,
+      "last_infer_ms": 6.289693992584944,
+      "avg_step_ms": 44.460043188673446,
+      "ended_at": "2026-06-02T21:20:07"
+    },
+    {
+      "episode": 6,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 2,
+      "n_infer_calls": 390,
+      "last_infer_ms": 7.034919006400742,
+      "avg_step_ms": 44.493894557037855,
+      "ended_at": "2026-06-02T21:25:21"
+    },
+    {
+      "episode": 7,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 2,
+      "n_infer_calls": 375,
+      "last_infer_ms": 99.2584519990487,
+      "avg_step_ms": 44.3697006892995,
+      "ended_at": "2026-06-02T21:30:34"
+    },
+    {
+      "episode": 8,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 1,
+      "n_infer_calls": 385,
+      "last_infer_ms": 100.63508499297313,
+      "avg_step_ms": 44.52088981649722,
+      "ended_at": "2026-06-02T21:35:50"
+    },
+    {
+      "episode": 9,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 2,
+      "n_infer_calls": 371,
+      "last_infer_ms": 95.72978099458851,
+      "avg_step_ms": 44.4814738912537,
+      "ended_at": "2026-06-02T21:41:03"
+    },
+    {
+      "episode": 10,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 2,
+      "n_infer_calls": 368,
+      "last_infer_ms": 108.70182499638759,
+      "avg_step_ms": 44.42653346749139,
+      "ended_at": "2026-06-02T21:46:17"
+    },
+    {
+      "episode": 11,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 0,
+      "n_infer_calls": 390,
+      "last_infer_ms": 5.254068004433066,
+      "avg_step_ms": 44.545314417162444,
+      "ended_at": "2026-06-02T21:51:32"
+    },
+    {
+      "episode": 12,
+      "step_count": 1183,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 85,
+      "last_infer_ms": 104.04076699342113,
+      "avg_step_ms": 44.63380784960119,
+      "ended_at": "2026-06-02T21:52:47"
+    },
+    {
+      "episode": 13,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 1,
+      "n_infer_calls": 365,
+      "last_infer_ms": 5.039113006205298,
+      "avg_step_ms": 43.99207556032925,
+      "ended_at": "2026-06-02T21:57:59"
+    },
+    {
+      "episode": 14,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 0,
+      "n_infer_calls": 389,
+      "last_infer_ms": 5.259671990643255,
+      "avg_step_ms": 44.93068248123454,
+      "ended_at": "2026-06-02T22:03:17"
+    },
+    {
+      "episode": 15,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 0,
+      "n_infer_calls": 393,
+      "last_infer_ms": 105.25162500562146,
+      "avg_step_ms": 44.8915766143502,
+      "ended_at": "2026-06-02T22:08:33"
+    },
+    {
+      "episode": 16,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 0,
+      "n_infer_calls": 403,
+      "last_infer_ms": 108.86148999270517,
+      "avg_step_ms": 44.734979572839805,
+      "ended_at": "2026-06-02T22:13:50"
+    },
+    {
+      "episode": 17,
+      "step_count": 1958,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 141,
+      "last_infer_ms": 103.76500799611676,
+      "avg_step_ms": 44.37489927636005,
+      "ended_at": "2026-06-02T22:15:53"
+    },
+    {
+      "episode": 18,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 0,
+      "n_infer_calls": 378,
+      "last_infer_ms": 114.07326799235307,
+      "avg_step_ms": 44.85376259202603,
+      "ended_at": "2026-06-02T22:21:09"
+    },
+    {
+      "episode": 19,
+      "step_count": 1659,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 131,
+      "last_infer_ms": 96.47271000721958,
+      "avg_step_ms": 44.50482808146226,
+      "ended_at": "2026-06-02T22:22:54"
+    },
+    {
+      "episode": 20,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 0,
+      "n_infer_calls": 405,
+      "last_infer_ms": 105.6085700110998,
+      "avg_step_ms": 44.65561247490696,
+      "ended_at": "2026-06-02T22:28:08"
+    },
+    {
+      "episode": 21,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 2,
+      "n_infer_calls": 370,
+      "last_infer_ms": 110.20780100079719,
+      "avg_step_ms": 44.8146482801385,
+      "ended_at": "2026-06-02T22:33:24"
+    },
+    {
+      "episode": 22,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 2,
+      "n_infer_calls": 388,
+      "last_infer_ms": 107.37683899060357,
+      "avg_step_ms": 44.899205005361,
+      "ended_at": "2026-06-02T22:38:39"
+    },
+    {
+      "episode": 23,
+      "step_count": 1183,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 94,
+      "last_infer_ms": 108.03192600724287,
+      "avg_step_ms": 44.8908989189245,
+      "ended_at": "2026-06-02T22:39:54"
+    },
+    {
+      "episode": 24,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 0,
+      "n_infer_calls": 381,
+      "last_infer_ms": 109.716988998116,
+      "avg_step_ms": 44.86507713563624,
+      "ended_at": "2026-06-02T22:45:10"
+    },
+    {
+      "episode": 25,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 1,
+      "n_infer_calls": 407,
+      "last_infer_ms": 99.55227799946442,
+      "avg_step_ms": 44.872565428409146,
+      "ended_at": "2026-06-02T22:50:25"
+    },
+    {
+      "episode": 26,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 2,
+      "n_infer_calls": 372,
+      "last_infer_ms": 105.86742800660431,
+      "avg_step_ms": 45.158655784558505,
+      "ended_at": "2026-06-02T22:55:44"
+    },
+    {
+      "episode": 27,
+      "step_count": 1916,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 139,
+      "last_infer_ms": 107.9702669812832,
+      "avg_step_ms": 44.95428230481379,
+      "ended_at": "2026-06-02T22:57:46"
+    },
+    {
+      "episode": 28,
+      "step_count": 3146,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 226,
+      "last_infer_ms": 97.00243902625516,
+      "avg_step_ms": 44.91861345340166,
+      "ended_at": "2026-06-02T23:01:05"
+    },
+    {
+      "episode": 29,
+      "step_count": 3918,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 284,
+      "last_infer_ms": 106.27031300100498,
+      "avg_step_ms": 45.235966129391656,
+      "ended_at": "2026-06-02T23:05:15"
+    },
+    {
+      "episode": 30,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 0,
+      "n_infer_calls": 409,
+      "last_infer_ms": 101.9173490058165,
+      "avg_step_ms": 44.93319958208595,
+      "ended_at": "2026-06-02T23:10:31"
+    },
+    {
+      "episode": 31,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 2,
+      "n_infer_calls": 385,
+      "last_infer_ms": 109.83604402281344,
+      "avg_step_ms": 44.93363852085313,
+      "ended_at": "2026-06-02T23:15:48"
+    },
+    {
+      "episode": 32,
+      "step_count": 1386,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 121,
+      "last_infer_ms": 109.14353601401672,
+      "avg_step_ms": 44.97708395540678,
+      "ended_at": "2026-06-02T23:17:16"
+    },
+    {
+      "episode": 33,
+      "step_count": 4771,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 371,
+      "last_infer_ms": 102.31749902595766,
+      "avg_step_ms": 45.340794529977885,
+      "ended_at": "2026-06-02T23:22:19"
+    },
+    {
+      "episode": 34,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 2,
+      "n_infer_calls": 373,
+      "last_infer_ms": 6.766830018023029,
+      "avg_step_ms": 45.25169505494996,
+      "ended_at": "2026-06-02T23:27:40"
+    },
+    {
+      "episode": 35,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 1,
+      "n_infer_calls": 409,
+      "last_infer_ms": 110.14316198998131,
+      "avg_step_ms": 45.41805563599337,
+      "ended_at": "2026-06-02T23:32:57"
+    },
+    {
+      "episode": 36,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 0,
+      "n_infer_calls": 390,
+      "last_infer_ms": 110.39002498728223,
+      "avg_step_ms": 45.29480367134092,
+      "ended_at": "2026-06-02T23:38:16"
+    },
+    {
+      "episode": 37,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 2,
+      "n_infer_calls": 397,
+      "last_infer_ms": 107.78291299357079,
+      "avg_step_ms": 45.14738742921618,
+      "ended_at": "2026-06-02T23:43:34"
+    },
+    {
+      "episode": 38,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 2,
+      "n_infer_calls": 386,
+      "last_infer_ms": 5.251880997093394,
+      "avg_step_ms": 44.992889511951944,
+      "ended_at": "2026-06-02T23:48:51"
+    },
+    {
+      "episode": 39,
+      "step_count": 3126,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 254,
+      "last_infer_ms": 6.188373023178428,
+      "avg_step_ms": 45.41388600750368,
+      "ended_at": "2026-06-02T23:52:12"
+    },
+    {
+      "episode": 40,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 2,
+      "n_infer_calls": 378,
+      "last_infer_ms": 95.5642769986298,
+      "avg_step_ms": 45.716920209303495,
+      "ended_at": "2026-06-02T23:57:36"
+    },
+    {
+      "episode": 41,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 2,
+      "n_infer_calls": 370,
+      "last_infer_ms": 105.28044501552358,
+      "avg_step_ms": 45.390953930205434,
+      "ended_at": "2026-06-03T00:02:55"
+    },
+    {
+      "episode": 42,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 1,
+      "n_infer_calls": 389,
+      "last_infer_ms": 5.141984001966193,
+      "avg_step_ms": 45.38537699847366,
+      "ended_at": "2026-06-03T00:08:13"
+    },
+    {
+      "episode": 43,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 1,
+      "n_infer_calls": 381,
+      "last_infer_ms": 5.6843959901016206,
+      "avg_step_ms": 45.32520367983962,
+      "ended_at": "2026-06-03T00:13:31"
+    },
+    {
+      "episode": 44,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 0,
+      "n_infer_calls": 407,
+      "last_infer_ms": 123.58325699460693,
+      "avg_step_ms": 45.09157877790276,
+      "ended_at": "2026-06-03T00:18:47"
+    },
+    {
+      "episode": 45,
+      "step_count": 4570,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 361,
+      "last_infer_ms": 6.011608988046646,
+      "avg_step_ms": 45.3064308007206,
+      "ended_at": "2026-06-03T00:23:37"
+    },
+    {
+      "episode": 46,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 0,
+      "n_infer_calls": 399,
+      "last_infer_ms": 5.522603023564443,
+      "avg_step_ms": 45.67537969745463,
+      "ended_at": "2026-06-03T00:28:58"
+    },
+    {
+      "episode": 47,
+      "step_count": 4366,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 336,
+      "last_infer_ms": 104.84918899601325,
+      "avg_step_ms": 45.432138850624106,
+      "ended_at": "2026-06-03T00:33:36"
+    },
+    {
+      "episode": 48,
+      "step_count": 1749,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 137,
+      "last_infer_ms": 106.33743499056436,
+      "avg_step_ms": 44.826303529075204,
+      "ended_at": "2026-06-03T00:35:26"
+    },
+    {
+      "episode": 49,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 1,
+      "n_infer_calls": 393,
+      "last_infer_ms": 5.195984005695209,
+      "avg_step_ms": 45.685833373008066,
+      "ended_at": "2026-06-03T00:40:48"
+    },
+    {
+      "episode": 50,
+      "step_count": 2753,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 200,
+      "last_infer_ms": 115.62194899306633,
+      "avg_step_ms": 45.621500089076164,
+      "ended_at": "2026-06-03T00:43:44"
+    },
+    {
+      "episode": 51,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 1,
+      "n_infer_calls": 391,
+      "last_infer_ms": 5.183799017686397,
+      "avg_step_ms": 45.302744278701724,
+      "ended_at": "2026-06-03T00:49:02"
+    },
+    {
+      "episode": 52,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 1,
+      "n_infer_calls": 370,
+      "last_infer_ms": 5.929244012804702,
+      "avg_step_ms": 45.429009989014595,
+      "ended_at": "2026-06-03T00:54:22"
+    },
+    {
+      "episode": 53,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 2,
+      "n_infer_calls": 380,
+      "last_infer_ms": 103.35757999564521,
+      "avg_step_ms": 45.52043141977047,
+      "ended_at": "2026-06-03T00:59:41"
+    },
+    {
+      "episode": 54,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 2,
+      "n_infer_calls": 371,
+      "last_infer_ms": 97.92875900166109,
+      "avg_step_ms": 45.3526913751266,
+      "ended_at": "2026-06-03T01:04:59"
+    },
+    {
+      "episode": 55,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 0,
+      "n_infer_calls": 399,
+      "last_infer_ms": 105.23182601900771,
+      "avg_step_ms": 45.39316594084958,
+      "ended_at": "2026-06-03T01:10:17"
+    },
+    {
+      "episode": 56,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 1,
+      "n_infer_calls": 375,
+      "last_infer_ms": 104.23389199422672,
+      "avg_step_ms": 45.603460012632425,
+      "ended_at": "2026-06-03T01:15:36"
+    },
+    {
+      "episode": 57,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 1,
+      "n_infer_calls": 397,
+      "last_infer_ms": 6.200309988344088,
+      "avg_step_ms": 45.6599997128651,
+      "ended_at": "2026-06-03T01:20:56"
+    },
+    {
+      "episode": 58,
+      "step_count": 3562,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 274,
+      "last_infer_ms": 107.69235400948673,
+      "avg_step_ms": 45.53155263416926,
+      "ended_at": "2026-06-03T01:24:43"
+    },
+    {
+      "episode": 59,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 1,
+      "n_infer_calls": 376,
+      "last_infer_ms": 107.48243299894966,
+      "avg_step_ms": 45.29052984927548,
+      "ended_at": "2026-06-03T01:30:01"
+    },
+    {
+      "episode": 60,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 2,
+      "n_infer_calls": 366,
+      "last_infer_ms": 99.03587400913239,
+      "avg_step_ms": 45.54602326074382,
+      "ended_at": "2026-06-03T01:35:21"
+    },
+    {
+      "episode": 61,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 2,
+      "n_infer_calls": 376,
+      "last_infer_ms": 115.96472098608501,
+      "avg_step_ms": 45.691076895472364,
+      "ended_at": "2026-06-03T01:40:42"
+    },
+    {
+      "episode": 62,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 2,
+      "n_infer_calls": 373,
+      "last_infer_ms": 6.658204016275704,
+      "avg_step_ms": 45.783264845836676,
+      "ended_at": "2026-06-03T01:46:04"
+    },
+    {
+      "episode": 63,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 2,
+      "n_infer_calls": 387,
+      "last_infer_ms": 101.96027398342267,
+      "avg_step_ms": 45.450625985948136,
+      "ended_at": "2026-06-03T01:51:22"
+    },
+    {
+      "episode": 64,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 1,
+      "n_infer_calls": 383,
+      "last_infer_ms": 106.19260699604638,
+      "avg_step_ms": 45.6974634332466,
+      "ended_at": "2026-06-03T01:56:42"
+    },
+    {
+      "episode": 65,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 2,
+      "n_infer_calls": 378,
+      "last_infer_ms": 8.213679015170783,
+      "avg_step_ms": 45.51537935109227,
+      "ended_at": "2026-06-03T02:02:01"
+    },
+    {
+      "episode": 66,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 2,
+      "n_infer_calls": 369,
+      "last_infer_ms": 114.81994300265796,
+      "avg_step_ms": 45.856848266813905,
+      "ended_at": "2026-06-03T02:07:22"
+    },
+    {
+      "episode": 67,
+      "step_count": 1824,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 127,
+      "last_infer_ms": 108.57817699434236,
+      "avg_step_ms": 45.206183487352334,
+      "ended_at": "2026-06-03T02:09:19"
+    },
+    {
+      "episode": 68,
+      "step_count": 2931,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 224,
+      "last_infer_ms": 120.8569899899885,
+      "avg_step_ms": 45.499911056294486,
+      "ended_at": "2026-06-03T02:12:27"
+    },
+    {
+      "episode": 69,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 1,
+      "n_infer_calls": 358,
+      "last_infer_ms": 118.54059802135453,
+      "avg_step_ms": 45.73367600255297,
+      "ended_at": "2026-06-03T02:17:49"
+    },
+    {
+      "episode": 70,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 0,
+      "n_infer_calls": 389,
+      "last_infer_ms": 107.7358039910905,
+      "avg_step_ms": 45.70548598274472,
+      "ended_at": "2026-06-03T02:23:10"
+    },
+    {
+      "episode": 71,
+      "step_count": 2204,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 161,
+      "last_infer_ms": 112.35762099386193,
+      "avg_step_ms": 46.14712286286765,
+      "ended_at": "2026-06-03T02:25:34"
+    },
+    {
+      "episode": 72,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 1,
+      "n_infer_calls": 388,
+      "last_infer_ms": 106.27306700916961,
+      "avg_step_ms": 45.836070552823365,
+      "ended_at": "2026-06-03T02:30:56"
+    },
+    {
+      "episode": 73,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 0,
+      "n_infer_calls": 397,
+      "last_infer_ms": 5.635398003505543,
+      "avg_step_ms": 45.46333986303652,
+      "ended_at": "2026-06-03T02:36:15"
+    },
+    {
+      "episode": 74,
+      "step_count": 1812,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 146,
+      "last_infer_ms": 112.14680300327018,
+      "avg_step_ms": 45.55589233412473,
+      "ended_at": "2026-06-03T02:38:11"
+    },
+    {
+      "episode": 75,
+      "step_count": 1406,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 100,
+      "last_infer_ms": 103.07470700354315,
+      "avg_step_ms": 45.39674814070716,
+      "ended_at": "2026-06-03T02:39:41"
+    },
+    {
+      "episode": 76,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 0,
+      "n_infer_calls": 370,
+      "last_infer_ms": 104.14751200005412,
+      "avg_step_ms": 45.58070715261856,
+      "ended_at": "2026-06-03T02:45:00"
+    },
+    {
+      "episode": 77,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 1,
+      "n_infer_calls": 407,
+      "last_infer_ms": 5.016215000068769,
+      "avg_step_ms": 45.64173293269123,
+      "ended_at": "2026-06-03T02:50:21"
+    },
+    {
+      "episode": 78,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 0,
+      "n_infer_calls": 387,
+      "last_infer_ms": 6.511334999231622,
+      "avg_step_ms": 45.84657418735442,
+      "ended_at": "2026-06-03T02:55:42"
+    },
+    {
+      "episode": 79,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 1,
+      "n_infer_calls": 379,
+      "last_infer_ms": 113.5255419940222,
+      "avg_step_ms": 45.687005201447754,
+      "ended_at": "2026-06-03T03:01:03"
+    },
+    {
+      "episode": 80,
+      "step_count": 3679,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 292,
+      "last_infer_ms": 110.18294101813808,
+      "avg_step_ms": 45.74601144053206,
+      "ended_at": "2026-06-03T03:04:59"
+    },
+    {
+      "episode": 81,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 1,
+      "n_infer_calls": 376,
+      "last_infer_ms": 117.20009098644368,
+      "avg_step_ms": 45.86915502359043,
+      "ended_at": "2026-06-03T03:10:20"
+    },
+    {
+      "episode": 82,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 2,
+      "n_infer_calls": 390,
+      "last_infer_ms": 113.3578699955251,
+      "avg_step_ms": 45.63898678516853,
+      "ended_at": "2026-06-03T03:15:40"
+    },
+    {
+      "episode": 83,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 1,
+      "n_infer_calls": 386,
+      "last_infer_ms": 5.345843004761264,
+      "avg_step_ms": 45.47779369858326,
+      "ended_at": "2026-06-03T03:21:00"
+    },
+    {
+      "episode": 84,
+      "step_count": 1618,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 118,
+      "last_infer_ms": 5.123653972987086,
+      "avg_step_ms": 45.71562402456672,
+      "ended_at": "2026-06-03T03:22:45"
+    },
+    {
+      "episode": 85,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 0,
+      "n_infer_calls": 391,
+      "last_infer_ms": 110.84085499169305,
+      "avg_step_ms": 45.71681220366154,
+      "ended_at": "2026-06-03T03:28:06"
+    },
+    {
+      "episode": 86,
+      "step_count": 2096,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 175,
+      "last_infer_ms": 9.048131003510207,
+      "avg_step_ms": 45.36466673323416,
+      "ended_at": "2026-06-03T03:30:20"
+    },
+    {
+      "episode": 87,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 2,
+      "n_infer_calls": 383,
+      "last_infer_ms": 108.0864259856753,
+      "avg_step_ms": 45.52332276402158,
+      "ended_at": "2026-06-03T03:35:39"
+    },
+    {
+      "episode": 88,
+      "step_count": 3935,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 320,
+      "last_infer_ms": 108.72385898255743,
+      "avg_step_ms": 45.490549995017794,
+      "ended_at": "2026-06-03T03:39:51"
+    },
+    {
+      "episode": 89,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 2,
+      "n_infer_calls": 381,
+      "last_infer_ms": 108.02728400449269,
+      "avg_step_ms": 45.69673685214366,
+      "ended_at": "2026-06-03T03:45:12"
+    },
+    {
+      "episode": 90,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 0,
+      "n_infer_calls": 360,
+      "last_infer_ms": 106.37552800471894,
+      "avg_step_ms": 45.69371331491857,
+      "ended_at": "2026-06-03T03:50:31"
+    },
+    {
+      "episode": 91,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 1,
+      "n_infer_calls": 386,
+      "last_infer_ms": 109.0636639855802,
+      "avg_step_ms": 45.466746430721834,
+      "ended_at": "2026-06-03T03:55:49"
+    },
+    {
+      "episode": 92,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 2,
+      "n_infer_calls": 390,
+      "last_infer_ms": 5.595360998995602,
+      "avg_step_ms": 45.490929593640615,
+      "ended_at": "2026-06-03T04:01:08"
+    },
+    {
+      "episode": 93,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 2,
+      "n_infer_calls": 394,
+      "last_infer_ms": 5.298194999340922,
+      "avg_step_ms": 45.36315818695584,
+      "ended_at": "2026-06-03T04:06:25"
+    },
+    {
+      "episode": 94,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 0,
+      "n_infer_calls": 380,
+      "last_infer_ms": 5.833845993038267,
+      "avg_step_ms": 45.58529164900538,
+      "ended_at": "2026-06-03T04:11:45"
+    },
+    {
+      "episode": 95,
+      "step_count": 2568,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 193,
+      "last_infer_ms": 101.26962698996067,
+      "avg_step_ms": 45.69656392459223,
+      "ended_at": "2026-06-03T04:14:29"
+    },
+    {
+      "episode": 96,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 2,
+      "n_infer_calls": 399,
+      "last_infer_ms": 111.59506099647842,
+      "avg_step_ms": 45.51664697835222,
+      "ended_at": "2026-06-03T04:19:47"
+    },
+    {
+      "episode": 97,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 1,
+      "n_infer_calls": 357,
+      "last_infer_ms": 113.53285500081256,
+      "avg_step_ms": 45.75782771203667,
+      "ended_at": "2026-06-03T04:25:08"
+    },
+    {
+      "episode": 98,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 1,
+      "n_infer_calls": 370,
+      "last_infer_ms": 102.86330201779492,
+      "avg_step_ms": 45.75669054706232,
+      "ended_at": "2026-06-03T04:30:28"
+    },
+    {
+      "episode": 99,
+      "step_count": 2565,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 188,
+      "last_infer_ms": 97.01976898941211,
+      "avg_step_ms": 45.259450614526344,
+      "ended_at": "2026-06-03T04:33:13"
+    }
+  ]
+}

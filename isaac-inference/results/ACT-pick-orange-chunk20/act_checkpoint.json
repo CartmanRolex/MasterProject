@@ -1,7 +1,7 @@
 {
-  "model_id": "MasterProject2026/Gal_split_nolang",
-  "result_name": null,
-  "prompt": "Place the orange into plate",
+  "model_id": "MasterProject2026/ACT-pick-orange",
+  "result_name": "ACT-pick-orange-chunk20",
+  "actions_per_chunk": 20,
   "seed_set": {
     "name": "pick_orange_reference_100_v1",
     "path": "/home/students/Gal/MasterProject/isaac-inference/eval_seeds/pick_orange_reference_100_v1.json",
@@ -11,17 +11,17 @@
   },
   "target_n_episodes": 100,
   "completed_episodes": 100,
-  "last_update": "2026-06-05T01:42:04",
+  "last_update": "2026-06-05T09:40:22",
   "episodes": [
     {
       "episode": 0,
       "step_count": 5000,
       "is_terminated": false,
       "oranges_in_plate": 0,
-      "n_infer_calls": 288,
-      "last_infer_ms": 101.23667598236352,
-      "avg_step_ms": 53.29165233121021,
-      "ended_at": "2026-06-04T16:25:30",
+      "n_infer_calls": 247,
+      "last_infer_ms": 5.8611330459825695,
+      "avg_step_ms": 49.30093019930646,
+      "ended_at": "2026-06-05T03:31:46",
       "seed": 1025967891,
       "seed_index": 0,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -133,10 +133,10 @@
       "step_count": 5000,
       "is_terminated": false,
       "oranges_in_plate": 0,
-      "n_infer_calls": 283,
-      "last_infer_ms": 110.91984499944374,
-      "avg_step_ms": 53.64280463344185,
-      "ended_at": "2026-06-04T16:31:30",
+      "n_infer_calls": 245,
+      "last_infer_ms": 5.38806599797681,
+      "avg_step_ms": 49.959976929833644,
+      "ended_at": "2026-06-05T03:36:13",
       "seed": 460875057,
       "seed_index": 1,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -160,8 +160,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.11474299,
-              -0.31600535,
+              2.14456272,
+              -0.27615154,
               0.94551396
             ],
             "root_position": [
@@ -178,8 +178,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.23589253,
-              -0.31139794,
+              2.22298121,
+              -0.32626998,
               0.94443339
             ],
             "root_position": [
@@ -196,8 +196,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.15080261,
-              -0.37576896,
+              2.13266349,
+              -0.40698838,
               0.94261569
             ],
             "root_position": [
@@ -248,10 +248,10 @@
       "step_count": 5000,
       "is_terminated": false,
       "oranges_in_plate": 0,
-      "n_infer_calls": 295,
-      "last_infer_ms": 100.41931096930057,
-      "avg_step_ms": 53.634865667147096,
-      "ended_at": "2026-06-04T16:37:29",
+      "n_infer_calls": 245,
+      "last_infer_ms": 5.67250297171995,
+      "avg_step_ms": 49.52910856673261,
+      "ended_at": "2026-06-05T03:40:39",
       "seed": 68633754,
       "seed_index": 2,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -275,8 +275,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.11132455,
-              -0.32367483,
+              2.14718676,
+              -0.3297928,
               0.94551396
             ],
             "root_position": [
@@ -293,8 +293,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.23282528,
-              -0.32108042,
+              2.24694419,
+              -0.33134088,
               0.94443339
             ],
             "root_position": [
@@ -311,8 +311,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.14578295,
-              -0.41232663,
+              2.13386321,
+              -0.38083145,
               0.94261569
             ],
             "root_position": [
@@ -362,11 +362,11 @@
       "episode": 3,
       "step_count": 5000,
       "is_terminated": false,
-      "oranges_in_plate": 2,
-      "n_infer_calls": 294,
-      "last_infer_ms": 106.55532404780388,
-      "avg_step_ms": 53.759698738669975,
-      "ended_at": "2026-06-04T16:43:29",
+      "oranges_in_plate": 0,
+      "n_infer_calls": 245,
+      "last_infer_ms": 5.40395500138402,
+      "avg_step_ms": 49.38115570207592,
+      "ended_at": "2026-06-05T03:45:03",
       "seed": 679649746,
       "seed_index": 3,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -390,8 +390,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.12119818,
-              -0.30182195,
+              2.15040278,
+              -0.3068791,
               0.94551396
             ],
             "root_position": [
@@ -408,8 +408,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.26666689,
-              -0.30541956,
+              2.27937698,
+              -0.31991112,
               0.94443339
             ],
             "root_position": [
@@ -426,8 +426,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.16207266,
-              -0.41339463,
+              2.12708426,
+              -0.41771579,
               0.94261569
             ],
             "root_position": [
@@ -475,13 +475,13 @@
     },
     {
       "episode": 4,
-      "step_count": 5000,
-      "is_terminated": false,
-      "oranges_in_plate": 1,
-      "n_infer_calls": 287,
-      "last_infer_ms": 107.7356319874525,
-      "avg_step_ms": 54.41558464908739,
-      "ended_at": "2026-06-04T16:49:33",
+      "step_count": 628,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 31,
+      "last_infer_ms": 6.07211998431012,
+      "avg_step_ms": 50.295215934143506,
+      "ended_at": "2026-06-05T03:45:38",
       "seed": 28873420,
       "seed_index": 4,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -505,8 +505,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.15128374,
-              -0.32428402,
+              2.09589338,
+              -0.28678632,
               0.94551396
             ],
             "root_position": [
@@ -523,8 +523,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.25520086,
-              -0.32356653,
+              2.22907615,
+              -0.35724607,
               0.94443339
             ],
             "root_position": [
@@ -541,8 +541,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.16522741,
-              -0.4213534,
+              2.13690901,
+              -0.42778233,
               0.94261569
             ],
             "root_position": [
@@ -592,11 +592,11 @@
       "episode": 5,
       "step_count": 5000,
       "is_terminated": false,
-      "oranges_in_plate": 1,
-      "n_infer_calls": 291,
-      "last_infer_ms": 105.86422303458676,
-      "avg_step_ms": 53.64794003908755,
-      "ended_at": "2026-06-04T16:55:33",
+      "oranges_in_plate": 0,
+      "n_infer_calls": 244,
+      "last_infer_ms": 5.604249017778784,
+      "avg_step_ms": 49.70114306658506,
+      "ended_at": "2026-06-05T03:50:04",
       "seed": 1757592175,
       "seed_index": 5,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -620,9 +620,9 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.15306091,
-              -0.32627979,
-              0.94551396
+              2.34825754,
+              -0.27320671,
+              0.95567477
             ],
             "root_position": [
               2.13175511,
@@ -638,9 +638,9 @@
           },
           "Orange002": {
             "com_position": [
-              2.24853063,
-              -0.31416434,
-              0.94443339
+              2.43254828,
+              -0.34372908,
+              0.95325601
             ],
             "root_position": [
               2.23272491,
@@ -656,9 +656,9 @@
           },
           "Orange003": {
             "com_position": [
-              2.13313365,
-              -0.41023344,
-              0.94261569
+              2.3882246,
+              -0.31890461,
+              0.94644219
             ],
             "root_position": [
               2.15107989,
@@ -707,11 +707,11 @@
       "episode": 6,
       "step_count": 5000,
       "is_terminated": false,
-      "oranges_in_plate": 2,
-      "n_infer_calls": 297,
-      "last_infer_ms": 102.024658001028,
-      "avg_step_ms": 53.784144524100704,
-      "ended_at": "2026-06-04T17:01:33",
+      "oranges_in_plate": 0,
+      "n_infer_calls": 243,
+      "last_infer_ms": 5.8522020117379725,
+      "avg_step_ms": 49.649808643735014,
+      "ended_at": "2026-06-05T03:54:31",
       "seed": 665180348,
       "seed_index": 6,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -735,8 +735,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.10475254,
-              -0.27915972,
+              2.11688805,
+              -0.32126558,
               0.94551396
             ],
             "root_position": [
@@ -753,8 +753,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.25970578,
-              -0.35719812,
+              2.25544906,
+              -0.31906819,
               0.94443339
             ],
             "root_position": [
@@ -771,8 +771,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.13861251,
-              -0.38593218,
+              2.17551804,
+              -0.4343999,
               0.94261569
             ],
             "root_position": [
@@ -823,10 +823,10 @@
       "step_count": 5000,
       "is_terminated": false,
       "oranges_in_plate": 0,
-      "n_infer_calls": 294,
-      "last_infer_ms": 110.91151798609644,
-      "avg_step_ms": 54.690495003852995,
-      "ended_at": "2026-06-04T17:07:38",
+      "n_infer_calls": 239,
+      "last_infer_ms": 7.4181699892506,
+      "avg_step_ms": 49.74787202081643,
+      "ended_at": "2026-06-05T03:58:57",
       "seed": 1911989611,
       "seed_index": 7,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -850,8 +850,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.11326241,
-              -0.29553971,
+              2.11015081,
+              -0.30706668,
               0.94551396
             ],
             "root_position": [
@@ -868,8 +868,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.27254248,
-              -0.31751707,
+              2.22838736,
+              -0.33662537,
               0.94443339
             ],
             "root_position": [
@@ -886,8 +886,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.14840889,
-              -0.42758164,
+              2.1240592,
+              -0.41470242,
               0.94261569
             ],
             "root_position": [
@@ -935,13 +935,13 @@
     },
     {
       "episode": 8,
-      "step_count": 5000,
-      "is_terminated": false,
-      "oranges_in_plate": 1,
-      "n_infer_calls": 284,
-      "last_infer_ms": 107.34330699779093,
-      "avg_step_ms": 53.86161099885358,
-      "ended_at": "2026-06-04T17:13:39",
+      "step_count": 2932,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 146,
+      "last_infer_ms": 5.483039014507085,
+      "avg_step_ms": 49.71208518761605,
+      "ended_at": "2026-06-05T04:01:33",
       "seed": 1068411708,
       "seed_index": 8,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -965,8 +965,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.14191127,
-              -0.27886209,
+              2.10158181,
+              -0.30456421,
               0.94551396
             ],
             "root_position": [
@@ -983,8 +983,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.24060822,
-              -0.33190379,
+              2.25587797,
+              -0.32443109,
               0.94443339
             ],
             "root_position": [
@@ -1001,8 +1001,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.14533114,
-              -0.41236007,
+              2.13424349,
+              -0.42426056,
               0.94261569
             ],
             "root_position": [
@@ -1052,11 +1052,11 @@
       "episode": 9,
       "step_count": 5000,
       "is_terminated": false,
-      "oranges_in_plate": 0,
-      "n_infer_calls": 289,
-      "last_infer_ms": 100.53588799200952,
-      "avg_step_ms": 53.51155154412845,
-      "ended_at": "2026-06-04T17:19:37",
+      "oranges_in_plate": 1,
+      "n_infer_calls": 244,
+      "last_infer_ms": 5.60078996932134,
+      "avg_step_ms": 48.6553606646019,
+      "ended_at": "2026-06-05T04:05:55",
       "seed": 1554706416,
       "seed_index": 9,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -1080,9 +1080,9 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.11906981,
-              -0.29399523,
-              0.94551396
+              2.40647578,
+              -0.30595049,
+              0.94717717
             ],
             "root_position": [
               2.10067368,
@@ -1098,9 +1098,9 @@
           },
           "Orange002": {
             "com_position": [
-              2.24110818,
-              -0.32987684,
-              0.94443339
+              2.45609689,
+              -0.37517843,
+              0.95282501
             ],
             "root_position": [
               2.2485497,
@@ -1116,9 +1116,9 @@
           },
           "Orange003": {
             "com_position": [
-              2.1556356,
-              -0.41947949,
-              0.94261569
+              2.37621927,
+              -0.27927777,
+              0.96999335
             ],
             "root_position": [
               2.17514753,
@@ -1165,13 +1165,13 @@
     },
     {
       "episode": 10,
-      "step_count": 5000,
-      "is_terminated": false,
-      "oranges_in_plate": 1,
-      "n_infer_calls": 306,
-      "last_infer_ms": 6.270424055401236,
-      "avg_step_ms": 54.12281844991958,
-      "ended_at": "2026-06-04T17:25:39",
+      "step_count": 738,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 35,
+      "last_infer_ms": 7.674260996282101,
+      "avg_step_ms": 49.84962137202735,
+      "ended_at": "2026-06-05T04:06:35",
       "seed": 1709331676,
       "seed_index": 10,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -1195,8 +1195,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.11572838,
-              -0.33075556,
+              2.13208985,
+              -0.27326512,
               0.94551396
             ],
             "root_position": [
@@ -1213,8 +1213,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.27233553,
-              -0.36028185,
+              2.27521777,
+              -0.3585372,
               0.94443339
             ],
             "root_position": [
@@ -1231,8 +1231,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.14419746,
-              -0.39444414,
+              2.1804831,
+              -0.3977862,
               0.94261569
             ],
             "root_position": [
@@ -1280,13 +1280,13 @@
     },
     {
       "episode": 11,
-      "step_count": 5000,
-      "is_terminated": false,
-      "oranges_in_plate": 1,
-      "n_infer_calls": 300,
-      "last_infer_ms": 110.13048299355432,
-      "avg_step_ms": 54.14373310885858,
-      "ended_at": "2026-06-04T17:31:40",
+      "step_count": 416,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 21,
+      "last_infer_ms": 5.035514011979103,
+      "avg_step_ms": 48.031891630111765,
+      "ended_at": "2026-06-05T04:06:56",
       "seed": 1755267199,
       "seed_index": 11,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -1310,9 +1310,9 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.11389709,
-              -0.3056002,
-              0.94551396
+              2.41346574,
+              -0.30076769,
+              0.95258266
             ],
             "root_position": [
               2.10083032,
@@ -1328,9 +1328,9 @@
           },
           "Orange002": {
             "com_position": [
-              2.21979666,
-              -0.31364906,
-              0.94443339
+              2.43796587,
+              -0.34748501,
+              0.94919813
             ],
             "root_position": [
               2.24920201,
@@ -1346,9 +1346,9 @@
           },
           "Orange003": {
             "com_position": [
-              2.13767815,
-              -0.41904527,
-              0.94261569
+              2.3856473,
+              -0.35025603,
+              0.94722533
             ],
             "root_position": [
               2.16346693,
@@ -1395,13 +1395,13 @@
     },
     {
       "episode": 12,
-      "step_count": 5000,
-      "is_terminated": false,
-      "oranges_in_plate": 2,
-      "n_infer_calls": 312,
-      "last_infer_ms": 5.119003006257117,
-      "avg_step_ms": 53.765918520395644,
-      "ended_at": "2026-06-04T17:37:39",
+      "step_count": 668,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 33,
+      "last_infer_ms": 6.263223011046648,
+      "avg_step_ms": 50.19338548596123,
+      "ended_at": "2026-06-05T04:07:33",
       "seed": 2115545554,
       "seed_index": 12,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -1425,9 +1425,9 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.10278034,
-              -0.30736884,
-              0.94551396
+              2.39698935,
+              -0.27296034,
+              0.95100158
             ],
             "root_position": [
               2.14664197,
@@ -1443,9 +1443,9 @@
           },
           "Orange002": {
             "com_position": [
-              2.23196816,
-              -0.32376918,
-              0.94443339
+              2.37190557,
+              -0.36224771,
+              0.94752067
             ],
             "root_position": [
               2.2246747,
@@ -1461,9 +1461,9 @@
           },
           "Orange003": {
             "com_position": [
-              2.1689496,
-              -0.4066669,
-              0.94261569
+              2.43703437,
+              -0.35096467,
+              0.95393705
             ],
             "root_position": [
               2.1711309,
@@ -1513,10 +1513,10 @@
       "step_count": 5000,
       "is_terminated": false,
       "oranges_in_plate": 1,
-      "n_infer_calls": 292,
-      "last_infer_ms": 104.21378398314118,
-      "avg_step_ms": 53.22044091235148,
-      "ended_at": "2026-06-04T17:43:36",
+      "n_infer_calls": 242,
+      "last_infer_ms": 6.569520977791399,
+      "avg_step_ms": 49.49630861490732,
+      "ended_at": "2026-06-05T04:11:58",
       "seed": 1863683177,
       "seed_index": 13,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -1540,9 +1540,9 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.12144852,
-              -0.2896392,
-              0.94551396
+              2.39355922,
+              -0.33839911,
+              0.97647458
             ],
             "root_position": [
               2.11158848,
@@ -1558,9 +1558,9 @@
           },
           "Orange002": {
             "com_position": [
-              2.25655365,
-              -0.31098017,
-              0.94443339
+              2.36163783,
+              -0.31278875,
+              0.95224261
             ],
             "root_position": [
               2.22629166,
@@ -1576,9 +1576,9 @@
           },
           "Orange003": {
             "com_position": [
-              2.1618135,
-              -0.40414223,
-              0.94261569
+              2.40508032,
+              -0.37100956,
+              0.94822222
             ],
             "root_position": [
               2.16615009,
@@ -1625,13 +1625,13 @@
     },
     {
       "episode": 14,
-      "step_count": 5000,
-      "is_terminated": false,
-      "oranges_in_plate": 1,
-      "n_infer_calls": 301,
-      "last_infer_ms": 104.77883799467236,
-      "avg_step_ms": 53.6819076971733,
-      "ended_at": "2026-06-04T17:49:35",
+      "step_count": 452,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 21,
+      "last_infer_ms": 5.579121003393084,
+      "avg_step_ms": 50.44847247896477,
+      "ended_at": "2026-06-05T04:12:23",
       "seed": 679189859,
       "seed_index": 14,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -1655,8 +1655,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.13912702,
-              -0.27414519,
+              2.12638521,
+              -0.29920655,
               0.94551396
             ],
             "root_position": [
@@ -1673,8 +1673,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.27784348,
-              -0.33769408,
+              2.22676563,
+              -0.35583049,
               0.94443339
             ],
             "root_position": [
@@ -1691,8 +1691,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.17454386,
-              -0.4300653,
+              2.17833996,
+              -0.39364493,
               0.94261569
             ],
             "root_position": [
@@ -1743,10 +1743,10 @@
       "step_count": 5000,
       "is_terminated": false,
       "oranges_in_plate": 0,
-      "n_infer_calls": 305,
-      "last_infer_ms": 98.76701899338514,
-      "avg_step_ms": 53.80497393237893,
-      "ended_at": "2026-06-04T17:55:35",
+      "n_infer_calls": 247,
+      "last_infer_ms": 5.4748819675296545,
+      "avg_step_ms": 49.3261653979891,
+      "ended_at": "2026-06-05T04:16:47",
       "seed": 1782648034,
       "seed_index": 15,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -1770,9 +1770,9 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.11595058,
-              -0.29703045,
-              0.94551396
+              2.37646866,
+              -0.32941267,
+              0.9546966
             ],
             "root_position": [
               2.11960888,
@@ -1788,9 +1788,9 @@
           },
           "Orange002": {
             "com_position": [
-              2.26941204,
-              -0.32352281,
-              0.94443339
+              2.42673397,
+              -0.35292974,
+              0.95130491
             ],
             "root_position": [
               2.25375676,
@@ -1806,9 +1806,9 @@
           },
           "Orange003": {
             "com_position": [
-              2.1319983,
-              -0.39139858,
-              0.94261569
+              2.41670752,
+              -0.30435199,
+              0.95215529
             ],
             "root_position": [
               2.16006613,
@@ -1855,13 +1855,13 @@
     },
     {
       "episode": 16,
-      "step_count": 5000,
-      "is_terminated": false,
-      "oranges_in_plate": 0,
-      "n_infer_calls": 301,
-      "last_infer_ms": 108.82872302317992,
-      "avg_step_ms": 53.63100163057679,
-      "ended_at": "2026-06-04T18:01:35",
+      "step_count": 523,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 27,
+      "last_infer_ms": 5.550611007492989,
+      "avg_step_ms": 50.10277399571566,
+      "ended_at": "2026-06-05T04:17:15",
       "seed": 1985403165,
       "seed_index": 16,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -1885,8 +1885,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.10574841,
-              -0.32998309,
+              2.13641548,
+              -0.28070232,
               0.94551396
             ],
             "root_position": [
@@ -1903,8 +1903,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.22476792,
-              -0.33546436,
+              2.2342968,
+              -0.33138815,
               0.94443339
             ],
             "root_position": [
@@ -1921,8 +1921,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.14743209,
-              -0.41373706,
+              2.16964626,
+              -0.3974472,
               0.94261569
             ],
             "root_position": [
@@ -1973,10 +1973,10 @@
       "step_count": 5000,
       "is_terminated": false,
       "oranges_in_plate": 0,
-      "n_infer_calls": 304,
-      "last_infer_ms": 110.49028299748898,
-      "avg_step_ms": 53.84415774233639,
-      "ended_at": "2026-06-04T18:07:36",
+      "n_infer_calls": 244,
+      "last_infer_ms": 5.81837905338034,
+      "avg_step_ms": 50.04691071313573,
+      "ended_at": "2026-06-05T04:21:44",
       "seed": 1897898206,
       "seed_index": 17,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -2000,9 +2000,9 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.12846947,
-              -0.28572369,
-              0.94551396
+              2.48960876,
+              -0.32190311,
+              0.95563161
             ],
             "root_position": [
               2.12576127,
@@ -2018,9 +2018,9 @@
           },
           "Orange002": {
             "com_position": [
-              2.26876068,
-              -0.32247978,
-              0.94443339
+              2.4174366,
+              -0.28078538,
+              0.95051813
             ],
             "root_position": [
               2.26897597,
@@ -2036,9 +2036,9 @@
           },
           "Orange003": {
             "com_position": [
-              2.15454245,
-              -0.41869119,
-              0.94261569
+              2.4305315,
+              -0.33737591,
+              0.94648117
             ],
             "root_position": [
               2.17324877,
@@ -2087,11 +2087,11 @@
       "episode": 18,
       "step_count": 5000,
       "is_terminated": false,
-      "oranges_in_plate": 1,
-      "n_infer_calls": 306,
-      "last_infer_ms": 119.14899997645989,
-      "avg_step_ms": 53.93061100370251,
-      "ended_at": "2026-06-04T18:13:37",
+      "oranges_in_plate": 0,
+      "n_infer_calls": 245,
+      "last_infer_ms": 5.534750991500914,
+      "avg_step_ms": 49.584438564861195,
+      "ended_at": "2026-06-05T04:26:09",
       "seed": 1809941803,
       "seed_index": 18,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -2115,8 +2115,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.10644603,
-              -0.32997119,
+              2.11971331,
+              -0.28885853,
               0.94551396
             ],
             "root_position": [
@@ -2133,8 +2133,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.27639461,
-              -0.35673848,
+              2.27371955,
+              -0.31757113,
               0.94443339
             ],
             "root_position": [
@@ -2151,8 +2151,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.16286063,
-              -0.39540544,
+              2.17312908,
+              -0.43443221,
               0.94261569
             ],
             "root_position": [
@@ -2202,11 +2202,11 @@
       "episode": 19,
       "step_count": 5000,
       "is_terminated": false,
-      "oranges_in_plate": 2,
-      "n_infer_calls": 295,
-      "last_infer_ms": 115.76005100505427,
-      "avg_step_ms": 54.084824920876414,
-      "ended_at": "2026-06-04T18:19:39",
+      "oranges_in_plate": 0,
+      "n_infer_calls": 247,
+      "last_infer_ms": 7.799032959155738,
+      "avg_step_ms": 50.13561750942608,
+      "ended_at": "2026-06-05T04:30:38",
       "seed": 437240035,
       "seed_index": 19,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -2230,8 +2230,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.12059069,
-              -0.31263009,
+              2.10937071,
+              -0.27562439,
               0.94551396
             ],
             "root_position": [
@@ -2248,8 +2248,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.24971604,
-              -0.32459894,
+              2.24476409,
+              -0.35641712,
               0.94443339
             ],
             "root_position": [
@@ -2266,8 +2266,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.15825868,
-              -0.42163679,
+              2.18289113,
+              -0.426054,
               0.94261569
             ],
             "root_position": [
@@ -2317,11 +2317,11 @@
       "episode": 20,
       "step_count": 5000,
       "is_terminated": false,
-      "oranges_in_plate": 0,
-      "n_infer_calls": 287,
-      "last_infer_ms": 109.24936999799684,
-      "avg_step_ms": 54.181583995861004,
-      "ended_at": "2026-06-04T18:25:41",
+      "oranges_in_plate": 2,
+      "n_infer_calls": 247,
+      "last_infer_ms": 5.185250018257648,
+      "avg_step_ms": 50.27145419907756,
+      "ended_at": "2026-06-05T04:35:07",
       "seed": 1350550319,
       "seed_index": 20,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -2345,8 +2345,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.15000844,
-              -0.32304844,
+              2.13684869,
+              -0.28258067,
               0.94551396
             ],
             "root_position": [
@@ -2363,8 +2363,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.25408792,
-              -0.32348502,
+              2.2478497,
+              -0.30682829,
               0.94443339
             ],
             "root_position": [
@@ -2381,8 +2381,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.15061378,
-              -0.38089967,
+              2.14079332,
+              -0.43336335,
               0.94261569
             ],
             "root_position": [
@@ -2430,13 +2430,13 @@
     },
     {
       "episode": 21,
-      "step_count": 5000,
-      "is_terminated": false,
-      "oranges_in_plate": 1,
-      "n_infer_calls": 285,
-      "last_infer_ms": 5.3964200196787715,
-      "avg_step_ms": 54.151355441915804,
-      "ended_at": "2026-06-04T18:31:43",
+      "step_count": 926,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 47,
+      "last_infer_ms": 6.290121003985405,
+      "avg_step_ms": 49.9384244196127,
+      "ended_at": "2026-06-05T04:35:57",
       "seed": 297622765,
       "seed_index": 21,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -2460,8 +2460,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.09656954,
-              -0.28889227,
+              2.10844684,
+              -0.32067099,
               0.94551396
             ],
             "root_position": [
@@ -2478,8 +2478,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.26608109,
-              -0.32439783,
+              2.26166582,
+              -0.30235451,
               0.94443339
             ],
             "root_position": [
@@ -2496,8 +2496,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.16810775,
-              -0.3798728,
+              2.12935591,
+              -0.4112618,
               0.94261569
             ],
             "root_position": [
@@ -2547,11 +2547,11 @@
       "episode": 22,
       "step_count": 5000,
       "is_terminated": false,
-      "oranges_in_plate": 1,
-      "n_infer_calls": 299,
-      "last_infer_ms": 110.16817099880427,
-      "avg_step_ms": 53.97195312107215,
-      "ended_at": "2026-06-04T18:37:44",
+      "oranges_in_plate": 2,
+      "n_infer_calls": 244,
+      "last_infer_ms": 7.679689035285264,
+      "avg_step_ms": 50.21919743559556,
+      "ended_at": "2026-06-05T04:40:26",
       "seed": 209071702,
       "seed_index": 22,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -2575,9 +2575,9 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.13520527,
-              -0.29214579,
-              0.94551396
+              2.40827632,
+              -0.29451093,
+              0.97435057
             ],
             "root_position": [
               2.14451313,
@@ -2593,9 +2593,9 @@
           },
           "Orange002": {
             "com_position": [
-              2.23008323,
-              -0.33350641,
-              0.94443339
+              2.42326498,
+              -0.3441298,
+              0.94874769
             ],
             "root_position": [
               2.23344946,
@@ -2611,9 +2611,9 @@
           },
           "Orange003": {
             "com_position": [
-              2.13983274,
-              -0.38171381,
-              0.94261569
+              2.36791825,
+              -0.2770716,
+              0.95575601
             ],
             "root_position": [
               2.16842985,
@@ -2660,13 +2660,13 @@
     },
     {
       "episode": 23,
-      "step_count": 5000,
-      "is_terminated": false,
-      "oranges_in_plate": 0,
-      "n_infer_calls": 294,
-      "last_infer_ms": 113.78376500215381,
-      "avg_step_ms": 53.93697050416377,
-      "ended_at": "2026-06-04T18:43:45",
+      "step_count": 986,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 50,
+      "last_infer_ms": 7.628488994669169,
+      "avg_step_ms": 49.71702693628372,
+      "ended_at": "2026-06-05T04:41:19",
       "seed": 848543586,
       "seed_index": 23,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -2690,8 +2690,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.144943,
-              -0.32651246,
+              2.09622288,
+              -0.31524834,
               0.94551396
             ],
             "root_position": [
@@ -2708,8 +2708,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.24830794,
-              -0.31174156,
+              2.22115636,
+              -0.34122226,
               0.94443339
             ],
             "root_position": [
@@ -2726,8 +2726,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.14451575,
-              -0.4133634,
+              2.18059874,
+              -0.42114723,
               0.94261569
             ],
             "root_position": [
@@ -2777,11 +2777,11 @@
       "episode": 24,
       "step_count": 5000,
       "is_terminated": false,
-      "oranges_in_plate": 0,
-      "n_infer_calls": 301,
-      "last_infer_ms": 5.476518010254949,
-      "avg_step_ms": 54.77176038568141,
-      "ended_at": "2026-06-04T18:49:51",
+      "oranges_in_plate": 2,
+      "n_infer_calls": 246,
+      "last_infer_ms": 5.296321993228048,
+      "avg_step_ms": 50.26176477796398,
+      "ended_at": "2026-06-05T04:45:49",
       "seed": 764735769,
       "seed_index": 24,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -2805,9 +2805,9 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.12023354,
-              -0.31724808,
-              0.94551396
+              2.37516856,
+              -0.32284451,
+              0.95093161
             ],
             "root_position": [
               2.12888527,
@@ -2823,9 +2823,9 @@
           },
           "Orange002": {
             "com_position": [
-              2.22317433,
-              -0.31457689,
-              0.94443339
+              2.38961768,
+              -0.26198831,
+              0.95261788
             ],
             "root_position": [
               2.25021601,
@@ -2841,9 +2841,9 @@
           },
           "Orange003": {
             "com_position": [
-              2.16870117,
-              -0.39946964,
-              0.94261569
+              2.43495107,
+              -0.32725933,
+              0.9517628
             ],
             "root_position": [
               2.16271758,
@@ -2892,11 +2892,11 @@
       "episode": 25,
       "step_count": 5000,
       "is_terminated": false,
-      "oranges_in_plate": 1,
-      "n_infer_calls": 287,
-      "last_infer_ms": 108.66566601907834,
-      "avg_step_ms": 54.95095706610009,
-      "ended_at": "2026-06-04T18:55:57",
+      "oranges_in_plate": 0,
+      "n_infer_calls": 249,
+      "last_infer_ms": 5.757397972047329,
+      "avg_step_ms": 50.172386558598376,
+      "ended_at": "2026-06-05T04:50:17",
       "seed": 111822359,
       "seed_index": 25,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -2920,8 +2920,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.13566089,
-              -0.32746097,
+              2.10641432,
+              -0.31520876,
               0.94551396
             ],
             "root_position": [
@@ -2938,8 +2938,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.257339,
-              -0.31169176,
+              2.25282907,
+              -0.32068917,
               0.94443339
             ],
             "root_position": [
@@ -2956,8 +2956,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.18110752,
-              -0.43339813,
+              2.13207221,
+              -0.39144176,
               0.94261569
             ],
             "root_position": [
@@ -3007,11 +3007,11 @@
       "episode": 26,
       "step_count": 5000,
       "is_terminated": false,
-      "oranges_in_plate": 2,
-      "n_infer_calls": 294,
-      "last_infer_ms": 5.688531964551657,
-      "avg_step_ms": 54.37903442722745,
-      "ended_at": "2026-06-04T19:02:01",
+      "oranges_in_plate": 0,
+      "n_infer_calls": 247,
+      "last_infer_ms": 5.630080006085336,
+      "avg_step_ms": 50.32401893394999,
+      "ended_at": "2026-06-05T04:54:47",
       "seed": 987526805,
       "seed_index": 26,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -3035,8 +3035,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.10891938,
-              -0.30772263,
+              2.12006283,
+              -0.30705318,
               0.94551396
             ],
             "root_position": [
@@ -3053,8 +3053,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.27356744,
-              -0.34983128,
+              2.26554966,
+              -0.31798056,
               0.94443339
             ],
             "root_position": [
@@ -3071,8 +3071,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.13128471,
-              -0.4206298,
+              2.16725659,
+              -0.41401982,
               0.94261569
             ],
             "root_position": [
@@ -3120,13 +3120,13 @@
     },
     {
       "episode": 27,
-      "step_count": 4316,
-      "is_terminated": false,
-      "oranges_in_plate": 0,
-      "n_infer_calls": 248,
-      "last_infer_ms": 100.90247000334784,
-      "avg_step_ms": 54.16397784772233,
-      "ended_at": "2026-06-04T19:07:14",
+      "step_count": 1094,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 55,
+      "last_infer_ms": 7.6041509746573865,
+      "avg_step_ms": 49.70114447032374,
+      "ended_at": "2026-06-05T04:55:46",
       "seed": 1295261709,
       "seed_index": 27,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -3150,8 +3150,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.12062812,
-              -0.32964587,
+              2.13211226,
+              -0.32581818,
               0.94551396
             ],
             "root_position": [
@@ -3168,8 +3168,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.27107668,
-              -0.31938258,
+              2.23073316,
+              -0.35491979,
               0.94443339
             ],
             "root_position": [
@@ -3186,8 +3186,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.1421361,
-              -0.40144518,
+              2.1804049,
+              -0.40883479,
               0.94261569
             ],
             "root_position": [
@@ -3238,10 +3238,10 @@
       "step_count": 5000,
       "is_terminated": false,
       "oranges_in_plate": 2,
-      "n_infer_calls": 294,
-      "last_infer_ms": 95.60666797915474,
-      "avg_step_ms": 54.383226784947325,
-      "ended_at": "2026-06-04T19:13:17",
+      "n_infer_calls": 248,
+      "last_infer_ms": 8.504213008563966,
+      "avg_step_ms": 50.37805874382612,
+      "ended_at": "2026-06-05T05:00:16",
       "seed": 1156363176,
       "seed_index": 28,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -3265,9 +3265,9 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.5261662,
-              -0.41533038,
-              1.18163621
+              2.39842343,
+              -0.33391812,
+              0.98333573
             ],
             "root_position": [
               2.10532689,
@@ -3283,9 +3283,9 @@
           },
           "Orange002": {
             "com_position": [
-              2.3084693,
-              -0.3984293,
-              0.93979466
+              2.37092638,
+              -0.31575021,
+              0.94924456
             ],
             "root_position": [
               2.26949048,
@@ -3301,9 +3301,9 @@
           },
           "Orange003": {
             "com_position": [
-              2.55655503,
-              -0.35182929,
-              0.9465555
+              2.42607808,
+              -0.34166396,
+              0.9479177
             ],
             "root_position": [
               2.15898037,
@@ -3350,13 +3350,13 @@
     },
     {
       "episode": 29,
-      "step_count": 1736,
-      "is_terminated": true,
-      "oranges_in_plate": 3,
-      "n_infer_calls": 98,
-      "last_infer_ms": 107.01677901670337,
-      "avg_step_ms": 54.174530132974645,
-      "ended_at": "2026-06-04T19:15:23",
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 2,
+      "n_infer_calls": 246,
+      "last_infer_ms": 7.629608968272805,
+      "avg_step_ms": 49.96926949117333,
+      "ended_at": "2026-06-05T05:04:44",
       "seed": 418473947,
       "seed_index": 29,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -3380,8 +3380,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.11108351,
-              -0.30323383,
+              2.15348911,
+              -0.3153857,
               0.94551396
             ],
             "root_position": [
@@ -3398,8 +3398,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.2746222,
-              -0.32371706,
+              2.25491881,
+              -0.33619851,
               0.94443339
             ],
             "root_position": [
@@ -3416,8 +3416,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.1534071,
-              -0.38182005,
+              2.17923307,
+              -0.42831209,
               0.94261569
             ],
             "root_position": [
@@ -3465,13 +3465,13 @@
     },
     {
       "episode": 30,
-      "step_count": 3961,
-      "is_terminated": true,
-      "oranges_in_plate": 3,
-      "n_infer_calls": 241,
-      "last_infer_ms": 110.21168302977458,
-      "avg_step_ms": 54.487922388859346,
-      "ended_at": "2026-06-04T19:20:12",
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 2,
+      "n_infer_calls": 246,
+      "last_infer_ms": 7.701173017267138,
+      "avg_step_ms": 50.58090178347193,
+      "ended_at": "2026-06-05T05:09:15",
       "seed": 1767666939,
       "seed_index": 30,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -3495,9 +3495,9 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.47027755,
-              -0.28205299,
-              0.95075822
+              2.10268378,
+              -0.31984916,
+              0.94551396
             ],
             "root_position": [
               2.11225533,
@@ -3513,9 +3513,9 @@
           },
           "Orange002": {
             "com_position": [
-              2.39695787,
-              -0.30913642,
-              0.95015752
+              2.2442348,
+              -0.31227061,
+              0.94443339
             ],
             "root_position": [
               2.24283528,
@@ -3531,9 +3531,9 @@
           },
           "Orange003": {
             "com_position": [
-              2.42014503,
-              -0.35659432,
-              0.95564717
+              2.15076709,
+              -0.39075208,
+              0.94261569
             ],
             "root_position": [
               2.17583466,
@@ -3583,10 +3583,10 @@
       "step_count": 5000,
       "is_terminated": false,
       "oranges_in_plate": 0,
-      "n_infer_calls": 299,
-      "last_infer_ms": 105.09787703631446,
-      "avg_step_ms": 54.8313718735706,
-      "ended_at": "2026-06-04T19:26:19",
+      "n_infer_calls": 249,
+      "last_infer_ms": 6.847256037872285,
+      "avg_step_ms": 49.85465775401099,
+      "ended_at": "2026-06-05T05:13:42",
       "seed": 770656119,
       "seed_index": 31,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -3610,9 +3610,9 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.38701344,
-              -0.34853029,
-              0.94906759
+              2.14615107,
+              -0.29940149,
+              0.94551396
             ],
             "root_position": [
               2.11879921,
@@ -3628,9 +3628,9 @@
           },
           "Orange002": {
             "com_position": [
-              2.31053162,
-              -0.34778959,
-              0.97866273
+              2.22996449,
+              -0.33958259,
+              0.94443339
             ],
             "root_position": [
               2.23342633,
@@ -3646,9 +3646,9 @@
           },
           "Orange003": {
             "com_position": [
-              2.34055066,
-              -0.37521046,
-              0.94813234
+              2.15773249,
+              -0.41806033,
+              0.94261569
             ],
             "root_position": [
               2.17874074,
@@ -3695,13 +3695,13 @@
     },
     {
       "episode": 32,
-      "step_count": 5000,
-      "is_terminated": false,
-      "oranges_in_plate": 1,
-      "n_infer_calls": 294,
-      "last_infer_ms": 101.455137017183,
-      "avg_step_ms": 54.440059332363305,
-      "ended_at": "2026-06-04T19:32:23",
+      "step_count": 621,
+      "is_terminated": true,
+      "oranges_in_plate": 2,
+      "n_infer_calls": 32,
+      "last_infer_ms": 6.861946021672338,
+      "avg_step_ms": 49.41122388319471,
+      "ended_at": "2026-06-05T05:14:15",
       "seed": 481830033,
       "seed_index": 32,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -3725,8 +3725,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.1428678,
-              -0.31302968,
+              2.14691877,
+              -0.30715773,
               0.94551396
             ],
             "root_position": [
@@ -3743,8 +3743,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.23195815,
-              -0.36089152,
+              2.2511909,
+              -0.35398614,
               0.94443339
             ],
             "root_position": [
@@ -3761,8 +3761,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.18204045,
-              -0.38646153,
+              2.14977789,
+              -0.42017835,
               0.94261569
             ],
             "root_position": [
@@ -3810,13 +3810,13 @@
     },
     {
       "episode": 33,
-      "step_count": 5000,
-      "is_terminated": false,
-      "oranges_in_plate": 1,
-      "n_infer_calls": 306,
-      "last_infer_ms": 112.25183797068894,
-      "avg_step_ms": 54.83489065025933,
-      "ended_at": "2026-06-04T19:38:29",
+      "step_count": 922,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 46,
+      "last_infer_ms": 6.587567972019315,
+      "avg_step_ms": 49.90173332725749,
+      "ended_at": "2026-06-05T05:15:05",
       "seed": 1364348893,
       "seed_index": 33,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -3840,8 +3840,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.09839487,
-              -0.31798473,
+              2.13045526,
+              -0.31818372,
               0.94551396
             ],
             "root_position": [
@@ -3858,8 +3858,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.2201252,
-              -0.30848244,
+              2.22719669,
+              -0.35788903,
               0.94443339
             ],
             "root_position": [
@@ -3876,8 +3876,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.13303256,
-              -0.38691893,
+              2.13779402,
+              -0.42039385,
               0.94261569
             ],
             "root_position": [
@@ -3925,13 +3925,13 @@
     },
     {
       "episode": 34,
-      "step_count": 5000,
-      "is_terminated": false,
-      "oranges_in_plate": 0,
-      "n_infer_calls": 292,
-      "last_infer_ms": 6.26025500241667,
-      "avg_step_ms": 54.57754913857207,
-      "ended_at": "2026-06-04T19:44:33",
+      "step_count": 679,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 34,
+      "last_infer_ms": 6.1799699906259775,
+      "avg_step_ms": 49.23380619780447,
+      "ended_at": "2026-06-05T05:15:41",
       "seed": 702982795,
       "seed_index": 34,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -3955,9 +3955,9 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.14271569,
-              -0.3044765,
-              0.94551396
+              2.4565649,
+              -0.35890818,
+              0.95459569
             ],
             "root_position": [
               2.12415814,
@@ -3973,9 +3973,9 @@
           },
           "Orange002": {
             "com_position": [
-              2.25398993,
-              -0.31402493,
-              0.94443339
+              2.36606717,
+              -0.35139996,
+              0.97412688
             ],
             "root_position": [
               2.2372086,
@@ -3991,9 +3991,9 @@
           },
           "Orange003": {
             "com_position": [
-              2.1259439,
-              -0.42899689,
-              0.94261569
+              2.40588331,
+              -0.33291712,
+              0.95416653
             ],
             "root_position": [
               2.17478991,
@@ -4042,11 +4042,11 @@
       "episode": 35,
       "step_count": 5000,
       "is_terminated": false,
-      "oranges_in_plate": 2,
-      "n_infer_calls": 305,
-      "last_infer_ms": 5.0196259981021285,
-      "avg_step_ms": 54.22561445375904,
-      "ended_at": "2026-06-04T19:50:35",
+      "oranges_in_plate": 0,
+      "n_infer_calls": 245,
+      "last_infer_ms": 7.561958045698702,
+      "avg_step_ms": 50.20252696507377,
+      "ended_at": "2026-06-05T05:20:10",
       "seed": 508792521,
       "seed_index": 35,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -4070,9 +4070,9 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.13981175,
-              -0.30314696,
-              0.94551396
+              2.44524908,
+              -0.33902195,
+              0.95392609
             ],
             "root_position": [
               2.13292146,
@@ -4088,9 +4088,9 @@
           },
           "Orange002": {
             "com_position": [
-              2.24488473,
-              -0.35474622,
-              0.94443339
+              2.40831232,
+              -0.37219465,
+              0.95130205
             ],
             "root_position": [
               2.21933722,
@@ -4106,9 +4106,9 @@
           },
           "Orange003": {
             "com_position": [
-              2.15933657,
-              -0.39468133,
-              0.94261569
+              2.39408422,
+              -0.32270515,
+              0.94820911
             ],
             "root_position": [
               2.14668584,
@@ -4155,13 +4155,13 @@
     },
     {
       "episode": 36,
-      "step_count": 2213,
-      "is_terminated": true,
-      "oranges_in_plate": 3,
-      "n_infer_calls": 128,
-      "last_infer_ms": 114.73614501301199,
-      "avg_step_ms": 55.15494860648323,
-      "ended_at": "2026-06-04T19:53:18",
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 0,
+      "n_infer_calls": 248,
+      "last_infer_ms": 6.474337016697973,
+      "avg_step_ms": 50.161460156633986,
+      "ended_at": "2026-06-05T05:24:39",
       "seed": 408937253,
       "seed_index": 36,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -4185,8 +4185,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.12886596,
-              -0.29318324,
+              2.15055537,
+              -0.3058272,
               0.94551396
             ],
             "root_position": [
@@ -4203,8 +4203,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.23414826,
-              -0.34642166,
+              2.26052833,
+              -0.35850254,
               0.94443339
             ],
             "root_position": [
@@ -4221,8 +4221,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.13911033,
-              -0.41709262,
+              2.17671585,
+              -0.39039007,
               0.94261569
             ],
             "root_position": [
@@ -4273,10 +4273,10 @@
       "step_count": 5000,
       "is_terminated": false,
       "oranges_in_plate": 0,
-      "n_infer_calls": 295,
-      "last_infer_ms": 108.74761099694297,
-      "avg_step_ms": 54.77248105502222,
-      "ended_at": "2026-06-04T19:59:24",
+      "n_infer_calls": 249,
+      "last_infer_ms": 6.420847028493881,
+      "avg_step_ms": 50.05471178407315,
+      "ended_at": "2026-06-05T05:29:07",
       "seed": 845526410,
       "seed_index": 37,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -4300,9 +4300,9 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.41706157,
-              -0.33866361,
-              0.95007366
+              2.14550447,
+              -0.31619337,
+              0.94551396
             ],
             "root_position": [
               2.14101648,
@@ -4318,9 +4318,9 @@
           },
           "Orange002": {
             "com_position": [
-              2.37526083,
-              -0.31633598,
-              0.95282549
+              2.25095892,
+              -0.35689518,
+              0.94443339
             ],
             "root_position": [
               2.24738002,
@@ -4336,9 +4336,9 @@
           },
           "Orange003": {
             "com_position": [
-              2.3764658,
-              -0.37046853,
-              0.95985854
+              2.15706706,
+              -0.43285808,
+              0.94261569
             ],
             "root_position": [
               2.16496801,
@@ -4388,10 +4388,10 @@
       "step_count": 5000,
       "is_terminated": false,
       "oranges_in_plate": 0,
-      "n_infer_calls": 304,
-      "last_infer_ms": 5.18345000455156,
-      "avg_step_ms": 54.47723775540944,
-      "ended_at": "2026-06-04T20:05:27",
+      "n_infer_calls": 247,
+      "last_infer_ms": 5.830829031765461,
+      "avg_step_ms": 50.26777805206366,
+      "ended_at": "2026-06-05T05:33:36",
       "seed": 500145960,
       "seed_index": 38,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -4415,8 +4415,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.12418532,
-              -0.28415641,
+              2.13255429,
+              -0.29539049,
               0.94551396
             ],
             "root_position": [
@@ -4433,8 +4433,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.2416501,
-              -0.35162076,
+              2.23014259,
+              -0.3211689,
               0.94443339
             ],
             "root_position": [
@@ -4451,8 +4451,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.15334129,
-              -0.43220246,
+              2.17144179,
+              -0.419945,
               0.94261569
             ],
             "root_position": [
@@ -4502,11 +4502,11 @@
       "episode": 39,
       "step_count": 5000,
       "is_terminated": false,
-      "oranges_in_plate": 1,
-      "n_infer_calls": 295,
-      "last_infer_ms": 122.77190200984478,
-      "avg_step_ms": 54.21827696132241,
-      "ended_at": "2026-06-04T20:11:30",
+      "oranges_in_plate": 0,
+      "n_infer_calls": 247,
+      "last_infer_ms": 5.85039600264281,
+      "avg_step_ms": 49.934867179323916,
+      "ended_at": "2026-06-05T05:38:03",
       "seed": 1792662307,
       "seed_index": 39,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -4530,8 +4530,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.13421583,
-              -0.31363672,
+              2.15231204,
+              -0.32538134,
               0.94551396
             ],
             "root_position": [
@@ -4548,8 +4548,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.22168231,
-              -0.34199801,
+              2.22599864,
+              -0.33123586,
               0.94443339
             ],
             "root_position": [
@@ -4566,8 +4566,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.1605134,
-              -0.41531593,
+              2.17734075,
+              -0.43438783,
               0.94261569
             ],
             "root_position": [
@@ -4617,11 +4617,11 @@
       "episode": 40,
       "step_count": 5000,
       "is_terminated": false,
-      "oranges_in_plate": 2,
-      "n_infer_calls": 298,
-      "last_infer_ms": 5.158282001502812,
-      "avg_step_ms": 54.57525388798676,
-      "ended_at": "2026-06-04T20:17:35",
+      "oranges_in_plate": 0,
+      "n_infer_calls": 247,
+      "last_infer_ms": 6.371853989548981,
+      "avg_step_ms": 49.720303450373464,
+      "ended_at": "2026-06-05T05:42:30",
       "seed": 1158567666,
       "seed_index": 40,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -4645,8 +4645,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.1249299,
-              -0.28643629,
+              2.12367082,
+              -0.30808958,
               0.94551396
             ],
             "root_position": [
@@ -4663,8 +4663,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.27160311,
-              -0.36103985,
+              2.26627374,
+              -0.3321887,
               0.94443339
             ],
             "root_position": [
@@ -4681,8 +4681,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.13461065,
-              -0.40737894,
+              2.14757872,
+              -0.42842638,
               0.94261569
             ],
             "root_position": [
@@ -4730,13 +4730,13 @@
     },
     {
       "episode": 41,
-      "step_count": 2381,
-      "is_terminated": true,
-      "oranges_in_plate": 3,
-      "n_infer_calls": 140,
-      "last_infer_ms": 96.2009999784641,
-      "avg_step_ms": 54.24433872176542,
-      "ended_at": "2026-06-04T20:20:28",
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 2,
+      "n_infer_calls": 248,
+      "last_infer_ms": 5.512635980267078,
+      "avg_step_ms": 50.87747738352046,
+      "ended_at": "2026-06-05T05:47:02",
       "seed": 1883441487,
       "seed_index": 41,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -4760,8 +4760,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.11100936,
-              -0.28705034,
+              2.10806894,
+              -0.32059506,
               0.94551396
             ],
             "root_position": [
@@ -4778,8 +4778,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.26589775,
-              -0.35980275,
+              2.2516551,
+              -0.32793185,
               0.94443339
             ],
             "root_position": [
@@ -4796,8 +4796,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.15664244,
-              -0.42817324,
+              2.16330552,
+              -0.38112652,
               0.94261569
             ],
             "root_position": [
@@ -4847,11 +4847,11 @@
       "episode": 42,
       "step_count": 5000,
       "is_terminated": false,
-      "oranges_in_plate": 1,
-      "n_infer_calls": 297,
-      "last_infer_ms": 104.72793597728014,
-      "avg_step_ms": 54.240619463194164,
-      "ended_at": "2026-06-04T20:26:31",
+      "oranges_in_plate": 0,
+      "n_infer_calls": 245,
+      "last_infer_ms": 6.261229980736971,
+      "avg_step_ms": 50.4298858930124,
+      "ended_at": "2026-06-05T05:51:33",
       "seed": 1122766511,
       "seed_index": 42,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -4875,9 +4875,9 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.42827439,
-              -0.40616128,
-              0.9488551
+              2.13549328,
+              -0.29049781,
+              0.94551396
             ],
             "root_position": [
               2.15039945,
@@ -4893,9 +4893,9 @@
           },
           "Orange002": {
             "com_position": [
-              2.42006898,
-              -0.35088697,
-              0.94841105
+              2.24897909,
+              -0.31347492,
+              0.94443339
             ],
             "root_position": [
               2.22964311,
@@ -4911,9 +4911,9 @@
           },
           "Orange003": {
             "com_position": [
-              2.33272982,
-              -0.35143355,
-              0.98242831
+              2.18030167,
+              -0.38654861,
+              0.94261569
             ],
             "root_position": [
               2.16818571,
@@ -4962,11 +4962,11 @@
       "episode": 43,
       "step_count": 5000,
       "is_terminated": false,
-      "oranges_in_plate": 1,
-      "n_infer_calls": 295,
-      "last_infer_ms": 5.642161995638162,
-      "avg_step_ms": 54.78373708829749,
-      "ended_at": "2026-06-04T20:32:36",
+      "oranges_in_plate": 0,
+      "n_infer_calls": 247,
+      "last_infer_ms": 5.631937994621694,
+      "avg_step_ms": 50.50975298145786,
+      "ended_at": "2026-06-05T05:56:03",
       "seed": 1304846909,
       "seed_index": 43,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -4990,8 +4990,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.13301301,
-              -0.32481512,
+              2.15308857,
+              -0.3190662,
               0.94551396
             ],
             "root_position": [
@@ -5008,8 +5008,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.25141096,
-              -0.33050409,
+              2.25922823,
+              -0.33674431,
               0.94443339
             ],
             "root_position": [
@@ -5026,8 +5026,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.13524318,
-              -0.42775646,
+              2.15906882,
+              -0.41694513,
               0.94261569
             ],
             "root_position": [
@@ -5077,11 +5077,11 @@
       "episode": 44,
       "step_count": 5000,
       "is_terminated": false,
-      "oranges_in_plate": 2,
-      "n_infer_calls": 298,
-      "last_infer_ms": 104.40985002787784,
-      "avg_step_ms": 54.39662026007427,
-      "ended_at": "2026-06-04T20:38:40",
+      "oranges_in_plate": 1,
+      "n_infer_calls": 249,
+      "last_infer_ms": 5.741395987570286,
+      "avg_step_ms": 50.24001747111324,
+      "ended_at": "2026-06-05T06:00:33",
       "seed": 1539215590,
       "seed_index": 44,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -5105,8 +5105,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.1127646,
-              -0.29342315,
+              2.1257937,
+              -0.32885143,
               0.94551396
             ],
             "root_position": [
@@ -5123,8 +5123,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.25952888,
-              -0.3160184,
+              2.27910399,
+              -0.31345829,
               0.94443339
             ],
             "root_position": [
@@ -5141,8 +5141,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.142555,
-              -0.39051518,
+              2.18174386,
+              -0.40340975,
               0.94261569
             ],
             "root_position": [
@@ -5193,10 +5193,10 @@
       "step_count": 5000,
       "is_terminated": false,
       "oranges_in_plate": 0,
-      "n_infer_calls": 293,
-      "last_infer_ms": 104.50895602116361,
-      "avg_step_ms": 54.904700009804216,
-      "ended_at": "2026-06-04T20:44:46",
+      "n_infer_calls": 243,
+      "last_infer_ms": 5.6009889813140035,
+      "avg_step_ms": 50.816040517482904,
+      "ended_at": "2026-06-05T06:05:05",
       "seed": 2113659741,
       "seed_index": 45,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -5220,8 +5220,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.1391139,
-              -0.28817329,
+              2.11492896,
+              -0.28132942,
               0.94551396
             ],
             "root_position": [
@@ -5238,8 +5238,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.24822426,
-              -0.34487361,
+              2.22217441,
+              -0.31723836,
               0.94443339
             ],
             "root_position": [
@@ -5256,8 +5256,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.16159534,
-              -0.37639785,
+              2.17670512,
+              -0.4187938,
               0.94261569
             ],
             "root_position": [
@@ -5307,11 +5307,11 @@
       "episode": 46,
       "step_count": 5000,
       "is_terminated": false,
-      "oranges_in_plate": 2,
-      "n_infer_calls": 293,
-      "last_infer_ms": 98.55272300774232,
-      "avg_step_ms": 54.89455346143804,
-      "ended_at": "2026-06-04T20:50:52",
+      "oranges_in_plate": 0,
+      "n_infer_calls": 248,
+      "last_infer_ms": 7.55196699174121,
+      "avg_step_ms": 50.53469999830704,
+      "ended_at": "2026-06-05T06:09:35",
       "seed": 1072045205,
       "seed_index": 46,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -5335,8 +5335,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.14208937,
-              -0.28791636,
+              2.09644556,
+              -0.27828568,
               0.94551396
             ],
             "root_position": [
@@ -5353,8 +5353,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.2660408,
-              -0.32280684,
+              2.2677362,
+              -0.34902817,
               0.94443339
             ],
             "root_position": [
@@ -5371,8 +5371,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.14015388,
-              -0.38833377,
+              2.17799759,
+              -0.37781817,
               0.94261569
             ],
             "root_position": [
@@ -5422,11 +5422,11 @@
       "episode": 47,
       "step_count": 5000,
       "is_terminated": false,
-      "oranges_in_plate": 1,
-      "n_infer_calls": 293,
-      "last_infer_ms": 128.40448401402682,
-      "avg_step_ms": 54.84824331161799,
-      "ended_at": "2026-06-04T20:56:58",
+      "oranges_in_plate": 0,
+      "n_infer_calls": 250,
+      "last_infer_ms": 7.043558987788856,
+      "avg_step_ms": 50.25826366802212,
+      "ended_at": "2026-06-05T06:14:05",
       "seed": 1245362251,
       "seed_index": 47,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -5450,8 +5450,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.12762856,
-              -0.30572852,
+              2.14110565,
+              -0.28775811,
               0.94551396
             ],
             "root_position": [
@@ -5468,8 +5468,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.23775077,
-              -0.33522272,
+              2.25667953,
+              -0.35496911,
               0.94443339
             ],
             "root_position": [
@@ -5486,8 +5486,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.15530205,
-              -0.38872302,
+              2.13175297,
+              -0.41793868,
               0.94261569
             ],
             "root_position": [
@@ -5535,13 +5535,13 @@
     },
     {
       "episode": 48,
-      "step_count": 989,
-      "is_terminated": true,
-      "oranges_in_plate": 3,
-      "n_infer_calls": 56,
-      "last_infer_ms": 101.91197000676766,
-      "avg_step_ms": 54.67810380567784,
-      "ended_at": "2026-06-04T20:58:11",
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 2,
+      "n_infer_calls": 247,
+      "last_infer_ms": 5.744688969571143,
+      "avg_step_ms": 50.73570051167626,
+      "ended_at": "2026-06-05T06:18:36",
       "seed": 150500664,
       "seed_index": 48,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -5565,8 +5565,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.11240411,
-              -0.32408205,
+              2.13604021,
+              -0.28512633,
               0.94551396
             ],
             "root_position": [
@@ -5583,8 +5583,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.24064398,
-              -0.33505565,
+              2.24994636,
+              -0.32429677,
               0.94443339
             ],
             "root_position": [
@@ -5601,8 +5601,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.1835115,
-              -0.39327738,
+              2.1697793,
+              -0.41768754,
               0.94261569
             ],
             "root_position": [
@@ -5652,11 +5652,11 @@
       "episode": 49,
       "step_count": 5000,
       "is_terminated": false,
-      "oranges_in_plate": 1,
-      "n_infer_calls": 301,
-      "last_infer_ms": 107.75331198237836,
-      "avg_step_ms": 55.57515016051475,
-      "ended_at": "2026-06-04T21:04:21",
+      "oranges_in_plate": 0,
+      "n_infer_calls": 247,
+      "last_infer_ms": 5.62808004906401,
+      "avg_step_ms": 50.7794498942676,
+      "ended_at": "2026-06-05T06:23:08",
       "seed": 669831923,
       "seed_index": 49,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -5680,9 +5680,9 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.35307288,
-              -0.33530003,
-              0.98441803
+              2.13708186,
+              -0.30237159,
+              0.94551396
             ],
             "root_position": [
               2.10184431,
@@ -5698,9 +5698,9 @@
           },
           "Orange002": {
             "com_position": [
-              2.38562942,
-              -0.32627568,
-              0.94675499
+              2.22451067,
+              -0.30874726,
+              0.94443339
             ],
             "root_position": [
               2.24349332,
@@ -5716,9 +5716,9 @@
           },
           "Orange003": {
             "com_position": [
-              2.39158678,
-              -0.37267989,
-              0.957555
+              2.17901111,
+              -0.39975506,
+              0.94261569
             ],
             "root_position": [
               2.17042279,
@@ -5767,11 +5767,11 @@
       "episode": 50,
       "step_count": 5000,
       "is_terminated": false,
-      "oranges_in_plate": 1,
-      "n_infer_calls": 298,
-      "last_infer_ms": 108.36136504076421,
-      "avg_step_ms": 55.07459199198056,
-      "ended_at": "2026-06-04T21:10:29",
+      "oranges_in_plate": 0,
+      "n_infer_calls": 245,
+      "last_infer_ms": 5.953387008048594,
+      "avg_step_ms": 50.30265466261189,
+      "ended_at": "2026-06-05T06:27:38",
       "seed": 230676851,
       "seed_index": 50,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -5795,8 +5795,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.1161232,
-              -0.29167312,
+              2.11476064,
+              -0.27442831,
               0.94551396
             ],
             "root_position": [
@@ -5813,8 +5813,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.27069116,
-              -0.33094102,
+              2.23499632,
+              -0.32697272,
               0.94443339
             ],
             "root_position": [
@@ -5831,8 +5831,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.12773681,
-              -0.39439777,
+              2.14305782,
+              -0.42908907,
               0.94261569
             ],
             "root_position": [
@@ -5880,13 +5880,13 @@
     },
     {
       "episode": 51,
-      "step_count": 5000,
-      "is_terminated": false,
-      "oranges_in_plate": 2,
-      "n_infer_calls": 306,
-      "last_infer_ms": 111.02694302098826,
-      "avg_step_ms": 54.428657584555914,
-      "ended_at": "2026-06-04T21:16:33",
+      "step_count": 885,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 44,
+      "last_infer_ms": 5.708999000489712,
+      "avg_step_ms": 51.19712450844104,
+      "ended_at": "2026-06-05T06:28:26",
       "seed": 1199376673,
       "seed_index": 51,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -5910,8 +5910,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.1544888,
-              -0.33174667,
+              2.11461568,
+              -0.28591809,
               0.94551396
             ],
             "root_position": [
@@ -5928,8 +5928,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.22312665,
-              -0.3096652,
+              2.25828934,
+              -0.30243903,
               0.94443339
             ],
             "root_position": [
@@ -5946,8 +5946,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.12710428,
-              -0.43482691,
+              2.17534518,
+              -0.40723068,
               0.94261569
             ],
             "root_position": [
@@ -5997,11 +5997,11 @@
       "episode": 52,
       "step_count": 5000,
       "is_terminated": false,
-      "oranges_in_plate": 2,
-      "n_infer_calls": 287,
-      "last_infer_ms": 100.55747698061168,
-      "avg_step_ms": 54.78445641332073,
-      "ended_at": "2026-06-04T21:22:38",
+      "oranges_in_plate": 1,
+      "n_infer_calls": 245,
+      "last_infer_ms": 5.146553972736001,
+      "avg_step_ms": 54.08119146303507,
+      "ended_at": "2026-06-05T06:33:15",
       "seed": 771172007,
       "seed_index": 52,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -6025,9 +6025,9 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.11566353,
-              -0.33117679,
-              0.94551396
+              2.37348676,
+              -0.31180674,
+              0.97364843
             ],
             "root_position": [
               2.12089324,
@@ -6043,9 +6043,9 @@
           },
           "Orange002": {
             "com_position": [
-              2.25353575,
-              -0.30786091,
-              0.94443339
+              2.48815966,
+              -0.3859764,
+              0.95159084
             ],
             "root_position": [
               2.25343728,
@@ -6061,9 +6061,9 @@
           },
           "Orange003": {
             "com_position": [
-              2.1777513,
-              -0.40335515,
-              0.94261569
+              2.4179709,
+              -0.32406449,
+              0.94879711
             ],
             "root_position": [
               2.15368223,
@@ -6110,13 +6110,13 @@
     },
     {
       "episode": 53,
-      "step_count": 5000,
-      "is_terminated": false,
-      "oranges_in_plate": 0,
-      "n_infer_calls": 295,
-      "last_infer_ms": 5.494751967489719,
-      "avg_step_ms": 54.30878413277678,
-      "ended_at": "2026-06-04T21:28:41",
+      "step_count": 562,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 29,
+      "last_infer_ms": 7.346403959672898,
+      "avg_step_ms": 51.55682642496725,
+      "ended_at": "2026-06-05T06:33:47",
       "seed": 1257987679,
       "seed_index": 53,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -6140,8 +6140,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.10889268,
-              -0.32651821,
+              2.13011169,
+              -0.31075642,
               0.94551396
             ],
             "root_position": [
@@ -6158,8 +6158,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.26523662,
-              -0.30282226,
+              2.2553978,
+              -0.34537777,
               0.94443339
             ],
             "root_position": [
@@ -6176,8 +6176,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.16151309,
-              -0.39461201,
+              2.1640265,
+              -0.42019841,
               0.94261569
             ],
             "root_position": [
@@ -6228,10 +6228,10 @@
       "step_count": 5000,
       "is_terminated": false,
       "oranges_in_plate": 0,
-      "n_infer_calls": 291,
-      "last_infer_ms": 107.69411898218095,
-      "avg_step_ms": 54.38740004491992,
-      "ended_at": "2026-06-04T21:34:45",
+      "n_infer_calls": 246,
+      "last_infer_ms": 6.153984984848648,
+      "avg_step_ms": 50.35506992151495,
+      "ended_at": "2026-06-05T06:38:17",
       "seed": 358258547,
       "seed_index": 54,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -6255,9 +6255,9 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.12417316,
-              -0.30379876,
-              0.94551396
+              2.41361618,
+              -0.39459452,
+              0.96082914
             ],
             "root_position": [
               2.14075017,
@@ -6273,9 +6273,9 @@
           },
           "Orange002": {
             "com_position": [
-              2.26348329,
-              -0.31623566,
-              0.94443339
+              2.40154338,
+              -0.34666899,
+              0.94897634
             ],
             "root_position": [
               2.27885365,
@@ -6291,9 +6291,9 @@
           },
           "Orange003": {
             "com_position": [
-              2.17154026,
-              -0.40268883,
-              0.94261569
+              2.38539791,
+              -0.27052408,
+              0.95487499
             ],
             "root_position": [
               2.17388701,
@@ -6340,13 +6340,13 @@
     },
     {
       "episode": 55,
-      "step_count": 1010,
+      "step_count": 5000,
       "is_terminated": false,
       "oranges_in_plate": 0,
-      "n_infer_calls": 59,
-      "last_infer_ms": 103.17169700283557,
-      "avg_step_ms": 54.392124864844476,
-      "ended_at": "2026-06-04T21:35:59",
+      "n_infer_calls": 243,
+      "last_infer_ms": 6.020354980137199,
+      "avg_step_ms": 50.67113640017342,
+      "ended_at": "2026-06-05T06:42:48",
       "seed": 227766249,
       "seed_index": 55,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -6370,8 +6370,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.15286016,
-              -0.2897706,
+              2.10520768,
+              -0.29006296,
               0.94551396
             ],
             "root_position": [
@@ -6388,8 +6388,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.22403288,
-              -0.30832833,
+              2.27530336,
+              -0.32199985,
               0.94443339
             ],
             "root_position": [
@@ -6406,8 +6406,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.17551422,
-              -0.39720443,
+              2.17064404,
+              -0.42294219,
               0.94261569
             ],
             "root_position": [
@@ -6458,10 +6458,10 @@
       "step_count": 5000,
       "is_terminated": false,
       "oranges_in_plate": 0,
-      "n_infer_calls": 308,
-      "last_infer_ms": 108.91381499823183,
-      "avg_step_ms": 54.64525332484627,
-      "ended_at": "2026-06-04T21:42:03",
+      "n_infer_calls": 247,
+      "last_infer_ms": 6.10748102189973,
+      "avg_step_ms": 51.25155345391249,
+      "ended_at": "2026-06-05T06:47:22",
       "seed": 1135280141,
       "seed_index": 56,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -6485,9 +6485,9 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.45024323,
-              -0.41610166,
-              1.16138911
+              2.1275115,
+              -0.30194151,
+              0.94551396
             ],
             "root_position": [
               2.12645459,
@@ -6503,9 +6503,9 @@
           },
           "Orange002": {
             "com_position": [
-              2.48564076,
-              -0.47801805,
-              0.94241428
+              2.237288,
+              -0.30285171,
+              0.94443339
             ],
             "root_position": [
               2.25668454,
@@ -6521,9 +6521,9 @@
           },
           "Orange003": {
             "com_position": [
-              2.53574896,
-              -0.40702754,
-              0.94109994
+              2.15169024,
+              -0.42979863,
+              0.94261569
             ],
             "root_position": [
               2.17449307,
@@ -6570,13 +6570,13 @@
     },
     {
       "episode": 57,
-      "step_count": 5000,
-      "is_terminated": false,
-      "oranges_in_plate": 1,
-      "n_infer_calls": 306,
-      "last_infer_ms": 100.36939795827493,
-      "avg_step_ms": 54.52806325561833,
-      "ended_at": "2026-06-04T21:48:07",
+      "step_count": 1330,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 66,
+      "last_infer_ms": 6.838203989900649,
+      "avg_step_ms": 50.48417980446571,
+      "ended_at": "2026-06-05T06:48:34",
       "seed": 717144336,
       "seed_index": 57,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -6600,8 +6600,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.13335991,
-              -0.32391915,
+              2.09849548,
+              -0.31045344,
               0.94551396
             ],
             "root_position": [
@@ -6618,8 +6618,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.26094604,
-              -0.31912559,
+              2.2609911,
+              -0.31226698,
               0.94443339
             ],
             "root_position": [
@@ -6636,8 +6636,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.18186045,
-              -0.38638437,
+              2.14078283,
+              -0.40177023,
               0.94261569
             ],
             "root_position": [
@@ -6687,11 +6687,11 @@
       "episode": 58,
       "step_count": 5000,
       "is_terminated": false,
-      "oranges_in_plate": 1,
-      "n_infer_calls": 292,
-      "last_infer_ms": 7.085928053129464,
-      "avg_step_ms": 54.30356659522513,
-      "ended_at": "2026-06-04T21:54:11",
+      "oranges_in_plate": 2,
+      "n_infer_calls": 244,
+      "last_infer_ms": 5.470783973578364,
+      "avg_step_ms": 51.319003660581075,
+      "ended_at": "2026-06-05T06:53:09",
       "seed": 1117282553,
       "seed_index": 58,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -6715,9 +6715,9 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.14014983,
-              -0.31674647,
-              0.94551396
+              2.36828971,
+              -0.33405042,
+              0.9534083
             ],
             "root_position": [
               2.11306667,
@@ -6733,9 +6733,9 @@
           },
           "Orange002": {
             "com_position": [
-              2.22340822,
-              -0.3109847,
-              0.94443339
+              2.40190673,
+              -0.29743433,
+              0.94964212
             ],
             "root_position": [
               2.22734237,
@@ -6751,9 +6751,9 @@
           },
           "Orange003": {
             "com_position": [
-              2.17713547,
-              -0.39793092,
-              0.94261569
+              2.41675615,
+              -0.37044147,
+              0.95023656
             ],
             "root_position": [
               2.14448237,
@@ -6802,11 +6802,11 @@
       "episode": 59,
       "step_count": 5000,
       "is_terminated": false,
-      "oranges_in_plate": 1,
-      "n_infer_calls": 301,
-      "last_infer_ms": 101.74962499877438,
-      "avg_step_ms": 54.63632672558306,
-      "ended_at": "2026-06-04T22:00:16",
+      "oranges_in_plate": 0,
+      "n_infer_calls": 247,
+      "last_infer_ms": 7.693253981415182,
+      "avg_step_ms": 50.919039369758686,
+      "ended_at": "2026-06-05T06:57:42",
       "seed": 55978791,
       "seed_index": 59,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -6830,8 +6830,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.11315012,
-              -0.31755278,
+              2.15247631,
+              -0.31208432,
               0.94551396
             ],
             "root_position": [
@@ -6848,8 +6848,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.23162055,
-              -0.32961079,
+              2.26336312,
+              -0.3267701,
               0.94443339
             ],
             "root_position": [
@@ -6866,8 +6866,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.15403724,
-              -0.41685045,
+              2.16513014,
+              -0.43430215,
               0.94261569
             ],
             "root_position": [
@@ -6917,11 +6917,11 @@
       "episode": 60,
       "step_count": 5000,
       "is_terminated": false,
-      "oranges_in_plate": 0,
-      "n_infer_calls": 297,
-      "last_infer_ms": 110.70089600980282,
-      "avg_step_ms": 54.542592640791554,
-      "ended_at": "2026-06-04T22:06:20",
+      "oranges_in_plate": 2,
+      "n_infer_calls": 248,
+      "last_infer_ms": 5.81366999540478,
+      "avg_step_ms": 50.933798446983566,
+      "ended_at": "2026-06-05T07:02:15",
       "seed": 1206346641,
       "seed_index": 60,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -6945,8 +6945,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.14109278,
-              -0.31061372,
+              2.10755897,
+              -0.3299678,
               0.94551396
             ],
             "root_position": [
@@ -6963,8 +6963,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.274616,
-              -0.30705208,
+              2.24891067,
+              -0.31335175,
               0.94443339
             ],
             "root_position": [
@@ -6981,8 +6981,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.15908337,
-              -0.41163364,
+              2.15086341,
+              -0.39494935,
               0.94261569
             ],
             "root_position": [
@@ -7030,13 +7030,13 @@
     },
     {
       "episode": 61,
-      "step_count": 5000,
-      "is_terminated": false,
+      "step_count": 648,
+      "is_terminated": true,
       "oranges_in_plate": 2,
-      "n_infer_calls": 290,
-      "last_infer_ms": 108.59156004153192,
-      "avg_step_ms": 54.392834495264104,
-      "ended_at": "2026-06-04T22:12:24",
+      "n_infer_calls": 33,
+      "last_infer_ms": 5.599722033366561,
+      "avg_step_ms": 52.39331687020532,
+      "ended_at": "2026-06-05T07:02:52",
       "seed": 901144750,
       "seed_index": 61,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -7060,8 +7060,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.14793515,
-              -0.31339025,
+              2.09772635,
+              -0.28295025,
               0.94551396
             ],
             "root_position": [
@@ -7078,8 +7078,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.25097179,
-              -0.31733382,
+              2.24967337,
+              -0.31696782,
               0.94443339
             ],
             "root_position": [
@@ -7096,8 +7096,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.1537621,
-              -0.41056591,
+              2.1393714,
+              -0.41016117,
               0.94261569
             ],
             "root_position": [
@@ -7148,10 +7148,10 @@
       "step_count": 5000,
       "is_terminated": false,
       "oranges_in_plate": 0,
-      "n_infer_calls": 295,
-      "last_infer_ms": 97.03002398600802,
-      "avg_step_ms": 54.38103597665904,
-      "ended_at": "2026-06-04T22:18:27",
+      "n_infer_calls": 246,
+      "last_infer_ms": 6.693901028484106,
+      "avg_step_ms": 51.06276262919418,
+      "ended_at": "2026-06-05T07:07:25",
       "seed": 1077683825,
       "seed_index": 62,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -7175,8 +7175,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.10460043,
-              -0.29422861,
+              2.12133527,
+              -0.29994491,
               0.94551396
             ],
             "root_position": [
@@ -7193,8 +7193,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.22646236,
-              -0.31202954,
+              2.25704837,
+              -0.33894122,
               0.94443339
             ],
             "root_position": [
@@ -7211,8 +7211,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.16289544,
-              -0.4272306,
+              2.16997004,
+              -0.37839204,
               0.94261569
             ],
             "root_position": [
@@ -7262,11 +7262,11 @@
       "episode": 63,
       "step_count": 5000,
       "is_terminated": false,
-      "oranges_in_plate": 2,
-      "n_infer_calls": 293,
-      "last_infer_ms": 100.98950302926823,
-      "avg_step_ms": 55.164300901489334,
-      "ended_at": "2026-06-04T22:24:36",
+      "oranges_in_plate": 1,
+      "n_infer_calls": 244,
+      "last_infer_ms": 5.572611000388861,
+      "avg_step_ms": 51.02541213248624,
+      "ended_at": "2026-06-05T07:11:58",
       "seed": 1225696844,
       "seed_index": 63,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -7290,8 +7290,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.10578203,
-              -0.30774254,
+              2.11178684,
+              -0.31675947,
               0.94551396
             ],
             "root_position": [
@@ -7308,8 +7308,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.27342844,
-              -0.35773188,
+              2.22287202,
+              -0.33461228,
               0.94443339
             ],
             "root_position": [
@@ -7326,8 +7326,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.14478397,
-              -0.42048419,
+              2.13084912,
+              -0.39837772,
               0.94261569
             ],
             "root_position": [
@@ -7375,13 +7375,13 @@
     },
     {
       "episode": 64,
-      "step_count": 1477,
-      "is_terminated": true,
-      "oranges_in_plate": 3,
-      "n_infer_calls": 90,
-      "last_infer_ms": 105.89771904051304,
-      "avg_step_ms": 54.144421028682345,
-      "ended_at": "2026-06-04T22:26:23",
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 0,
+      "n_infer_calls": 245,
+      "last_infer_ms": 5.590101005509496,
+      "avg_step_ms": 51.186472001299265,
+      "ended_at": "2026-06-05T07:16:33",
       "seed": 412086414,
       "seed_index": 64,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -7405,8 +7405,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.13602972,
-              -0.31754082,
+              2.10623384,
+              -0.32943681,
               0.94551396
             ],
             "root_position": [
@@ -7423,8 +7423,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.25884318,
-              -0.35080084,
+              2.22304893,
+              -0.30516756,
               0.94443339
             ],
             "root_position": [
@@ -7441,8 +7441,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.14468265,
-              -0.40395492,
+              2.17674804,
+              -0.40330979,
               0.94261569
             ],
             "root_position": [
@@ -7492,11 +7492,11 @@
       "episode": 65,
       "step_count": 5000,
       "is_terminated": false,
-      "oranges_in_plate": 0,
-      "n_infer_calls": 294,
-      "last_infer_ms": 96.23635100433603,
-      "avg_step_ms": 54.37145464209607,
-      "ended_at": "2026-06-04T22:32:26",
+      "oranges_in_plate": 1,
+      "n_infer_calls": 249,
+      "last_infer_ms": 6.107713968958706,
+      "avg_step_ms": 50.99949445192469,
+      "ended_at": "2026-06-05T07:21:06",
       "seed": 1897207322,
       "seed_index": 65,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -7520,9 +7520,9 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.30978322,
-              -0.29970393,
-              0.95567799
+              2.15014434,
+              -0.31190139,
+              0.94551396
             ],
             "root_position": [
               2.13859987,
@@ -7538,9 +7538,9 @@
           },
           "Orange002": {
             "com_position": [
-              2.26293826,
-              -0.36340827,
-              0.95508283
+              2.23957586,
+              -0.30462617,
+              0.94443339
             ],
             "root_position": [
               2.27326083,
@@ -7556,9 +7556,9 @@
           },
           "Orange003": {
             "com_position": [
-              2.30556202,
-              -0.3703123,
-              0.97708118
+              2.18144631,
+              -0.41048247,
+              0.94261569
             ],
             "root_position": [
               2.18107319,
@@ -7607,11 +7607,11 @@
       "episode": 66,
       "step_count": 5000,
       "is_terminated": false,
-      "oranges_in_plate": 1,
-      "n_infer_calls": 280,
-      "last_infer_ms": 113.36195096373558,
-      "avg_step_ms": 54.719211787427774,
-      "ended_at": "2026-06-04T22:38:31",
+      "oranges_in_plate": 0,
+      "n_infer_calls": 249,
+      "last_infer_ms": 6.646665977314115,
+      "avg_step_ms": 51.159045106207486,
+      "ended_at": "2026-06-05T07:25:40",
       "seed": 831799567,
       "seed_index": 66,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -7635,8 +7635,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.13320875,
-              -0.31377804,
+              2.14339089,
+              -0.32181975,
               0.94551396
             ],
             "root_position": [
@@ -7653,8 +7653,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.27717137,
-              -0.32723799,
+              2.25094366,
+              -0.3314555,
               0.94443339
             ],
             "root_position": [
@@ -7671,8 +7671,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.14522338,
-              -0.39015242,
+              2.15710783,
+              -0.41685623,
               0.94261569
             ],
             "root_position": [
@@ -7722,11 +7722,11 @@
       "episode": 67,
       "step_count": 5000,
       "is_terminated": false,
-      "oranges_in_plate": 2,
-      "n_infer_calls": 282,
-      "last_infer_ms": 103.48272102419287,
-      "avg_step_ms": 54.56396961929276,
-      "ended_at": "2026-06-04T22:44:36",
+      "oranges_in_plate": 0,
+      "n_infer_calls": 247,
+      "last_infer_ms": 5.734702979680151,
+      "avg_step_ms": 51.19420650016982,
+      "ended_at": "2026-06-05T07:30:14",
       "seed": 497518717,
       "seed_index": 67,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -7750,8 +7750,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.14942193,
-              -0.29410434,
+              2.1509645,
+              -0.33209732,
               0.94551396
             ],
             "root_position": [
@@ -7768,8 +7768,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.27583694,
-              -0.33632788,
+              2.25235724,
+              -0.33169371,
               0.94443339
             ],
             "root_position": [
@@ -7786,8 +7786,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.12913084,
-              -0.42754382,
+              2.13766694,
+              -0.41149125,
               0.94261569
             ],
             "root_position": [
@@ -7838,10 +7838,10 @@
       "step_count": 5000,
       "is_terminated": false,
       "oranges_in_plate": 0,
-      "n_infer_calls": 295,
-      "last_infer_ms": 109.9714360316284,
-      "avg_step_ms": 55.043578448856714,
-      "ended_at": "2026-06-04T22:50:43",
+      "n_infer_calls": 246,
+      "last_infer_ms": 5.202596017625183,
+      "avg_step_ms": 51.416382590320424,
+      "ended_at": "2026-06-05T07:34:49",
       "seed": 1891463494,
       "seed_index": 68,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -7865,8 +7865,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.13126993,
-              -0.30715382,
+              2.13246107,
+              -0.28816715,
               0.94551396
             ],
             "root_position": [
@@ -7883,8 +7883,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.25828195,
-              -0.35465661,
+              2.2218461,
+              -0.36129501,
               0.94443339
             ],
             "root_position": [
@@ -7901,8 +7901,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.1543045,
-              -0.37571067,
+              2.15214372,
+              -0.42186186,
               0.94261569
             ],
             "root_position": [
@@ -7953,10 +7953,10 @@
       "step_count": 5000,
       "is_terminated": false,
       "oranges_in_plate": 1,
-      "n_infer_calls": 287,
-      "last_infer_ms": 110.87482201401144,
-      "avg_step_ms": 54.60902880214853,
-      "ended_at": "2026-06-04T22:56:48",
+      "n_infer_calls": 249,
+      "last_infer_ms": 5.968089972157031,
+      "avg_step_ms": 50.83871502608527,
+      "ended_at": "2026-06-05T07:39:22",
       "seed": 750102643,
       "seed_index": 69,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -7980,8 +7980,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.15279722,
-              -0.3245309,
+              2.11405563,
+              -0.32504362,
               0.94551396
             ],
             "root_position": [
@@ -7998,8 +7998,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.25584555,
-              -0.34386289,
+              2.26088524,
+              -0.32351974,
               0.94443339
             ],
             "root_position": [
@@ -8016,8 +8016,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.15462852,
-              -0.38439488,
+              2.12824583,
+              -0.42662805,
               0.94261569
             ],
             "root_position": [
@@ -8067,11 +8067,11 @@
       "episode": 70,
       "step_count": 5000,
       "is_terminated": false,
-      "oranges_in_plate": 0,
-      "n_infer_calls": 292,
-      "last_infer_ms": 104.24454300664365,
-      "avg_step_ms": 54.80357923918636,
-      "ended_at": "2026-06-04T23:02:54",
+      "oranges_in_plate": 2,
+      "n_infer_calls": 247,
+      "last_infer_ms": 5.299114971421659,
+      "avg_step_ms": 50.8305166745442,
+      "ended_at": "2026-06-05T07:43:54",
       "seed": 1014410134,
       "seed_index": 70,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -8095,8 +8095,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.12527847,
-              -0.31197712,
+              2.12202573,
+              -0.3116926,
               0.94551396
             ],
             "root_position": [
@@ -8113,8 +8113,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.23941422,
-              -0.3528744,
+              2.22661543,
+              -0.34178853,
               0.94443339
             ],
             "root_position": [
@@ -8131,8 +8131,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.13816762,
-              -0.38447487,
+              2.15417385,
+              -0.43191311,
               0.94261569
             ],
             "root_position": [
@@ -8182,11 +8182,11 @@
       "episode": 71,
       "step_count": 5000,
       "is_terminated": false,
-      "oranges_in_plate": 0,
-      "n_infer_calls": 300,
-      "last_infer_ms": 104.8348150216043,
-      "avg_step_ms": 54.11023332149489,
-      "ended_at": "2026-06-04T23:08:56",
+      "oranges_in_plate": 1,
+      "n_infer_calls": 246,
+      "last_infer_ms": 6.385638029314578,
+      "avg_step_ms": 50.82529556066729,
+      "ended_at": "2026-06-05T07:48:26",
       "seed": 1306558870,
       "seed_index": 71,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -8210,8 +8210,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.15222239,
-              -0.33166534,
+              2.14741611,
+              -0.29281932,
               0.94551396
             ],
             "root_position": [
@@ -8228,8 +8228,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.22144175,
-              -0.32421586,
+              2.23488355,
+              -0.32090372,
               0.94443339
             ],
             "root_position": [
@@ -8246,8 +8246,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.12712717,
-              -0.43245637,
+              2.15805697,
+              -0.38390249,
               0.94261569
             ],
             "root_position": [
@@ -8297,11 +8297,11 @@
       "episode": 72,
       "step_count": 5000,
       "is_terminated": false,
-      "oranges_in_plate": 0,
-      "n_infer_calls": 284,
-      "last_infer_ms": 100.5356939858757,
-      "avg_step_ms": 54.68722664559027,
-      "ended_at": "2026-06-04T23:15:01",
+      "oranges_in_plate": 2,
+      "n_infer_calls": 248,
+      "last_infer_ms": 5.563523038290441,
+      "avg_step_ms": 51.15641707541654,
+      "ended_at": "2026-06-05T07:53:00",
       "seed": 1424935389,
       "seed_index": 72,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -8325,8 +8325,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.14755177,
-              -0.2928414,
+              2.13044214,
+              -0.31731036,
               0.94551396
             ],
             "root_position": [
@@ -8343,8 +8343,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.22350168,
-              -0.35756406,
+              2.25170636,
+              -0.34499285,
               0.94443339
             ],
             "root_position": [
@@ -8361,8 +8361,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.16508365,
-              -0.40496603,
+              2.17786646,
+              -0.38738269,
               0.94261569
             ],
             "root_position": [
@@ -8412,11 +8412,11 @@
       "episode": 73,
       "step_count": 5000,
       "is_terminated": false,
-      "oranges_in_plate": 2,
-      "n_infer_calls": 303,
-      "last_infer_ms": 98.82199903950095,
-      "avg_step_ms": 54.30147694852203,
-      "ended_at": "2026-06-04T23:21:04",
+      "oranges_in_plate": 0,
+      "n_infer_calls": 249,
+      "last_infer_ms": 5.537356017157435,
+      "avg_step_ms": 51.30881304859649,
+      "ended_at": "2026-06-05T07:57:35",
       "seed": 1012958352,
       "seed_index": 73,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -8440,8 +8440,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.13888049,
-              -0.305392,
+              2.09915161,
+              -0.31238225,
               0.94551396
             ],
             "root_position": [
@@ -8458,8 +8458,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.27455735,
-              -0.33021858,
+              2.26098371,
+              -0.31303287,
               0.94443339
             ],
             "root_position": [
@@ -8476,8 +8476,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.12391472,
-              -0.39113659,
+              2.17056131,
+              -0.40745756,
               0.94261569
             ],
             "root_position": [
@@ -8525,13 +8525,13 @@
     },
     {
       "episode": 74,
-      "step_count": 1312,
-      "is_terminated": true,
-      "oranges_in_plate": 3,
-      "n_infer_calls": 74,
-      "last_infer_ms": 104.50392699567601,
-      "avg_step_ms": 54.249621880311366,
-      "ended_at": "2026-06-04T23:22:39",
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 1,
+      "n_infer_calls": 249,
+      "last_infer_ms": 5.850715038832277,
+      "avg_step_ms": 51.50163592038443,
+      "ended_at": "2026-06-05T08:02:11",
       "seed": 1221700196,
       "seed_index": 74,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -8555,8 +8555,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.13060093,
-              -0.31308874,
+              2.12080407,
+              -0.31456354,
               0.94551396
             ],
             "root_position": [
@@ -8573,8 +8573,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.22611094,
-              -0.31410909,
+              2.23255515,
+              -0.33520794,
               0.94443339
             ],
             "root_position": [
@@ -8591,8 +8591,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.1391058,
-              -0.38024354,
+              2.16579056,
+              -0.41429693,
               0.94261569
             ],
             "root_position": [
@@ -8642,11 +8642,11 @@
       "episode": 75,
       "step_count": 5000,
       "is_terminated": false,
-      "oranges_in_plate": 0,
-      "n_infer_calls": 286,
-      "last_infer_ms": 105.22967798169702,
-      "avg_step_ms": 54.82447697460884,
-      "ended_at": "2026-06-04T23:28:45",
+      "oranges_in_plate": 2,
+      "n_infer_calls": 248,
+      "last_infer_ms": 7.613929978106171,
+      "avg_step_ms": 51.16972894127248,
+      "ended_at": "2026-06-05T08:06:45",
       "seed": 522540535,
       "seed_index": 75,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -8670,9 +8670,9 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.30173683,
-              -0.30316186,
-              0.97997189
+              2.10056591,
+              -0.3158775,
+              0.94551396
             ],
             "root_position": [
               2.11095738,
@@ -8688,9 +8688,9 @@
           },
           "Orange002": {
             "com_position": [
-              2.39922214,
-              -0.39444372,
-              0.95353162
+              2.23630404,
+              -0.30679098,
+              0.94443339
             ],
             "root_position": [
               2.23436594,
@@ -8706,9 +8706,9 @@
           },
           "Orange003": {
             "com_position": [
-              2.34449744,
-              -0.37893516,
-              0.95604116
+              2.14280868,
+              -0.40851912,
+              0.94261569
             ],
             "root_position": [
               2.12464094,
@@ -8758,10 +8758,10 @@
       "step_count": 5000,
       "is_terminated": false,
       "oranges_in_plate": 0,
-      "n_infer_calls": 286,
-      "last_infer_ms": 118.62100596772507,
-      "avg_step_ms": 54.22167511649896,
-      "ended_at": "2026-06-04T23:34:49",
+      "n_infer_calls": 247,
+      "last_infer_ms": 6.133674003649503,
+      "avg_step_ms": 51.61478275768459,
+      "ended_at": "2026-06-05T08:11:21",
       "seed": 500345798,
       "seed_index": 76,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -8785,8 +8785,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.13042235,
-              -0.31362006,
+              2.11002493,
+              -0.31644768,
               0.94551396
             ],
             "root_position": [
@@ -8803,8 +8803,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.24881482,
-              -0.31457824,
+              2.22859406,
+              -0.34280154,
               0.94443339
             ],
             "root_position": [
@@ -8821,8 +8821,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.15404224,
-              -0.37573466,
+              2.15447521,
+              -0.42471865,
               0.94261569
             ],
             "root_position": [
@@ -8873,10 +8873,10 @@
       "step_count": 5000,
       "is_terminated": false,
       "oranges_in_plate": 0,
-      "n_infer_calls": 291,
-      "last_infer_ms": 105.38419196382165,
-      "avg_step_ms": 54.48628426350187,
-      "ended_at": "2026-06-04T23:40:53",
+      "n_infer_calls": 245,
+      "last_infer_ms": 5.920466035604477,
+      "avg_step_ms": 51.094567471940536,
+      "ended_at": "2026-06-05T08:15:54",
       "seed": 677803610,
       "seed_index": 77,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -8900,8 +8900,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.1297133,
-              -0.29565361,
+              2.12427688,
+              -0.309762,
               0.94551396
             ],
             "root_position": [
@@ -8918,8 +8918,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.26173973,
-              -0.3344464,
+              2.26835585,
+              -0.35543036,
               0.94443339
             ],
             "root_position": [
@@ -8936,8 +8936,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.16987157,
-              -0.39364862,
+              2.12912083,
+              -0.3751407,
               0.94261569
             ],
             "root_position": [
@@ -8985,13 +8985,13 @@
     },
     {
       "episode": 78,
-      "step_count": 4883,
+      "step_count": 5000,
       "is_terminated": false,
       "oranges_in_plate": 0,
-      "n_infer_calls": 297,
-      "last_infer_ms": 100.54437699727714,
-      "avg_step_ms": 54.47371260375269,
-      "ended_at": "2026-06-04T23:46:49",
+      "n_infer_calls": 246,
+      "last_infer_ms": 6.560000998433679,
+      "avg_step_ms": 50.93230748572387,
+      "ended_at": "2026-06-05T08:20:27",
       "seed": 1702122739,
       "seed_index": 78,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -9015,8 +9015,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.10016441,
-              -0.32135537,
+              2.14364409,
+              -0.30929878,
               0.94551396
             ],
             "root_position": [
@@ -9033,8 +9033,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.26800036,
-              -0.35499451,
+              2.22974992,
+              -0.3272028,
               0.94443339
             ],
             "root_position": [
@@ -9051,8 +9051,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.15846729,
-              -0.37608346,
+              2.16345501,
+              -0.42717606,
               0.94261569
             ],
             "root_position": [
@@ -9102,11 +9102,11 @@
       "episode": 79,
       "step_count": 5000,
       "is_terminated": false,
-      "oranges_in_plate": 1,
-      "n_infer_calls": 285,
-      "last_infer_ms": 104.57615897757933,
-      "avg_step_ms": 54.93207910854835,
-      "ended_at": "2026-06-04T23:52:55",
+      "oranges_in_plate": 0,
+      "n_infer_calls": 248,
+      "last_infer_ms": 5.630220053717494,
+      "avg_step_ms": 51.398177224118264,
+      "ended_at": "2026-06-05T08:25:03",
       "seed": 1405666416,
       "seed_index": 79,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -9130,9 +9130,9 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.1547792,
-              -0.30635655,
-              0.93980038
+              2.11619043,
+              -0.32304543,
+              0.94551396
             ],
             "root_position": [
               2.10817623,
@@ -9148,9 +9148,9 @@
           },
           "Orange002": {
             "com_position": [
-              2.31206107,
-              -0.31769252,
-              0.94497013
+              2.22461796,
+              -0.3075797,
+              0.94443339
             ],
             "root_position": [
               2.24713898,
@@ -9166,9 +9166,9 @@
           },
           "Orange003": {
             "com_position": [
-              2.2703948,
-              -0.49078286,
-              0.94658089
+              2.13454723,
+              -0.39890018,
+              0.94261569
             ],
             "root_position": [
               2.14151692,
@@ -9218,10 +9218,10 @@
       "step_count": 5000,
       "is_terminated": false,
       "oranges_in_plate": 0,
-      "n_infer_calls": 294,
-      "last_infer_ms": 96.36826295172796,
-      "avg_step_ms": 54.18795777182095,
-      "ended_at": "2026-06-04T23:58:58",
+      "n_infer_calls": 246,
+      "last_infer_ms": 5.574172013439238,
+      "avg_step_ms": 51.1428584438283,
+      "ended_at": "2026-06-05T08:29:37",
       "seed": 2112399969,
       "seed_index": 80,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -9245,8 +9245,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.10007763,
-              -0.29602638,
+              2.10763431,
+              -0.31976867,
               0.94551396
             ],
             "root_position": [
@@ -9263,8 +9263,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.27558804,
-              -0.34834912,
+              2.23148346,
+              -0.30962327,
               0.94443339
             ],
             "root_position": [
@@ -9281,8 +9281,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.13974643,
-              -0.38770646,
+              2.13461328,
+              -0.3871249,
               0.94261569
             ],
             "root_position": [
@@ -9330,13 +9330,13 @@
     },
     {
       "episode": 81,
-      "step_count": 4039,
-      "is_terminated": true,
-      "oranges_in_plate": 3,
-      "n_infer_calls": 243,
-      "last_infer_ms": 111.22799798613414,
-      "avg_step_ms": 54.34089628697965,
-      "ended_at": "2026-06-05T00:03:52",
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 0,
+      "n_infer_calls": 248,
+      "last_infer_ms": 5.919085000641644,
+      "avg_step_ms": 50.92341215986526,
+      "ended_at": "2026-06-05T08:34:10",
       "seed": 1183175275,
       "seed_index": 81,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -9360,8 +9360,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.12170315,
-              -0.30512747,
+              2.12411523,
+              -0.28589058,
               0.94551396
             ],
             "root_position": [
@@ -9378,8 +9378,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.2481575,
-              -0.32176572,
+              2.22309947,
+              -0.32997799,
               0.94443339
             ],
             "root_position": [
@@ -9396,8 +9396,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.18183684,
-              -0.40935537,
+              2.15218568,
+              -0.41969451,
               0.94261569
             ],
             "root_position": [
@@ -9448,10 +9448,10 @@
       "step_count": 5000,
       "is_terminated": false,
       "oranges_in_plate": 0,
-      "n_infer_calls": 289,
-      "last_infer_ms": 109.21793099259958,
-      "avg_step_ms": 54.78077970648883,
-      "ended_at": "2026-06-05T00:09:58",
+      "n_infer_calls": 246,
+      "last_infer_ms": 5.603466008324176,
+      "avg_step_ms": 51.29920988178346,
+      "ended_at": "2026-06-05T08:38:44",
       "seed": 1742831978,
       "seed_index": 82,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -9475,9 +9475,9 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.38689613,
-              -0.2557117,
-              0.96238071
+              2.13198686,
+              -0.30565804,
+              0.94551396
             ],
             "root_position": [
               2.13481641,
@@ -9493,9 +9493,9 @@
           },
           "Orange002": {
             "com_position": [
-              2.42459202,
-              -0.35806254,
-              0.95126855
+              2.2222321,
+              -0.30472395,
+              0.94443339
             ],
             "root_position": [
               2.26649618,
@@ -9511,9 +9511,9 @@
           },
           "Orange003": {
             "com_position": [
-              2.38998342,
-              -0.30581635,
-              0.94917023
+              2.15043163,
+              -0.41884595,
+              0.94261569
             ],
             "root_position": [
               2.15995336,
@@ -9562,11 +9562,11 @@
       "episode": 83,
       "step_count": 5000,
       "is_terminated": false,
-      "oranges_in_plate": 2,
-      "n_infer_calls": 298,
-      "last_infer_ms": 5.108916026074439,
-      "avg_step_ms": 54.77356798378751,
-      "ended_at": "2026-06-05T00:16:04",
+      "oranges_in_plate": 0,
+      "n_infer_calls": 249,
+      "last_infer_ms": 5.672963976394385,
+      "avg_step_ms": 51.05190270515159,
+      "ended_at": "2026-06-05T08:43:18",
       "seed": 208116703,
       "seed_index": 83,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -9590,8 +9590,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.09793019,
-              -0.32930741,
+              2.13371444,
+              -0.30868873,
               0.94551396
             ],
             "root_position": [
@@ -9608,8 +9608,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.26234555,
-              -0.35487318,
+              2.22781754,
+              -0.33749187,
               0.94443339
             ],
             "root_position": [
@@ -9626,8 +9626,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.17618084,
-              -0.3853642,
+              2.12629032,
+              -0.38741943,
               0.94261569
             ],
             "root_position": [
@@ -9677,11 +9677,11 @@
       "episode": 84,
       "step_count": 5000,
       "is_terminated": false,
-      "oranges_in_plate": 2,
-      "n_infer_calls": 292,
-      "last_infer_ms": 101.25742299715057,
-      "avg_step_ms": 54.71462293562945,
-      "ended_at": "2026-06-05T00:22:09",
+      "oranges_in_plate": 0,
+      "n_infer_calls": 245,
+      "last_infer_ms": 6.329368043225259,
+      "avg_step_ms": 50.67971647046507,
+      "ended_at": "2026-06-05T08:47:49",
       "seed": 1515214319,
       "seed_index": 84,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -9705,8 +9705,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.10543108,
-              -0.32129213,
+              2.1545167,
+              -0.29596755,
               0.94551396
             ],
             "root_position": [
@@ -9723,8 +9723,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.22576118,
-              -0.31536594,
+              2.25181723,
+              -0.35451326,
               0.94443339
             ],
             "root_position": [
@@ -9741,8 +9741,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.18141627,
-              -0.4088715,
+              2.14948678,
+              -0.37690687,
               0.94261569
             ],
             "root_position": [
@@ -9792,11 +9792,11 @@
       "episode": 85,
       "step_count": 5000,
       "is_terminated": false,
-      "oranges_in_plate": 1,
-      "n_infer_calls": 304,
-      "last_infer_ms": 105.10988801252097,
-      "avg_step_ms": 54.57282862589928,
-      "ended_at": "2026-06-05T00:28:14",
+      "oranges_in_plate": 2,
+      "n_infer_calls": 246,
+      "last_infer_ms": 5.6403030175715685,
+      "avg_step_ms": 51.22723983688047,
+      "ended_at": "2026-06-05T08:52:23",
       "seed": 977703784,
       "seed_index": 85,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -9820,8 +9820,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.15263271,
-              -0.30907339,
+              2.11923552,
+              -0.31775811,
               0.94551396
             ],
             "root_position": [
@@ -9838,8 +9838,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.23743057,
-              -0.30314893,
+              2.26431847,
+              -0.30331069,
               0.94443339
             ],
             "root_position": [
@@ -9856,8 +9856,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.15825534,
-              -0.39948088,
+              2.17683005,
+              -0.38869241,
               0.94261569
             ],
             "root_position": [
@@ -9907,11 +9907,11 @@
       "episode": 86,
       "step_count": 5000,
       "is_terminated": false,
-      "oranges_in_plate": 2,
-      "n_infer_calls": 298,
-      "last_infer_ms": 106.4153789775446,
-      "avg_step_ms": 55.015269921149596,
-      "ended_at": "2026-06-05T00:34:21",
+      "oranges_in_plate": 0,
+      "n_infer_calls": 249,
+      "last_infer_ms": 5.53617998957634,
+      "avg_step_ms": 51.300011123064905,
+      "ended_at": "2026-06-05T08:56:58",
       "seed": 1316314570,
       "seed_index": 86,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -9935,8 +9935,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.09867334,
-              -0.28569961,
+              2.13154054,
+              -0.29949233,
               0.94551396
             ],
             "root_position": [
@@ -9953,8 +9953,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.27425361,
-              -0.35439757,
+              2.2711575,
+              -0.3324815,
               0.94443339
             ],
             "root_position": [
@@ -9971,8 +9971,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.17668486,
-              -0.41483596,
+              2.14900088,
+              -0.42674112,
               0.94261569
             ],
             "root_position": [
@@ -10023,10 +10023,10 @@
       "step_count": 5000,
       "is_terminated": false,
       "oranges_in_plate": 0,
-      "n_infer_calls": 302,
-      "last_infer_ms": 110.2031110203825,
-      "avg_step_ms": 54.56526556855533,
-      "ended_at": "2026-06-05T00:40:25",
+      "n_infer_calls": 245,
+      "last_infer_ms": 6.5702919964678586,
+      "avg_step_ms": 50.66443725541467,
+      "ended_at": "2026-06-05T09:01:30",
       "seed": 1741487641,
       "seed_index": 87,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -10050,8 +10050,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.13112092,
-              -0.28680173,
+              2.12407207,
+              -0.3103323,
               0.94551396
             ],
             "root_position": [
@@ -10068,8 +10068,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.2316165,
-              -0.34181252,
+              2.2500298,
+              -0.34046033,
               0.94443339
             ],
             "root_position": [
@@ -10086,8 +10086,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.168504,
-              -0.40665865,
+              2.15166068,
+              -0.43056676,
               0.94261569
             ],
             "root_position": [
@@ -10135,13 +10135,13 @@
     },
     {
       "episode": 88,
-      "step_count": 5000,
-      "is_terminated": false,
-      "oranges_in_plate": 0,
-      "n_infer_calls": 289,
-      "last_infer_ms": 103.82902604760602,
-      "avg_step_ms": 54.33775324401213,
-      "ended_at": "2026-06-05T00:46:27",
+      "step_count": 1102,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 54,
+      "last_infer_ms": 5.420242028776556,
+      "avg_step_ms": 51.821029514271665,
+      "ended_at": "2026-06-05T09:02:31",
       "seed": 514730216,
       "seed_index": 88,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -10165,8 +10165,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.13349128,
-              -0.28596932,
+              2.11050534,
+              -0.33230457,
               0.94551396
             ],
             "root_position": [
@@ -10183,8 +10183,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.25348067,
-              -0.30583581,
+              2.22805095,
+              -0.35504863,
               0.94443339
             ],
             "root_position": [
@@ -10201,8 +10201,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.1782608,
-              -0.41572785,
+              2.12823606,
+              -0.42666242,
               0.94261569
             ],
             "root_position": [
@@ -10253,10 +10253,10 @@
       "step_count": 5000,
       "is_terminated": false,
       "oranges_in_plate": 0,
-      "n_infer_calls": 292,
-      "last_infer_ms": 110.68945901934057,
-      "avg_step_ms": 54.56773158754222,
-      "ended_at": "2026-06-05T00:52:31",
+      "n_infer_calls": 245,
+      "last_infer_ms": 5.2471039816737175,
+      "avg_step_ms": 51.12014228497865,
+      "ended_at": "2026-06-05T09:07:05",
       "seed": 1931053238,
       "seed_index": 89,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -10280,9 +10280,9 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.15012145,
-              -0.28654525,
-              0.94551396
+              2.44674349,
+              -0.29318923,
+              0.95403707
             ],
             "root_position": [
               2.1255579,
@@ -10298,9 +10298,9 @@
           },
           "Orange002": {
             "com_position": [
-              2.2536068,
-              -0.30402428,
-              0.94443339
+              2.4126029,
+              -0.34326196,
+              0.94630444
             ],
             "root_position": [
               2.27252626,
@@ -10316,9 +10316,9 @@
           },
           "Orange003": {
             "com_position": [
-              2.1481781,
-              -0.3846342,
-              0.94261569
+              2.35829258,
+              -0.3048,
+              0.956756
             ],
             "root_position": [
               2.1601758,
@@ -10367,11 +10367,11 @@
       "episode": 90,
       "step_count": 5000,
       "is_terminated": false,
-      "oranges_in_plate": 0,
-      "n_infer_calls": 294,
-      "last_infer_ms": 119.90441003581509,
-      "avg_step_ms": 54.477723184868225,
-      "ended_at": "2026-06-05T00:58:35",
+      "oranges_in_plate": 2,
+      "n_infer_calls": 248,
+      "last_infer_ms": 6.17331697139889,
+      "avg_step_ms": 51.422613541036846,
+      "ended_at": "2026-06-05T09:11:41",
       "seed": 731875093,
       "seed_index": 90,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -10395,8 +10395,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.09654021,
-              -0.30253872,
+              2.11239076,
+              -0.31237212,
               0.94551396
             ],
             "root_position": [
@@ -10413,8 +10413,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.25048232,
-              -0.34767437,
+              2.22192216,
+              -0.32832965,
               0.94443339
             ],
             "root_position": [
@@ -10431,8 +10431,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.15110517,
-              -0.43444097,
+              2.16352296,
+              -0.40160817,
               0.94261569
             ],
             "root_position": [
@@ -10483,10 +10483,10 @@
       "step_count": 5000,
       "is_terminated": false,
       "oranges_in_plate": 0,
-      "n_infer_calls": 302,
-      "last_infer_ms": 114.55164500512183,
-      "avg_step_ms": 54.32766162867192,
-      "ended_at": "2026-06-05T01:04:38",
+      "n_infer_calls": 247,
+      "last_infer_ms": 6.061657972168177,
+      "avg_step_ms": 51.37749654753134,
+      "ended_at": "2026-06-05T09:16:16",
       "seed": 342179987,
       "seed_index": 91,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -10510,8 +10510,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.100775,
-              -0.28006625,
+              2.12306118,
+              -0.30060393,
               0.94551396
             ],
             "root_position": [
@@ -10528,8 +10528,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.22344923,
-              -0.33020809,
+              2.23788548,
+              -0.34287304,
               0.94443339
             ],
             "root_position": [
@@ -10546,8 +10546,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.14074183,
-              -0.42746335,
+              2.15936923,
+              -0.41921839,
               0.94261569
             ],
             "root_position": [
@@ -10595,13 +10595,13 @@
     },
     {
       "episode": 92,
-      "step_count": 5000,
-      "is_terminated": false,
-      "oranges_in_plate": 1,
-      "n_infer_calls": 298,
-      "last_infer_ms": 104.36260601272807,
-      "avg_step_ms": 54.88045715576736,
-      "ended_at": "2026-06-05T01:10:45",
+      "step_count": 512,
+      "is_terminated": true,
+      "oranges_in_plate": 3,
+      "n_infer_calls": 26,
+      "last_infer_ms": 5.671001970767975,
+      "avg_step_ms": 52.11317152190986,
+      "ended_at": "2026-06-05T09:16:45",
       "seed": 2023385433,
       "seed_index": 92,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -10625,8 +10625,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.13284636,
-              -0.2935487,
+              2.12073326,
+              -0.31109977,
               0.94551396
             ],
             "root_position": [
@@ -10643,8 +10643,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.23024154,
-              -0.35787171,
+              2.24961901,
+              -0.32472035,
               0.94443339
             ],
             "root_position": [
@@ -10661,8 +10661,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.13168955,
-              -0.39983118,
+              2.17709565,
+              -0.41502896,
               0.94261569
             ],
             "root_position": [
@@ -10712,11 +10712,11 @@
       "episode": 93,
       "step_count": 5000,
       "is_terminated": false,
-      "oranges_in_plate": 2,
-      "n_infer_calls": 291,
-      "last_infer_ms": 102.37012500874698,
-      "avg_step_ms": 54.900036174734126,
-      "ended_at": "2026-06-05T01:16:51",
+      "oranges_in_plate": 0,
+      "n_infer_calls": 247,
+      "last_infer_ms": 7.770442985929549,
+      "avg_step_ms": 51.22637592141982,
+      "ended_at": "2026-06-05T09:21:20",
       "seed": 1338370149,
       "seed_index": 93,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -10740,9 +10740,9 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.13943911,
-              -0.29045352,
-              0.94551396
+              2.4394629,
+              -0.28039297,
+              0.94947815
             ],
             "root_position": [
               2.11125684,
@@ -10758,9 +10758,9 @@
           },
           "Orange002": {
             "com_position": [
-              2.22730017,
-              -0.35573128,
-              0.94443339
+              2.42494726,
+              -0.3374913,
+              0.94702512
             ],
             "root_position": [
               2.25616479,
@@ -10776,9 +10776,9 @@
           },
           "Orange003": {
             "com_position": [
-              2.12723351,
-              -0.39218318,
-              0.94261569
+              2.37310457,
+              -0.3302528,
+              0.94859868
             ],
             "root_position": [
               2.15326405,
@@ -10825,13 +10825,13 @@
     },
     {
       "episode": 94,
-      "step_count": 1992,
-      "is_terminated": true,
-      "oranges_in_plate": 3,
-      "n_infer_calls": 115,
-      "last_infer_ms": 102.42233396274969,
-      "avg_step_ms": 54.41481851115655,
-      "ended_at": "2026-06-05T01:19:16",
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 2,
+      "n_infer_calls": 248,
+      "last_infer_ms": 7.64366501243785,
+      "avg_step_ms": 51.727081391285175,
+      "ended_at": "2026-06-05T09:25:57",
       "seed": 2109327529,
       "seed_index": 94,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -10855,8 +10855,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.10465479,
-              -0.30977091,
+              2.12923837,
+              -0.27762723,
               0.94551396
             ],
             "root_position": [
@@ -10873,8 +10873,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.25532413,
-              -0.3569957,
+              2.2606101,
+              -0.32194835,
               0.94443339
             ],
             "root_position": [
@@ -10891,8 +10891,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.14186788,
-              -0.38251489,
+              2.17086315,
+              -0.39662936,
               0.94261569
             ],
             "root_position": [
@@ -10943,10 +10943,10 @@
       "step_count": 5000,
       "is_terminated": false,
       "oranges_in_plate": 0,
-      "n_infer_calls": 306,
-      "last_infer_ms": 107.23153199069202,
-      "avg_step_ms": 54.97974063036963,
-      "ended_at": "2026-06-05T01:25:23",
+      "n_infer_calls": 248,
+      "last_infer_ms": 5.664031952619553,
+      "avg_step_ms": 51.230450197297614,
+      "ended_at": "2026-06-05T09:30:31",
       "seed": 620855302,
       "seed_index": 95,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -10970,9 +10970,9 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.37890744,
-              -0.27851126,
-              0.96850324
+              2.14825583,
+              -0.28468376,
+              0.94551396
             ],
             "root_position": [
               2.10547781,
@@ -10988,9 +10988,9 @@
           },
           "Orange002": {
             "com_position": [
-              2.40624094,
-              -0.32432306,
-              0.94884491
+              2.2735498,
+              -0.32542601,
+              0.94443339
             ],
             "root_position": [
               2.25250864,
@@ -11006,9 +11006,9 @@
           },
           "Orange003": {
             "com_position": [
-              2.40122414,
-              -0.39196596,
-              0.95088762
+              2.1800456,
+              -0.40259778,
+              0.94261569
             ],
             "root_position": [
               2.18324518,
@@ -11055,13 +11055,13 @@
     },
     {
       "episode": 96,
-      "step_count": 5000,
+      "step_count": 412,
       "is_terminated": false,
       "oranges_in_plate": 0,
-      "n_infer_calls": 282,
-      "last_infer_ms": 102.62483300175518,
-      "avg_step_ms": 54.61334513977636,
-      "ended_at": "2026-06-05T01:31:28",
+      "n_infer_calls": 21,
+      "last_infer_ms": 5.867419997230172,
+      "avg_step_ms": 50.21788336681903,
+      "ended_at": "2026-06-05T09:30:54",
       "seed": 1482186078,
       "seed_index": 96,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -11085,8 +11085,8 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.10373855,
-              -0.32256627,
+              2.0999577,
+              -0.31563601,
               0.94551396
             ],
             "root_position": [
@@ -11103,8 +11103,8 @@
           },
           "Orange002": {
             "com_position": [
-              2.23720431,
-              -0.335179,
+              2.23884749,
+              -0.32163674,
               0.94443339
             ],
             "root_position": [
@@ -11121,8 +11121,8 @@
           },
           "Orange003": {
             "com_position": [
-              2.15003562,
-              -0.40551424,
+              2.13960886,
+              -0.37552854,
               0.94261569
             ],
             "root_position": [
@@ -11170,13 +11170,13 @@
     },
     {
       "episode": 97,
-      "step_count": 5000,
+      "step_count": 300,
       "is_terminated": false,
-      "oranges_in_plate": 2,
-      "n_infer_calls": 302,
-      "last_infer_ms": 104.89748901454732,
-      "avg_step_ms": 55.11777458685683,
-      "ended_at": "2026-06-05T01:37:35",
+      "oranges_in_plate": 0,
+      "n_infer_calls": 15,
+      "last_infer_ms": 5.887902982067317,
+      "avg_step_ms": 50.36784435331356,
+      "ended_at": "2026-06-05T09:31:10",
       "seed": 78671603,
       "seed_index": 97,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -11200,9 +11200,9 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.10075498,
-              -0.32393193,
-              0.94551396
+              2.1783917,
+              -0.33976594,
+              0.93980032
             ],
             "root_position": [
               2.11207581,
@@ -11218,9 +11218,9 @@
           },
           "Orange002": {
             "com_position": [
-              2.24590659,
-              -0.34626827,
-              0.94443339
+              2.25736856,
+              -0.28391853,
+              0.94233358
             ],
             "root_position": [
               2.24462295,
@@ -11236,9 +11236,9 @@
           },
           "Orange003": {
             "com_position": [
-              2.18105197,
-              -0.41095543,
-              0.94261569
+              2.4400208,
+              -0.37327313,
+              1.09271741
             ],
             "root_position": [
               2.16514277,
@@ -11285,13 +11285,13 @@
     },
     {
       "episode": 98,
-      "step_count": 1873,
-      "is_terminated": true,
-      "oranges_in_plate": 3,
-      "n_infer_calls": 116,
-      "last_infer_ms": 95.16209998400882,
-      "avg_step_ms": 54.50349159499464,
-      "ended_at": "2026-06-05T01:39:52",
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 0,
+      "n_infer_calls": 249,
+      "last_infer_ms": 5.54213800933212,
+      "avg_step_ms": 51.7305068225367,
+      "ended_at": "2026-06-05T09:35:47",
       "seed": 737496865,
       "seed_index": 98,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -11315,9 +11315,9 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.13903141,
-              -0.32285133,
-              0.94551396
+              2.11224794,
+              -0.33550325,
+              0.93980026
             ],
             "root_position": [
               2.14818478,
@@ -11333,9 +11333,9 @@
           },
           "Orange002": {
             "com_position": [
-              2.27718258,
-              -0.33283117,
-              0.94443339
+              2.42064619,
+              -0.33722198,
+              1.03821754
             ],
             "root_position": [
               2.25489497,
@@ -11351,9 +11351,9 @@
           },
           "Orange003": {
             "com_position": [
-              2.14620662,
-              -0.39189288,
-              0.94261569
+              2.18470311,
+              -0.34411389,
+              0.94529456
             ],
             "root_position": [
               2.12674284,
@@ -11400,13 +11400,13 @@
     },
     {
       "episode": 99,
-      "step_count": 1799,
-      "is_terminated": true,
-      "oranges_in_plate": 3,
-      "n_infer_calls": 108,
-      "last_infer_ms": 101.64873499888927,
-      "avg_step_ms": 54.858293934843516,
-      "ended_at": "2026-06-05T01:42:04",
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 2,
+      "n_infer_calls": 245,
+      "last_infer_ms": 5.915255984291434,
+      "avg_step_ms": 51.27887504791143,
+      "ended_at": "2026-06-05T09:40:22",
       "seed": 1427470826,
       "seed_index": 99,
       "seed_set_name": "pick_orange_reference_100_v1",
@@ -11430,9 +11430,9 @@
         "oranges": {
           "Orange001": {
             "com_position": [
-              2.40455604,
-              -0.30791369,
-              0.97134495
+              2.13096762,
+              -0.2762917,
+              0.94551396
             ],
             "root_position": [
               2.10649252,
@@ -11448,9 +11448,9 @@
           },
           "Orange002": {
             "com_position": [
-              2.43044162,
-              -0.3468588,
-              0.94772911
+              2.25359225,
+              -0.30850893,
+              0.94443339
             ],
             "root_position": [
               2.27898264,
@@ -11466,9 +11466,9 @@
           },
           "Orange003": {
             "com_position": [
-              2.40824294,
-              -0.39166269,
-              0.95281708
+              2.1406343,
+              -0.38673124,
+              0.94261569
             ],
             "root_position": [
               2.12633109,
