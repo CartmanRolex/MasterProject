@@ -26,7 +26,14 @@ POLICY_STROKES = {
 class ResultFile:
     label: str
     description: str
-    path: Path
+    path: Path | None
+    dataset: str = ""
+    policy: str = ""
+    mode: str = ""
+    tag: str = ""
+    placeholder: bool = False
+    placeholder_lines: tuple[str, ...] = ("future", "data")
+    placeholder_value: str = "TBD"
 
 
 @dataclass(frozen=True)
@@ -37,6 +44,8 @@ class ParsedResult:
 
 
 def parse_result(result_file: ResultFile) -> ParsedResult:
+    if result_file.path is None:
+        raise ValueError(f"{result_file.description} has no result path")
     text = result_file.path.read_text(encoding="utf-8")
     outcomes: dict[int, tuple[int, int, float]] = {}
     mean: float | None = None
@@ -76,6 +85,24 @@ def pct_label(value: float) -> str:
 
 def pdf_escape(text: str) -> str:
     return text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+
+
+def policy_name(result_file: ResultFile) -> str:
+    return result_file.policy or result_file.label.splitlines()[0]
+
+
+def mode_name(result_file: ResultFile) -> str:
+    if result_file.mode:
+        return result_file.mode
+    label_lines = result_file.label.splitlines()
+    return label_lines[-1] if label_lines else ""
+
+
+def dataset_name(result_file: ResultFile) -> str:
+    if result_file.dataset:
+        return result_file.dataset
+    label_lines = result_file.label.splitlines()
+    return label_lines[1] if len(label_lines) > 1 else ""
 
 
 class PdfFigure:
@@ -156,6 +183,24 @@ class PdfFigure:
         path.write_bytes(pdf)
 
 
+def draw_badge(
+    figure: PdfFigure,
+    x: float,
+    y: float,
+    text: str,
+    *,
+    width: float = 16,
+    height: float = 12,
+    fill: tuple[float, float, float] = (0.96, 0.96, 0.94),
+    stroke: tuple[float, float, float] = (0.18, 0.18, 0.18),
+) -> None:
+    figure.set_fill(fill)
+    figure.rect(x - width / 2, y, width, height)
+    figure.set_stroke(stroke, 0.7)
+    figure.rect(x - width / 2, y, width, height, fill=False)
+    figure.text(x, y + 3, text, 6.8, "center", rgb=stroke, bold=True)
+
+
 def draw_figure(
     results: list[tuple[ResultFile, ParsedResult]],
     output_path: Path,
@@ -223,5 +268,143 @@ def draw_figure(
         figure.rect(legend_x, legend_y, 11, 11)
         figure.text(legend_x + 16, legend_y + 2, f"{oranges}/3 oranges", 8.5)
         legend_x += 122
+
+    figure.save(output_path)
+
+
+def draw_grouped_figure(
+    results: list[tuple[ResultFile, ParsedResult | None]],
+    output_path: Path,
+    *,
+    bar_w: int = 48,
+) -> None:
+    figure = PdfFigure(width=820, height=500)
+    left, right, bottom, top = 72, 32, 132, 96
+    plot_w = figure.width - left - right
+    plot_h = figure.height - bottom - top
+    bar_gap = 14
+    group_gap = 58
+
+    groups: list[tuple[str, list[tuple[ResultFile, ParsedResult | None]]]] = []
+    for result_file, parsed in results:
+        dataset = dataset_name(result_file)
+        if not groups or groups[-1][0] != dataset:
+            groups.append((dataset, []))
+        groups[-1][1].append((result_file, parsed))
+
+    group_widths = [len(group_results) * bar_w + (len(group_results) - 1) * bar_gap for _, group_results in groups]
+    total_w = sum(group_widths) + group_gap * (len(groups) - 1)
+    x_cursor = left + (plot_w - total_w) / 2
+
+    figure.text(figure.width / 2, figure.height - 27, "Final orange count per episode", 15, "center", bold=True)
+    figure.text(
+        figure.width / 2,
+        figure.height - 44,
+        "Top values show mean oranges placed; completed bars share the same 100 seeded top-camera/orange initializations",
+        9.4,
+        "center",
+        rgb=(0.25, 0.25, 0.25),
+    )
+
+    figure.set_stroke((0.84, 0.84, 0.82), 0.55)
+    for pct in [0, 25, 50, 75, 100]:
+        y = bottom + plot_h * pct / 100
+        figure.line(left, y, figure.width - right, y)
+        figure.text(left - 10, y - 4, f"{pct}", 8, "right", rgb=(0.25, 0.25, 0.25))
+
+    figure.set_stroke((0.12, 0.12, 0.12), 1.0)
+    figure.line(left, bottom, left, bottom + plot_h)
+    figure.line(left, bottom, figure.width - right, bottom)
+    figure.text(left, bottom + plot_h + 7, "Episode share (%)", 8.2, "left", rgb=(0.20, 0.20, 0.20))
+
+    for dataset, group_results in groups:
+        group_w = len(group_results) * bar_w + (len(group_results) - 1) * bar_gap
+        group_start = x_cursor
+        group_center = group_start + group_w / 2
+
+        for index, (result_file, parsed) in enumerate(group_results):
+            x = group_start + index * (bar_w + bar_gap)
+            policy = policy_name(result_file)
+            policy_rgb = POLICY_STROKES.get(policy, (0.12, 0.12, 0.12))
+            mode = mode_name(result_file)
+            mode_symbol = "S" if "subtask" in mode.lower() else "M"
+
+            if parsed is None or result_file.placeholder:
+                figure.set_fill((0.965, 0.965, 0.945))
+                figure.rect(x, bottom, bar_w, plot_h)
+                figure.set_stroke((0.55, 0.55, 0.52), 0.55)
+                for stripe_y in range(int(bottom + 12), int(bottom + plot_h), 14):
+                    figure.line(x + 6, stripe_y, x + bar_w - 6, stripe_y)
+                figure.set_stroke((0.36, 0.36, 0.34), 1.25)
+                figure.rect(x, bottom, bar_w, plot_h, fill=False)
+                placeholder_lines = result_file.placeholder_lines or ("future", "data")
+                line_start = bottom + plot_h / 2 + 6 * (len(placeholder_lines) - 1)
+                for line_index, line in enumerate(placeholder_lines):
+                    figure.text(
+                        x + bar_w / 2,
+                        line_start - 13 * line_index,
+                        line,
+                        7.1,
+                        "center",
+                        rgb=(0.30, 0.30, 0.28),
+                        bold=True,
+                    )
+                figure.text(
+                    x + bar_w / 2,
+                    bottom + plot_h + 8,
+                    result_file.placeholder_value,
+                    8.2,
+                    "center",
+                    rgb=(0.32, 0.32, 0.30),
+                    bold=True,
+                )
+            else:
+                y = bottom
+                for oranges in ORDER:
+                    _, _, pct = parsed.outcomes[oranges]
+                    segment_h = plot_h * pct / 100
+                    figure.set_fill(COLORS[oranges])
+                    figure.rect(x, y, bar_w, segment_h)
+                    if segment_h >= 12:
+                        label_rgb = (1, 1, 1) if oranges in [0, 3] else (0.05, 0.05, 0.05)
+                        figure.text(x + bar_w / 2, y + segment_h / 2 - 3, pct_label(pct), 6.8, "center", rgb=label_rgb, bold=True)
+                    y += segment_h
+
+                figure.set_stroke(policy_rgb, 1.5)
+                figure.rect(x, bottom, bar_w, plot_h, fill=False)
+                figure.text(x + bar_w / 2, bottom + plot_h + 8, f"{parsed.mean:.2f}/3", 8.2, "center", rgb=(0.2, 0.2, 0.2), bold=True)
+
+            figure.text(x + bar_w / 2, bottom - 18, policy, 8.0, "center", rgb=policy_rgb, bold=True)
+            draw_badge(
+                figure,
+                x + bar_w / 2,
+                bottom - 38,
+                mode_symbol,
+                width=18,
+                height=14,
+                fill=(0.985, 0.985, 0.965),
+                stroke=(0.24, 0.24, 0.22),
+            )
+
+        figure.set_stroke((0.33, 0.33, 0.33), 0.7)
+        figure.line(group_start, bottom - 58, group_start + group_w, bottom - 58)
+        figure.line(group_start, bottom - 55, group_start, bottom - 61)
+        figure.line(group_start + group_w, bottom - 55, group_start + group_w, bottom - 61)
+        figure.text(group_center, bottom - 80, dataset, 9.0, "center", bold=True)
+
+        x_cursor += group_w + group_gap
+
+    legend_y = 23
+    legend_x = left + 40
+    for oranges in ORDER:
+        figure.set_fill(COLORS[oranges])
+        figure.rect(legend_x, legend_y, 10, 10)
+        figure.text(legend_x + 15, legend_y + 2, f"{oranges}/3", 8.0)
+        legend_x += 70
+
+    draw_badge(figure, legend_x + 18, legend_y - 2, "M", width=16, height=12)
+    figure.text(legend_x + 32, legend_y + 1, "monotask", 8.0)
+    draw_badge(figure, legend_x + 112, legend_y - 2, "S", width=16, height=12)
+    figure.text(legend_x + 126, legend_y + 1, "subtasks", 8.0)
 
     figure.save(output_path)

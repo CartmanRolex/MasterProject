@@ -51,33 +51,9 @@ Autonomous robot policy evaluation and dataset recording for the
 MasterProject pick-and-place task, using Isaac Sim via LeIsaac and
 the LeRobot framework.
 
-## Current priorities (May 2026)
+## Status (June 2026)
 
-In order. Do not start item N+1 until N is done and acknowledged.
-
-1. **Refactor `inference_autonomous_orders.py` around the three
-   mechanisms.** Replace ad-hoc phase transitions with an explicit
-   state machine. After each subtask, classify outcome and return one
-   of: RETRY_SAME, REDIRECT (with new target), or ABANDON_ORANGE.
-   GO_HOME is a scripted primitive inserted before any target change.
-
-2. **Pull HOME out of the VLA entirely.** Replace the
-   `"Go back to start position"` prompt with a scripted joint-space
-   interpolation. The VLA never executes return-to-home.
-
-3. **Run the full 100-episode eval** on the refactored orchestrator
-   with `Gal-pick-orange-tailedCH20`. Confirm the GRASP-with-1-placed
-   bottleneck from the partial 3-run result.
-
-4. **Phase 5 (autonomous data generation)** — do not start until 1–3
-   are clean. The auto-collected dataset must be a clean reflection
-   of the refactored orchestrator's behavior.
-
-## Out of scope right now
-- Dataset editor changes (`dataset-editor/`)
-- New teleop work (`leisaac-mods/`)
-- Switching the orchestrator to a VLM (privileged state stays)
-- Hyperparameter sweeps on training
+Implementation and evaluation are complete. The orchestrator refactor, scripted spatial reset, full 100-episode seeded evals, and Phase 5 autonomous data generation are all done. Current focus is the report (`report/` on the laptop).
 
 ## Key files (current work)
 
@@ -125,6 +101,8 @@ One-shot scripts for building and transforming the training dataset. Run from `i
 |--------|---------|
 | `recover_episodes.py` | Repair corrupted episode parquet files. Originally written to fix `Gal-auto-subtasks2`. Run once as needed; not part of normal workflow. |
 | `debug_camera_drift.py` | Diagnostic: loads pick-orange env and runs 200 rapid resets, logging front camera world position before/after each `randomize_camera_uniform` call. Outputs `camera_drift_log_<hostname>.txt`. Run on both desktop and laptop to compare accumulation behaviour. |
+| `overnight_eval_queue.py` | Preflight checks and tmux-based queue for running multiple seeded eval jobs overnight. Launches shards sequentially with stall detection and restart logic. |
+| `rerun_gal_split_nolang_correct_prompt.py` | One-shot rerun of the `Gal_split_nolang` flat eval in 3 shards with the corrected prompt ("Place the orange into plate"). Run once to produce the final result for that model. |
 
 ## Running
 
@@ -163,7 +141,6 @@ Orchestrated `checkpoint.json` files include `trace_schema_version`
 and per-episode story fields (`episode_summary`, `initial_scene`,
 `final_scene`, `timeline`, `subtask_attempts`) so each run can be
 reconstructed without console logs.
-`results/plot.py` generates comparison bar charts across models.
 
 ## Gitignored paths
 - `${data}/` — Isaac Sim NvStreamer `.etli` streaming logs (auto-generated)

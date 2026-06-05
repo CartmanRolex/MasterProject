@@ -1,4 +1,4 @@
-"""Generate the two-bar data-effect figure (handmade vs merged subtask model) for the report."""
+"""Generate the two-bar data-effect figure (Teleop vs Teleop+Auto subtasks) for the report."""
 
 from __future__ import annotations
 
@@ -14,14 +14,22 @@ OUTPUT_PDF = REPORT_DIR / "figures" / "data_effect.pdf"
 
 RESULT_FILES = [
     ResultFile(
-        label="SmolVLA\nHandmade subtasks\norchestrated subtasks",
-        description="SmolVLA subtask model trained on the handmade dataset (921 episodes)",
+        label="SmolVLA\nTeleop\nsubtasks",
+        description="SmolVLA subtask model trained on the cleaned Teleop dataset (846 episodes)",
         path=ROOT_DIR / "isaac-inference" / "results" / "Gal-pick-orange-tailedCH20" / "latest.txt",
+        dataset="Teleop",
+        policy="SmolVLA",
+        mode="subtasks",
+        tag="T",
     ),
     ResultFile(
-        label="SmolVLA\nHand+auto\norchestrated subtasks\nprelim.",
-        description="SmolVLA subtask model trained on merged dataset (921 handmade + 414 autonomous = 1335 episodes)",
+        label="SmolVLA\nTeleop+Auto\nsubtasks",
+        description="SmolVLA subtask model trained on merged dataset (846 Teleop + 414 Auto = 1260 episodes)",
         path=ROOT_DIR / "isaac-inference" / "results" / "Gal-merged-tailed-auto" / "latest.txt",
+        dataset="Teleop+Auto",
+        policy="SmolVLA",
+        mode="subtasks",
+        tag="T+A",
     ),
 ]
 

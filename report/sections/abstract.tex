@@ -1,3 +1,4 @@
 \begin{abstract}
+This project evaluates whether a language-conditioned subtask orchestrator can make a long-horizon orange pick-and-place task more robust than monolithic imitation learning. The system decomposes the task into GRASP, LIFT, and PLACE behaviours, monitors subtask outcomes with privileged simulator state, and retries or redirects execution after failures. A teleoperated subtask dataset is compared against a merged dataset augmented with automatically collected successful subtasks. Under a shared 100-seed evaluation protocol, the Teleop subtask model reaches 23/100 full completions, while adding autonomous data reduces the orchestrated result to 20/100. On the same Teleop+Auto data, the monotask model reaches 24/100 completions but a lower mean final occupancy than the subtask model. Subtask orchestration creates useful intervention points, but in this implementation it does not compensate for weak low-level grasp and place reliability.
 
 \end{abstract}

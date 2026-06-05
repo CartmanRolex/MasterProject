@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from plot_lib import ResultFile, draw_figure, parse_result
+from plot_lib import ResultFile, draw_grouped_figure, parse_result
 
 
 REPORT_DIR = Path(__file__).resolve().parents[1]
@@ -14,26 +14,35 @@ OUTPUT_PDF = REPORT_DIR / "figures" / "baseline_comparison.pdf"
 
 RESULT_FILES = [
     ResultFile(
-        label="ACT\nHF full-task\nsingle-task",
-        description="ACT on official HuggingFace monolithic task dataset",
-        path=ROOT_DIR / "isaac-inference" / "results" / "ACT-pick-orange" / "eval_ACT-pick-orange_2026-03-23_19-18-01.txt",
+        label="ACT\nHF Full-Task\nmonotask",
+        description="ACT on the HF Full-Task dataset (execute chunk size 20)",
+        path=ROOT_DIR / "isaac-inference" / "results" / "ACT-pick-orange-chunk20" / "act_latest.txt",
+        dataset="HF Full-Task",
+        policy="ACT",
+        mode="monotask",
+        tag="HF",
     ),
     ResultFile(
-        label="SmolVLA\nHF full-task\nsingle-task",
-        description="SmolVLA on official HuggingFace monolithic task dataset",
-        path=ROOT_DIR / "isaac-inference" / "results" / "pretrained_model" / "eval_pretrained_model_2026-04-07_13-18-38.txt",
+        label="SmolVLA\nHF Full-Task\nmonotask",
+        description="SmolVLA on the HF Full-Task dataset",
+        path=ROOT_DIR / "isaac-inference" / "results" / "pick-orange-mimic" / "flat_latest.txt",
+        dataset="HF Full-Task",
+        policy="SmolVLA",
+        mode="monotask",
+        tag="HF",
     ),
 ]
 
 
 def main() -> None:
     results = [(result_file, parse_result(result_file)) for result_file in RESULT_FILES]
-    draw_figure(results, OUTPUT_PDF, bar_w=90)
+    draw_grouped_figure(results, OUTPUT_PDF, bar_w=60)
 
     print(f"Wrote {OUTPUT_PDF}")
     for result_file, parsed in results:
         values = ", ".join(f"{oranges}/3={parsed.outcomes[oranges][2]:.1f}%" for oranges in [0, 1, 2, 3])
         print(f"{result_file.description}: N={parsed.total}, mean={parsed.mean:.2f}/3, {values}")
+        print(f"  source: {result_file.path}")
 
 
 if __name__ == "__main__":

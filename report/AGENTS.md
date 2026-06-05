@@ -50,18 +50,15 @@ LaTeX toolchain lives on this laptop. Inference and eval results are
 produced on the desktop and synced via git. Do not attempt to run
 inference from this machine.
 
-## Report state (May 2026)
+## Report state (June 2026)
 
 Sections in `report/`:
 - `introduction.tex` — draft
-- `related_work.tex` — draft
-- `methodology.tex` — DRAFT, NEEDS REWRITE around the three-mechanism
-  framing in the project context above. Currently uses "recovery" as
-  an umbrella term; this is the central thing to fix.
-- `experiments.tex` — draft
-- `results.tex` — partial; only 3-run pilot numbers so far. Full
-  100-episode eval pending (see desktop priorities).
-- `conclusion.tex` — draft
+- `related_work.tex` — draft (empty)
+- `methodology.tex` — draft; terminology now uses the three-mechanism framing but needs a full structural rewrite
+- `experiments.tex` — draft; full 100-episode seeded eval results in place
+- `results.tex` — draft (Discussion & Conclusion section)
+- `conclusion.tex` — draft (empty)
 - `abstract.tex` — draft, write last
 - `notes.md` — historical scratch pad; do not edit unless asked.
 
@@ -74,7 +71,9 @@ Python scripts that generate the report figures. Run from `report/scripts/` on t
 | `plot_baseline_comparison.py` | `figures/baseline_comparison.pdf` |
 | `plot_data_effect.py` | `figures/data_effect.pdf` |
 | `plot_orange_outcomes.py` | `figures/orange_outcome_distribution.pdf` |
-| `plot_lib.py` | Shared helpers (colors, axis formatting, save wrappers) — imported by the three scripts above; not run directly. |
+| `plot_orchestrator_flow.py` | `figures/orchestrator_decision_flow.pdf` |
+| `plot_subtask_placeholders.py` | `figures/subtask_{grasp,lift,place}_placeholder.pdf` |
+| `plot_lib.py` | Shared helpers (colors, axis formatting, save wrappers) — imported by the scripts above; not run directly. |
 
 ## Figures (`figures/`)
 

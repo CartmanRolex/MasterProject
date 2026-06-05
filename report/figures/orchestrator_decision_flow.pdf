@@ -1,0 +1,322 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 1000 660] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+6 0 obj
+<< /Length 8708 >>
+stream
+0.000 0.000 0.000 rg
+BT /F2 16.0 Tf 370.40 632.00 Td (Orchestrator decision logic) Tj ET
+0.350 0.350 0.350 rg
+BT /F1 9.2 Tf 193.46 612.00 Td (The VLA executes only GRASP\(target\), LIFT, and PLACE; the controller sequences prompts from privileged simulator state.) Tj ET
+0.880 0.930 0.980 rg
+90.00 574.00 12.00 12.00 re f
+0.280 0.280 0.280 RG
+0.55 w
+90.00 574.00 12.00 12.00 re S
+0.350 0.350 0.350 rg
+BT /F1 7.6 Tf 108.00 576.00 Td (controller decision) Tj ET
+0.880 0.960 0.890 rg
+250.00 574.00 12.00 12.00 re f
+0.280 0.280 0.280 RG
+0.55 w
+250.00 574.00 12.00 12.00 re S
+0.350 0.350 0.350 rg
+BT /F1 7.6 Tf 268.00 576.00 Td (prompted VLA task) Tj ET
+0.990 0.950 0.780 rg
+410.00 574.00 12.00 12.00 re f
+0.280 0.280 0.280 RG
+0.55 w
+410.00 574.00 12.00 12.00 re S
+0.350 0.350 0.350 rg
+BT /F1 7.6 Tf 428.00 576.00 Td (controller motion) Tj ET
+0.980 0.880 0.860 rg
+565.00 574.00 12.00 12.00 re f
+0.280 0.280 0.280 RG
+0.55 w
+565.00 574.00 12.00 12.00 re S
+0.350 0.350 0.350 rg
+BT /F1 7.6 Tf 583.00 576.00 Td (retry routing) Tj ET
+0.910 0.920 0.950 rg
+710.00 574.00 12.00 12.00 re f
+0.280 0.280 0.280 RG
+0.55 w
+710.00 574.00 12.00 12.00 re S
+0.350 0.350 0.350 rg
+BT /F1 7.6 Tf 728.00 576.00 Td (terminal state) Tj ET
+0.880 0.930 0.980 rg
+58.00 432.00 160.00 92.00 re f
+0.130 0.130 0.130 RG
+1.00 w
+58.00 432.00 160.00 92.00 re S
+0.130 0.130 0.130 rg
+BT /F2 9.2 Tf 102.12 505.00 Td (SELECT_TARGET) Tj ET
+0.350 0.350 0.350 rg
+BT /F1 7.0 Tf 94.88 487.00 Td (choose unplaced orange) Tj ET
+0.350 0.350 0.350 rg
+BT /F1 7.0 Tf 90.96 475.00 Td (assign left/middle/right) Tj ET
+0.350 0.350 0.350 rg
+BT /F1 7.0 Tf 79.20 463.00 Td (avoid last timeout if possible) Tj ET
+0.880 0.960 0.890 rg
+278.00 432.00 160.00 92.00 re f
+0.130 0.130 0.130 RG
+1.00 w
+278.00 432.00 160.00 92.00 re S
+0.130 0.130 0.130 rg
+BT /F2 9.2 Tf 322.12 505.00 Td (GRASP\(target\)) Tj ET
+0.350 0.350 0.350 rg
+BT /F1 7.0 Tf 320.76 487.00 Td (prompt: Grasp label) Tj ET
+0.350 0.350 0.350 rg
+BT /F1 7.0 Tf 328.60 475.00 Td (confirm contact) Tj ET
+0.350 0.350 0.350 rg
+BT /F1 7.0 Tf 322.72 463.00 Td (timeout: 700 steps) Tj ET
+0.880 0.960 0.890 rg
+494.00 432.00 160.00 92.00 re f
+0.130 0.130 0.130 RG
+1.00 w
+494.00 432.00 160.00 92.00 re S
+0.130 0.130 0.130 rg
+BT /F2 9.2 Tf 562.96 505.00 Td (LIFT) Tj ET
+0.350 0.350 0.350 rg
+BT /F1 7.0 Tf 538.72 487.00 Td (prompt: Pick it up) Tj ET
+0.350 0.350 0.350 rg
+BT /F1 7.0 Tf 532.84 475.00 Td (confirm held + height) Tj ET
+0.350 0.350 0.350 rg
+BT /F1 7.0 Tf 538.72 463.00 Td (timeout: 400 steps) Tj ET
+0.880 0.960 0.890 rg
+710.00 432.00 160.00 92.00 re f
+0.130 0.130 0.130 RG
+1.00 w
+710.00 432.00 160.00 92.00 re S
+0.130 0.130 0.130 rg
+BT /F2 9.2 Tf 776.20 505.00 Td (PLACE) Tj ET
+0.350 0.350 0.350 rg
+BT /F1 7.0 Tf 746.88 487.00 Td (prompt: Place in plate) Tj ET
+0.350 0.350 0.350 rg
+BT /F1 7.0 Tf 748.84 475.00 Td (confirm plate release) Tj ET
+0.350 0.350 0.350 rg
+BT /F1 7.0 Tf 754.72 463.00 Td (timeout: 500 steps) Tj ET
+0.910 0.920 0.950 rg
+906.00 432.00 88.00 92.00 re f
+0.130 0.130 0.130 RG
+1.00 w
+906.00 432.00 88.00 92.00 re S
+0.130 0.130 0.130 rg
+BT /F2 9.2 Tf 941.72 505.00 Td (END) Tj ET
+0.350 0.350 0.350 rg
+BT /F1 7.0 Tf 932.36 487.00 Td (3 oranges) Tj ET
+0.350 0.350 0.350 rg
+BT /F1 7.0 Tf 934.32 475.00 Td (in plate) Tj ET
+0.350 0.350 0.350 rg
+BT /F1 7.0 Tf 932.36 463.00 Td (log count) Tj ET
+0.990 0.950 0.780 rg
+270.00 252.00 205.00 92.00 re f
+0.130 0.130 0.130 RG
+1.00 w
+270.00 252.00 205.00 92.00 re S
+0.130 0.130 0.130 rg
+BT /F2 9.2 Tf 331.10 325.00 Td (HOME-POSE RESET) Tj ET
+0.350 0.350 0.350 rg
+BT /F1 7.0 Tf 352.90 307.00 Td (bypass VLA) Tj ET
+0.350 0.350 0.350 rg
+BT /F1 7.0 Tf 329.38 295.00 Td (40 steps shoulder_lift) Tj ET
+0.350 0.350 0.350 rg
+BT /F1 7.0 Tf 335.26 283.00 Td (60 steps all joints) Tj ET
+0.350 0.350 0.350 rg
+BT /F1 7.0 Tf 337.22 271.00 Td (clear policy queue) Tj ET
+0.980 0.880 0.860 rg
+590.00 252.00 230.00 92.00 re f
+0.130 0.130 0.130 RG
+1.00 w
+590.00 252.00 230.00 92.00 re S
+0.130 0.130 0.130 rg
+BT /F2 9.2 Tf 674.64 325.00 Td (LOCAL RETRY) Tj ET
+0.350 0.350 0.350 rg
+BT /F1 7.0 Tf 663.84 307.00 Td (same target preserved) Tj ET
+0.350 0.350 0.350 rg
+BT /F1 7.0 Tf 657.96 295.00 Td (return directly to GRASP) Tj ET
+0.350 0.350 0.350 rg
+BT /F1 7.0 Tf 679.52 283.00 Td (no home reset) Tj ET
+0.130 0.130 0.130 RG
+1.00 w
+218.00 478.00 m 278.00 478.00 l S
+278.00 478.00 m 270.00 482.00 l S
+278.00 478.00 m 270.00 474.00 l S
+0.985 0.985 0.970 rg
+230.47 490.00 37.06 14.20 re f
+0.780 0.780 0.740 RG
+0.35 w
+230.47 490.00 37.06 14.20 re S
+0.350 0.350 0.350 rg
+BT /F1 7.2 Tf 236.90 494.50 Td (target) Tj ET
+0.130 0.130 0.130 RG
+1.00 w
+438.00 478.00 m 494.00 478.00 l S
+494.00 478.00 m 486.00 482.00 l S
+494.00 478.00 m 486.00 474.00 l S
+0.985 0.985 0.970 rg
+456.82 490.00 20.35 14.20 re f
+0.780 0.780 0.740 RG
+0.35 w
+456.82 490.00 20.35 14.20 re S
+0.350 0.350 0.350 rg
+BT /F1 7.2 Tf 462.97 494.50 Td (ok) Tj ET
+0.130 0.130 0.130 RG
+1.00 w
+654.00 478.00 m 710.00 478.00 l S
+710.00 478.00 m 702.00 482.00 l S
+710.00 478.00 m 702.00 474.00 l S
+0.985 0.985 0.970 rg
+671.82 490.00 20.35 14.20 re f
+0.780 0.780 0.740 RG
+0.35 w
+671.82 490.00 20.35 14.20 re S
+0.350 0.350 0.350 rg
+BT /F1 7.2 Tf 677.97 494.50 Td (ok) Tj ET
+0.130 0.130 0.130 RG
+1.00 w
+870.00 478.00 m 906.00 478.00 l S
+906.00 478.00 m 898.00 482.00 l S
+906.00 478.00 m 898.00 474.00 l S
+0.985 0.985 0.970 rg
+871.56 490.00 32.88 14.20 re f
+0.780 0.780 0.740 RG
+0.35 w
+871.56 490.00 32.88 14.20 re S
+0.350 0.350 0.350 rg
+BT /F1 7.2 Tf 877.92 494.50 Td (all 3) Tj ET
+0.130 0.130 0.130 RG
+1.00 w
+790.00 524.00 m 790.00 550.00 l S
+790.00 550.00 m 138.00 550.00 l S
+138.00 550.00 m 138.00 524.00 l S
+138.00 524.00 m 134.00 532.00 l S
+138.00 524.00 m 142.00 532.00 l S
+0.985 0.985 0.970 rg
+380.83 555.00 162.34 14.20 re f
+0.780 0.780 0.740 RG
+0.35 w
+380.83 555.00 162.34 14.20 re S
+0.350 0.350 0.350 rg
+BT /F1 7.2 Tf 389.42 559.50 Td (place confirmed; more oranges remain) Tj ET
+0.130 0.130 0.130 RG
+1.00 w
+[5 4] 0 d
+358.00 432.00 m 358.00 344.00 l S
+358.00 344.00 m 354.00 352.00 l S
+358.00 344.00 m 362.00 352.00 l S
+[] 0 d
+0.985 0.985 0.970 rg
+324.86 388.00 66.29 14.20 re f
+0.780 0.780 0.740 RG
+0.35 w
+324.86 388.00 66.29 14.20 re S
+0.350 0.350 0.350 rg
+BT /F1 7.2 Tf 331.79 392.50 Td (GRASP timeout) Tj ET
+0.130 0.130 0.130 RG
+1.00 w
+[5 4] 0 d
+270.00 298.00 m 138.00 298.00 l S
+138.00 298.00 m 138.00 432.00 l S
+138.00 432.00 m 134.00 424.00 l S
+138.00 432.00 m 142.00 424.00 l S
+[] 0 d
+0.985 0.985 0.970 rg
+132.68 317.00 74.64 14.20 re f
+0.780 0.780 0.740 RG
+0.35 w
+132.68 317.00 74.64 14.20 re S
+0.350 0.350 0.350 rg
+BT /F1 7.2 Tf 139.76 321.50 Td (reselect target) Tj ET
+0.985 0.985 0.970 rg
+99.27 300.00 141.46 14.20 re f
+0.780 0.780 0.740 RG
+0.35 w
+99.27 300.00 141.46 14.20 re S
+0.350 0.350 0.350 rg
+BT /F1 7.2 Tf 107.50 304.50 Td (avoid failed orange if possible) Tj ET
+0.130 0.130 0.130 RG
+1.00 w
+[5 4] 0 d
+574.00 432.00 m 574.00 382.00 l S
+574.00 382.00 m 642.00 382.00 l S
+642.00 382.00 m 642.00 344.00 l S
+642.00 344.00 m 638.00 352.00 l S
+642.00 344.00 m 646.00 352.00 l S
+[] 0 d
+0.130 0.130 0.130 RG
+1.00 w
+[5 4] 0 d
+790.00 432.00 m 790.00 382.00 l S
+790.00 382.00 m 770.00 382.00 l S
+770.00 382.00 m 770.00 344.00 l S
+770.00 344.00 m 766.00 352.00 l S
+770.00 344.00 m 774.00 352.00 l S
+[] 0 d
+0.985 0.985 0.970 rg
+633.45 387.00 133.10 14.20 re f
+0.780 0.780 0.740 RG
+0.35 w
+633.45 387.00 133.10 14.20 re S
+0.350 0.350 0.350 rg
+BT /F1 7.2 Tf 641.54 391.50 Td (drop or timeout in LIFT/PLACE) Tj ET
+0.130 0.130 0.130 RG
+1.00 w
+[5 4] 0 d
+590.00 298.00 m 500.00 298.00 l S
+500.00 298.00 m 500.00 372.00 l S
+500.00 372.00 m 398.00 372.00 l S
+398.00 372.00 m 398.00 432.00 l S
+398.00 432.00 m 394.00 424.00 l S
+398.00 432.00 m 402.00 424.00 l S
+[] 0 d
+0.985 0.985 0.970 rg
+443.80 381.00 116.40 14.20 re f
+0.780 0.780 0.740 RG
+0.35 w
+443.80 381.00 116.40 14.20 re S
+0.350 0.350 0.350 rg
+BT /F1 7.2 Tf 451.60 385.50 Td (same target, direct retry) Tj ET
+0.950 0.950 0.930 rg
+58.00 68.00 882.00 120.00 re f
+0.640 0.640 0.610 RG
+0.80 w
+58.00 68.00 882.00 120.00 re S
+0.130 0.130 0.130 rg
+BT /F2 9.0 Tf 76.00 166.00 Td (Physical success checks) Tj ET
+0.350 0.350 0.350 rg
+BT /F1 7.8 Tf 76.00 148.00 Td (GRASP: centred closed grip plus projected contact force on both fingertips for 10 consecutive frames.) Tj ET
+0.350 0.350 0.350 rg
+BT /F1 7.8 Tf 76.00 126.00 Td (LIFT: active orange remains held and rises at least 0.06 m above its initial height for 10 consecutive frames.) Tj ET
+0.350 0.350 0.350 rg
+BT /F1 7.8 Tf 76.00 104.00 Td (PLACE: active orange is inside the oriented plate bounds, stable for 10 frames, and released with the gripper open.) Tj ET
+0.350 0.350 0.350 rg
+BT /F1 7.8 Tf 76.00 82.00 Td (A GRASP timeout triggers a home-pose reset before reselection; LIFT/PLACE failures preserve the same target.) Tj ET
+endstream
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000252 00000 n 
+0000000322 00000 n 
+0000000397 00000 n 
+trailer
+<< /Size 7 /Root 1 0 R >>
+startxref
+9157
+%%EOF

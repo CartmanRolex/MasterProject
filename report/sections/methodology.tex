@@ -3,52 +3,111 @@
 
 This work studies orchestrated manipulation in a simulated pick-and-place task. The robot is an SO-101 arm operating in an Isaac Sim kitchen scene. Each episode contains three oranges and a plate. The objective is to place all three oranges into the plate. The scene provides privileged simulator state, which is used throughout to evaluate whether subtasks have achieved their intended physical outcome. This avoids confounding the orchestration problem with visual state-estimation errors.
 
-\subsection{Full-Episode Imitation Baseline}
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[t]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{environment_top_view.png}
+        \caption{Top-camera view of the tabletop scene.}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{environment_plate_closeup.png}
+        \caption{Close-up view during placement.}
+    \end{subfigure}
+    \caption{Simulated pick-and-place environment used for evaluation. The SO-101 arm must move three oranges into the plate while operating from camera observations and simulator state.}
+    \label{fig:environment}
+\end{figure}
 
-The first experimental setting treats the task as a single full-episode imitation-learning problem. A public HuggingFace dataset of 60 demonstrations is used, where each episode contains a complete sequence for picking the three oranges and placing them in the plate. The demonstrations are monolithic: they are not segmented into subtasks, and the learned policy is expected to execute the full task from the beginning of the episode to the end.
+\subsection{HF Full-Task Baseline}
 
-Two policy classes are compared: ACT, a lightweight diffusion-based model, and SmolVLA, a Vision-Language-Action model. Both are trained on the same dataset. SmolVLA receives a single fixed instruction for the whole episode, so neither model exploits language conditioning in any meaningful way. The comparison serves as a sanity check: if SmolVLA performs no better than ACT under identical conditions, it confirms that the VLA model choice alone does not determine performance in this setting.
+The first experimental setting treats the task as a single full-episode imitation-learning problem. This report refers to this training source as the \textbf{HF Full-Task} dataset. It contains 60 complete pick-and-place demonstrations, where each episode covers the full sequence of picking the three oranges and placing them in the plate. The demonstrations are monolithic: they are not segmented into subtasks, and the learned policy is expected to execute the full task from the beginning of the episode to the end.
+
+Two policy classes are compared: ACT, an action-chunking transformer policy, and SmolVLA, a Vision-Language-Action model. Both are trained from the same 60-demonstration full-task source, using compatible LeRobot dataset versions. SmolVLA receives a single fixed instruction for the whole episode, so neither model exploits language conditioning in any meaningful way. The comparison serves as a sanity check: if SmolVLA performs no better than ACT under this monolithic formulation, it confirms that the VLA model choice alone does not determine performance in this setting.
 
 \subsection{Subtask Decomposition}
 
 Detecting and responding to intermediate failures requires knowing when one behaviour has ended and whether it succeeded. For this reason, the full task is reformulated as a sequence of shorter subtasks. The main subtasks are grasping a selected orange, lifting it, and placing it into the plate. These subtasks create explicit checkpoints where the execution system can evaluate whether the expected physical outcome has been achieved before committing to the next step.
 
+Targeted grasp prompts use relative spatial labels computed from the current orange layout. In simple configurations, the oranges are labelled left, middle, and right. When two oranges are too close along the main horizontal axis to be reliably distinguished by only left/right position, the secondary horizontal axis is used as a tie-breaker, yielding labels such as top, bottom, top left, bottom left, top right, or bottom right. This keeps the language target meaningful even when the oranges are laterally clustered.
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[t]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{subtask_grasp_placeholder.pdf}
+        \caption{GRASP}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{subtask_lift_placeholder.pdf}
+        \caption{LIFT}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{subtask_place_placeholder.pdf}
+        \caption{PLACE}
+    \end{subfigure}
+    \caption{Placeholder illustrations for the three subtask types used by the orchestrator.}
+    \label{fig:subtask_placeholders}
+\end{figure}
+
 In this formulation, a subtask failure is any case where the intended physical outcome is not reached within the allotted time. This includes failed grasps, an orange falling during lift, unsuccessful placement, or timeout.
 
-An intermediate attempt was made by slicing the public full-episode dataset into shorter subtask segments. This produced a subtask-style dataset, but the original demonstrations always follow the same object order. As a result, the sliced data does not provide a meaningful signal connecting a language instruction to a specific target object: target identity is entangled with progress through the fixed sequence rather than with the instruction itself. This limitation motivated the creation of a custom dataset.
+An intermediate attempt was made by slicing the HF Full-Task dataset into shorter subtask segments. This produced a subtask-style dataset, but the original demonstrations always follow the same object order. As a result, the sliced data does not provide a meaningful signal connecting a language instruction to a specific target object: target identity is entangled with progress through the fixed sequence rather than with the instruction itself. This limitation motivated the creation of a custom dataset.
 
-\subsection{Dataset Construction}
+\subsection{Teleop Dataset Construction}
 
-A custom teleoperated dataset was collected to support orchestrated execution. Unlike the public full-episode dataset, each episode in this dataset corresponds to one subtask rather than one complete three-orange trajectory. This makes it possible to discard failed teleoperation attempts, annotate each successful attempt with a subtask instruction, and train the policy on behaviours that can be sequenced by a higher-level controller.
+A custom teleoperated dataset was collected to support orchestrated execution. This report refers to the final manually collected training set as \textbf{Teleop}. Unlike the HF Full-Task dataset, each Teleop episode corresponds to one subtask rather than one complete three-orange trajectory. This makes it possible to discard failed teleoperation attempts, annotate each successful attempt with a subtask instruction, and train the policy on behaviours that can be sequenced by a higher-level controller.
 
-The dataset contains instructions such as ``Grasp left orange'', ``Grasp middle orange'', ``Grasp right orange'', ``Pick it up'', and ``Place it into plate''. The pick order is randomised across episodes. This breaks the fixed-order correlation in the original demonstrations and makes relative-position instructions meaningful: the policy cannot infer the target from task progress alone and must instead learn to associate the instruction with the specified orange.
+The dataset contains instructions such as ``Grasp left orange'', ``Grasp middle orange'', ``Grasp right orange'', ``Grasp top right orange'', ``Pick it up'', and ``Place it into plate''. The pick order is randomised across episodes. This breaks the fixed-order correlation in the original demonstrations and makes relative-position instructions meaningful: the policy cannot infer the target from task progress alone and must instead learn to associate the instruction with the specified orange.
 
-The final dataset contains 921 subtask episodes. The resulting SmolVLA model is trained as a subtask executor rather than as a monolithic full-task policy. Its role is to execute the current language-conditioned behaviour requested by the orchestrator.
+The raw edited Teleop dataset contains 921 subtask episodes. The final training version used for the evaluated Teleop subtask model removes non-manipulation HOME/reset episodes and appends 20 terminal freeze frames to each retained episode, leaving 846 subtask episodes. These 20 frames correspond to one action chunk in the evaluated setup. They hold the terminal visual observation and robot state, and convert the command into a hold-style action at the end of the subtask. The resulting SmolVLA model is therefore trained as a subtask executor rather than as a monolithic full-task policy: after reaching a subtask-terminal configuration, its learned behaviour should settle instead of immediately continuing into another manipulation phase.
 
 \subsection{Orchestrator Design}
 
-The VLA is responsible for three manipulation subtasks: GRASP(\textit{target}), LIFT, and PLACE. The orchestrator is responsible for subtask sequencing and outcome evaluation. It reads privileged simulator state to verify whether each subtask achieved its intended physical effect before advancing: it checks whether the gripper is holding the orange after GRASP, and whether the orange is in the plate after PLACE.
+The orchestrator is a finite-state controller wrapped around the VLA policy. The learned policy is only responsible for executing three manipulation prompts: GRASP(\textit{target}), LIFT, and PLACE. The controller chooses the next target, sends the corresponding prompt, monitors whether the expected physical outcome has occurred, and decides whether to advance, retry, redirect, or terminate the episode. Success checks use privileged simulator state so that the experiment evaluates the control structure rather than visual state estimation.
 
-GRASP succeeds only when the selected orange is confirmed to be held according to geometric and force constraints. If the policy does not produce a valid grasp before the step limit, the subtask times out. The orchestrator then performs a scripted spatial reset to the home configuration and retries GRASP once for the same orange. This retry keeps the original sub-goal active and gives the policy a second attempt from a state where the target instruction is reliable.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{orchestrator_decision_flow.pdf}
+    \caption{Decision logic of the orchestrated evaluator. The VLA is queried only for manipulation subtasks; target selection, local retries, target redirection, and the home-pose reset are handled by the controller.}
+    \label{fig:orchestrator_flow}
+\end{figure}
 
-LIFT and PLACE can fail either because the orange is dropped or because the subtask times out before reaching its intended outcome. PLACE also fails when the orange is not deposited in the plate. These failures trigger \textbf{local retry}: the orchestrator returns to GRASP for the same target orange without changing the language target. The original sub-goal is preserved, which is why local retry is the true recovery mechanism in this report.
+At the beginning of an episode, and after each completed placement, the controller enters \texttt{SELECT\_TARGET}. It reads the current orange positions, removes oranges already detected in the plate, assigns relative labels such as left, middle, and right, and selects a target for the next GRASP prompt. If no unplaced oranges remain, the episode is considered complete. If a previous GRASP timed out, the controller stores that orange as the last failed target and avoids selecting it when another unplaced orange is available. This target switch is counted as \textbf{target redirection}.
 
-After repeated failure on the same orange, the orchestrator uses \textbf{target redirection}. The current orange is abandoned and the next GRASP instruction targets a different available orange. This is not recovery of the original sub-goal: the system has given up on that orange for the remainder of the episode. However, it moves the execution loop out of a stuck state in which a monolithic policy could spend the remaining episode repeatedly attempting an unproductive grasp. Redirection therefore serves the global task objective by allowing progress on another orange.
+The three learned subtasks are guarded by explicit physical checks. GRASP is confirmed when the gripper is centred on an unplaced orange, the fingertips are closed, and projected contact force is detected on both gripper contacts for consecutive frames. If the physical check confirms a different orange from the requested one, the controller adapts and treats the actually grasped orange as the active target. LIFT is confirmed when the active orange remains held and rises at least \SI{0.06}{m} above its initial height. PLACE is confirmed when the active orange lies inside the oriented plate bounds, remains stable for consecutive frames, and is released with the gripper open.
 
-Any change of language target is preceded by a \textbf{scripted spatial reset}. The VLA follows target-change instructions reliably only when the arm is far from the oranges; near a failed target, it tends to remain focused on the nearby object regardless of the new language instruction. The orchestrator therefore moves the arm to the home configuration with a deterministic joint-space interpolation before issuing a different GRASP target. This reset is a precondition for reliable language conditioning, not itself a recovery mechanism.
+Each manipulation state has a timeout: 700 steps for GRASP, 400 for LIFT, and 500 for PLACE. A confirmed GRASP advances to LIFT; a confirmed LIFT advances to PLACE; a confirmed PLACE either returns to \texttt{SELECT\_TARGET} for the next orange or ends the episode once all three oranges are in the plate.
+
+The implementation separates three mechanisms that should not be conflated. \textbf{Local retry} is the true recovery mechanism. If the orange is dropped during LIFT or PLACE, or if LIFT/PLACE times out, the controller preserves the same target and returns directly to GRASP. The original sub-goal is still active, and no target-change reset is inserted.
+
+\textbf{Home-pose reset} is a precondition for reliable target switching, not recovery. When GRASP times out, the controller clears the active target and bypasses the VLA entirely. The arm first moves only the shoulder-lift joint toward the episode-start pose for 40 steps, then interpolates all joints to the episode-start pose for 60 steps. After the reset completes, the policy action queue is cleared and target selection resumes from a state where a new language target is more reliable.
+
+\textbf{Target redirection} happens after a GRASP timeout when another unplaced orange is available. The controller intentionally selects a different orange after the home-pose reset, so this is goal abandonment rather than recovery of the original sub-goal. If no alternative target remains, the controller retries the same orange after the reset. In these experiments, redirection is tracked as a mechanism counter, but oranges are not permanently marked as abandoned in the final episode metrics.
 
 \subsection{Autonomous Data Generation}
 
-The autonomous data generation phase used the orchestrated execution system to collect training data without manual teleoperation. This phase was motivated by the first formal evaluation of the handmade subtask model: subtasking plus orchestration did not improve full-task performance over the monolithic SmolVLA baseline. The next hypothesis was therefore that the subtask policy needed more data, especially data drawn from the states it visits during autonomous execution rather than only from manual demonstrations.
+The autonomous data generation phase used the orchestrated execution system to collect training data without manual teleoperation. This phase was motivated by the first formal evaluation of the Teleop subtask model: subtasking plus orchestration did not improve full-task performance over the monolithic SmolVLA baseline. The next hypothesis was therefore that the subtask policy needed more data, especially data drawn from the states it visits during autonomous execution rather than only from manual demonstrations.
 
 A full autonomous rollout can contain both failed and successful subtasks. Rather than discarding an entire rollout when a subtask fails, the system records the successful subtask trajectories and discards the failed ones.
 
-This produces an automatically generated dataset of successful subtasks collected under the current policy's own execution distribution. Target redirection plays an important role here: without the ability to pivot to a different orange after a local failure, the system would need to discard the entire rollout. Redirection allows the system to continue collecting successful subtask data from scenes that would otherwise be wasted.
+This produces an automatically generated dataset of successful subtasks collected under the current policy's own execution distribution. This report refers to the balanced retained subset as \textbf{Auto}. Target redirection plays an important role here: without the ability to pivot to a different orange after a GRASP timeout, the system would need to discard the entire rollout. Redirection allows the system to continue collecting successful subtask data from scenes that would otherwise be wasted.
 
-The autonomous generation run produced subtask episodes that were then filtered to balance the dataset by scene state: the number of episodes collected with one or two oranges already in the plate was equalised against those collected at the start of the episode, so the merged dataset does not over-represent early-scene behaviour. After filtering, 414 autonomous episodes were retained and merged with the 921 handmade episodes to form a final dataset of 1335 subtask episodes. A new model --- referred to as the merged subtask model --- was trained on this combined dataset.
+The autonomous generation run produced subtask episodes that were then filtered to balance the dataset by scene state: the number of episodes collected with one or two oranges already in the plate was equalised against those collected at the start of the episode, so the merged dataset does not over-represent early-scene behaviour. After filtering, 414 Auto episodes were retained and merged with the 846 Teleop training episodes to form \textbf{Teleop+Auto}, a 1260-episode subtask dataset. A new model --- referred to as the Teleop+Auto subtask model --- was trained on this combined dataset.
 
-\subsection{Single-Task Fair Comparison}
+\subsection{Monotask Fair Comparison}
 
-The merged subtask model cannot be compared only against the original HuggingFace baseline, because both the dataset and the task formulation changed. To isolate the effect of subtasking more clearly, a second SmolVLA model was trained on the same handmade-plus-automatic data but treated as a single-task policy. The subtask-specific instructions were replaced by the same fixed prompt used in the monolithic setting, ``Place the orange into plate'', and the model was evaluated without the orchestrator's GRASP/LIFT/PLACE checkpoints.
+The Teleop+Auto subtask model cannot be compared only against the HF Full-Task baseline, because both the dataset and the task formulation changed. To isolate the effect of subtasking more clearly, a second SmolVLA model was trained on the same Teleop+Auto trajectories but treated as a \textbf{monotask} policy. The subtask-specific instructions were replaced by the same fixed prompt used in the monolithic setting, ``Place the orange into plate'', and the model was evaluated without the orchestrator's GRASP/LIFT/PLACE checkpoints.
 
-This single-task comparison asks whether the same generated data is more effective when used as a monolithic full-episode policy or as an orchestrated subtask policy. It therefore separates the effect of the data source from the effect of subtask decomposition and orchestration.
+For both the Teleop and Teleop+Auto monotask/subtask comparisons, every evaluation episode uses the same global budget of 5000 environment steps. The orchestrated subtask controller has additional internal timeouts for GRASP, LIFT, and PLACE, but the total episode horizon is identical to the monotask setting.
+
+This comparison also changes the stopping signal seen during training. In the subtask dataset, each episode ends with the 20-frame freeze tail described above. This teaches the VLA that a language-conditioned subtask should end in a stable hold state. The controller still decides success from privileged simulator state during evaluation, but the learned tail makes it less likely that the policy immediately continues into the next behaviour while the orchestrator is waiting to switch prompts.
+
+For the monotask dataset, the same fragmented trajectories are relabelled with the single full-task prompt and the terminal freeze tails are removed. The model therefore does not learn to stop at local subtask boundaries. Although each training episode is still stored as a fragment, the final state of one subtask is usually a valid starting state for another: a completed grasp leads naturally into lifting, and a lifted orange leads naturally into placing. Under the fixed global prompt, the monotask policy can therefore behave more like a continuous full-task policy stitched together through state observations.
+
+The fair comparison therefore asks whether the same trajectory fragments are more effective as a single fixed-prompt policy or as an orchestrated subtask policy with explicit stop-at-boundary behaviour. It separates the effect of the data source from the effect of subtask decomposition and orchestration, but it should not be interpreted as both models receiving identical temporal supervision.

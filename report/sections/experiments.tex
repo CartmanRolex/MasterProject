@@ -1,62 +1,64 @@
 \section{Results}
 \label{sec:experiments}
 
-This section reports the experimental evidence collected so far. The emphasis is on factual comparisons between task formulations: monolithic full-episode imitation, orchestrated subtask execution, additional autonomous subtask data, and a fair-comparison single-task model trained from the same handmade-plus-automatic data.
+This section reports the experimental evidence collected so far. The emphasis is on factual comparisons between task formulations and training sources. The dataset names used throughout are: \textbf{HF Full-Task} for the 60-episode public full-task demonstrations, \textbf{Teleop} for the manually collected subtask dataset, \textbf{Auto} for the balanced automatically generated successful subtasks, and \textbf{Teleop+Auto} for their merged training set.
+
+The current evaluations use the same reference seed set, \texttt{pick\_orange\_reference\_100\_v1}, for every completed model run. Each run therefore contains the same 100 initial conditions in the same order; across seed indices, the randomized quantities are the top-camera pose and the orange positions. This makes differences between bars more directly attributable to the policy and task formulation rather than to easier or harder sampled scenes.
 
 \subsection{Full-Episode Imitation Baseline}
 
-The first experiment evaluates whether changing the policy class is sufficient when the complete pick-and-place task is treated as one monolithic episode. ACT and SmolVLA are trained on the same public HuggingFace dataset of 60 full-task demonstrations. In this setting, SmolVLA receives a single instruction for the whole episode, so the experiment does not evaluate meaningful language-conditioned control. Both policies are asked to solve the full task without subtask-level monitoring.
+The first experiment evaluates whether changing the policy class is sufficient when the complete pick-and-place task is treated as one monolithic episode. ACT and SmolVLA are trained on the same 60-episode HF Full-Task source. In this setting, SmolVLA receives a single instruction for the whole episode, so the experiment does not evaluate meaningful language-conditioned control. Both policies are asked to solve the full task without subtask-level monitoring.
 
-Figure~\ref{fig:baseline_comparison} shows the final plate occupancy distribution for both baselines. In all figures, \textit{N eval runs} denotes the number of evaluated episodes, and \textit{mean} denotes the average number of oranges in the plate out of three at the end of the episode.
+Figure~\ref{fig:baseline_comparison} shows the final plate occupancy distribution for both baselines. In all figures, the mean denotes the average number of oranges in the plate out of three at the end of the episode.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.68\textwidth]{baseline_comparison.pdf}
-    \caption{Final plate occupancy for ACT and SmolVLA trained on the public HuggingFace full-task dataset. Bar segments are percentages of evaluation episodes ending with 0, 1, 2, or 3 oranges in the plate.}
+    \includegraphics[width=\textwidth]{baseline_comparison.pdf}
+    \caption{Final plate occupancy for ACT and SmolVLA trained on the 60-episode HF Full-Task dataset. Bar segments are percentages of evaluation episodes ending with 0, 1, 2, or 3 oranges in the plate.}
     \label{fig:baseline_comparison}
 \end{figure}
 
-The baseline distributions are comparable in aggregate. The ACT run has mean final occupancy 1.62/3, while the monolithic SmolVLA run has mean final occupancy 1.45/3. This supports the use of SmolVLA in later experiments because of its language-conditioning interface, not because it outperforms ACT in the monolithic setting.
+The seeded baseline distributions are no longer comparable in aggregate. The ACT run uses execute chunk size 20 and has mean final occupancy 0.98/3, completing 17/100 episodes. The monolithic SmolVLA run has mean final occupancy 2.06/3 and completes 47/100 episodes. This supports the use of SmolVLA in later experiments, while also showing that a stronger monolithic policy still does not solve the long-horizon task reliably.
 
 \subsection{Full-Task Outcomes Across Formulations}
 
-Figure~\ref{fig:orange_outcome_distribution} compares the main evaluated task formulations. The handmade subtask model is trained on 921 manually collected subtask episodes and executed through the orchestrator. The hand+auto subtask model is trained on those 921 episodes plus 414 successful autonomous subtask episodes. The final bar is a fair-comparison single-task SmolVLA model trained from the same handmade-plus-automatic data with the fixed prompt ``Place the orange into plate''.
+Figure~\ref{fig:orange_outcome_distribution} compares the main evaluated task formulations. The Teleop subtask model is trained on 846 manually collected subtask episodes and executed through the orchestrator. The Teleop monotask model is trained on the corresponding no-language fixed-prompt formulation with terminal freeze tails removed. The combined subtask model is trained on those 846 Teleop episodes plus 414 Auto episodes, for 1260 total episodes. The combined monotask bar is a fair-comparison SmolVLA model trained from the same Teleop+Auto trajectories with the fixed prompt ``Place the orange into plate'' and the same no-tail monotask convention. All monotask and subtask runs in this comparison use the same 5000-step global episode timeout.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{orange_outcome_distribution.pdf}
-    \caption{Final plate occupancy across evaluated task formulations. Bar segments are percentages of evaluation episodes; \textit{N eval runs} is the number of evaluation episodes; \textit{mean} is average final oranges in plate out of three. Preliminary bars correspond to evaluations that were stopped before the planned 500 episodes.}
+    \caption{Final plate occupancy across evaluated task formulations. Completed bars use the same 100 seeded initial conditions. Bar segments are percentages of evaluation episodes ending with 0, 1, 2, or 3 oranges in the plate; \textit{mean} is average final oranges in plate out of three. Bars are grouped by training dataset and labelled by task formulation.}
     \label{fig:orange_outcome_distribution}
 \end{figure}
 
-The handmade subtask model placed all three oranges in 26/326 evaluation runs (7.98\%) with mean final occupancy 1.32/3. It therefore did not improve full-task completion over the monolithic SmolVLA baseline. The current hand+auto subtask evaluation is preliminary: it has 1/41 full completions (2.44\%) and mean final occupancy 1.15/3. Adding automatically generated subtasks has not yet produced an observed full-completion improvement in the orchestrated subtask setting.
+The Teleop monotask model placed all three oranges in 11/100 evaluation runs (11.00\%) with mean final occupancy 1.02/3. The Teleop subtask model placed all three oranges in 23/100 runs (23.00\%) with mean final occupancy 1.74/3. Subtasking therefore improves over the Teleop monotask formulation, but it still remains below the SmolVLA HF Full-Task baseline in complete-task success. The Teleop+Auto subtask model placed all three oranges in 20/100 runs (20.00\%) with mean final occupancy 1.51/3. In this experiment, adding automatically generated subtasks made the orchestrated subtask result worse rather than better.
 
-The single-task fair-comparison model has 43/247 full completions (17.41\%) and mean final occupancy 0.57/3. Its distribution is strongly all-or-nothing: most episodes end with 0 oranges, while a smaller set completes all three. On the same handmade-plus-automatic data, the orchestrated subtask model has lower full-task completion so far, but higher mean final occupancy. This indicates a different failure profile: the single-task model often gets stuck completely, whereas the orchestrated subtask model more often makes partial progress by moving on to other oranges after repeated failure on one target.
+The Teleop+Auto monotask model placed all three oranges in 24/100 runs (24.00\%) with mean final occupancy 1.34/3. Compared with the Teleop+Auto subtask model, the monotask model completes more full tasks but leaves fewer oranges in the plate on average. The fair comparison on the merged data is therefore mixed: the subtask formulation is better at partial progress, while the monotask formulation is better at complete success.
 
 \subsection{Subtask-Level Outcomes}
 
-Subtask-level metrics are available only for orchestrated evaluations, because the monolithic and single-task runs do not expose comparable GRASP, LIFT, and PLACE checkpoints. Table~\ref{tab:orchestrated_subtasks} reports success rates by subtask and by how many oranges were already in the plate at subtask start.
+Subtask-level metrics are available only for orchestrated evaluations, because the monolithic and monotask runs do not expose comparable GRASP, LIFT, and PLACE checkpoints. Table~\ref{tab:orchestrated_subtasks} reports success rates by subtask and by how many oranges were already in the plate at subtask start.
 
 \begin{table}[H]
     \centering
     \small
-    \caption{Subtask success rates during orchestrated evaluation, grouped by the number of oranges already in the plate at subtask start. The hand+auto rows are preliminary.}
+    \caption{Subtask success rates during orchestrated evaluation, grouped by the number of oranges already in the plate at subtask start.}
     \label{tab:orchestrated_subtasks}
     \begin{tabular}{llccc}
         \toprule
         Model & Subtask & 0 placed & 1 placed & 2 placed \\
         \midrule
-        Handmade & GRASP & 357/921 (38.8\%) & 204/608 (33.6\%) & 51/195 (26.2\%) \\
-        Handmade & LIFT & 302/357 (84.6\%) & 174/204 (85.3\%) & 39/51 (76.5\%) \\
-        Handmade & PLACE & 237/302 (78.5\%) & 140/174 (80.5\%) & 30/39 (76.9\%) \\
+        Teleop & GRASP & 140/254 (55.1\%) & 72/213 (33.8\%) & 37/130 (28.5\%) \\
+        Teleop & LIFT & 113/140 (80.7\%) & 62/69 (89.9\%) & 32/37 (86.5\%) \\
+        Teleop & PLACE & 77/109 (70.6\%) & 56/66 (84.8\%) & 25/32 (78.1\%) \\
         \midrule
-        Hand+auto & GRASP & 51/108 (47.2\%) & 17/107 (15.9\%) & 1/11 (9.1\%) \\
-        Hand+auto & LIFT & 43/51 (84.3\%) & 13/17 (76.5\%) & 1/1 (100.0\%) \\
-        Hand+auto & PLACE & 28/43 (65.1\%) & 9/13 (69.2\%) & 1/1 (100.0\%) \\
+        Teleop+Auto & GRASP & 135/288 (46.9\%) & 63/229 (27.5\%) & 30/98 (30.6\%) \\
+        Teleop+Auto & LIFT & 105/132 (79.5\%) & 48/62 (77.4\%) & 23/29 (79.3\%) \\
+        Teleop+Auto & PLACE & 56/102 (54.9\%) & 38/51 (74.5\%) & 16/22 (72.7\%) \\
         \bottomrule
     \end{tabular}
 \end{table}
 
-For the handmade model, GRASP is the lowest-success subtask and decreases as the episode progresses from 0 to 2 oranges already placed. LIFT and PLACE are higher once an orange has been acquired. In the preliminary hand+auto run, GRASP starts higher at 0 placed but drops sharply for later scene states; the 2-placed measurements are based on few attempts and should be treated cautiously.
+For the Teleop model, GRASP is the lowest-success subtask and decreases as the episode progresses from 0 to 2 oranges already placed. LIFT and PLACE are higher once an orange has been acquired. In the Teleop+Auto run, GRASP is lower for scenes with 0 or 1 orange already placed, and PLACE is lower across all scene states. This explains why adding Auto data did not help: the added data did not improve the bottleneck behaviours that determine whether the orchestrator can actually make progress.
 
-The orchestrator mechanisms fired frequently in both orchestrated evaluations. In the handmade run, local retries occurred in 314/326 episodes and target redirections in 293/326 episodes, with 515 oranges abandoned in total. In the hand+auto preliminary run, local retries occurred in 40/41 episodes and target redirections in 40/41 episodes, with 76 oranges abandoned in total.
+The orchestrator mechanisms fired frequently in both orchestrated evaluations. In the Teleop run, local retries occurred in 68/100 episodes and target redirections in 77/100 episodes. In the Teleop+Auto run, local retries occurred in 80/100 episodes and target redirections in 89/100 episodes.

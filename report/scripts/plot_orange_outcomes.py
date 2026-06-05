@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from plot_lib import ResultFile, draw_figure, parse_result
+from plot_lib import ResultFile, draw_grouped_figure, parse_result
 
 
 REPORT_DIR = Path(__file__).resolve().parents[1]
@@ -18,42 +18,77 @@ OUTPUT_PDF = REPORT_DIR / "figures" / "orange_outcome_distribution.pdf"
 
 RESULT_FILES = [
     ResultFile(
-        label="ACT\nHF full-task\nsingle-task",
-        description="ACT on official HuggingFace monolithic task dataset",
-        path=ROOT_DIR / "isaac-inference" / "results" / "ACT-pick-orange" / "eval_ACT-pick-orange_2026-03-23_19-18-01.txt",
+        label="ACT\nHF Full-Task\nmonotask",
+        description="ACT on the HF Full-Task dataset (execute chunk size 20)",
+        path=ROOT_DIR / "isaac-inference" / "results" / "ACT-pick-orange-chunk20" / "act_latest.txt",
+        dataset="HF Full-Task",
+        policy="ACT",
+        mode="monotask",
+        tag="HF",
     ),
     ResultFile(
-        label="SmolVLA\nHF full-task\nsingle-task",
-        description="SmolVLA on official HuggingFace monolithic task dataset",
-        path=ROOT_DIR / "isaac-inference" / "results" / "pretrained_model" / "eval_pretrained_model_2026-04-07_13-18-38.txt",
+        label="SmolVLA\nHF Full-Task\nmonotask",
+        description="SmolVLA on the HF Full-Task dataset",
+        path=ROOT_DIR / "isaac-inference" / "results" / "pick-orange-mimic" / "flat_latest.txt",
+        dataset="HF Full-Task",
+        policy="SmolVLA",
+        mode="monotask",
+        tag="HF",
     ),
     ResultFile(
-        label="SmolVLA\nHandmade subtasks\norchestrated subtasks",
-        description="SmolVLA subtask model trained on the handmade dataset",
+        label="SmolVLA\nTeleop\nmonotask",
+        description="SmolVLA monotask model trained on the teleoperated dataset",
+        path=ROOT_DIR / "isaac-inference" / "results" / "Gal_split_nolang" / "flat_latest.txt",
+        dataset="Teleop",
+        policy="SmolVLA",
+        mode="monotask",
+        tag="T",
+    ),
+    ResultFile(
+        label="SmolVLA\nTeleop\nsubtasks",
+        description="SmolVLA subtask model trained on the teleoperated dataset",
         path=ROOT_DIR / "isaac-inference" / "results" / "Gal-pick-orange-tailedCH20" / "latest.txt",
+        dataset="Teleop",
+        policy="SmolVLA",
+        mode="subtasks",
+        tag="T",
     ),
     ResultFile(
-        label="SmolVLA\nHand+auto\norchestrated subtasks\nprelim.",
-        description="SmolVLA subtask model trained on handmade data merged with automated data generation",
-        path=ROOT_DIR / "isaac-inference" / "results" / "Gal-merged-tailed-auto" / "latest.txt",
-    ),
-    ResultFile(
-        label="SmolVLA\nHand+auto\nsingle-task\nprelim.",
+        label="SmolVLA\nTeleop+Auto\nmonotask",
         description=(
-            "SmolVLA single-task fair-comparison model trained from the handmade + automated "
+            "SmolVLA monotask fair-comparison model trained from the Teleop+Auto "
             "dataset with a fixed full-task prompt"
         ),
         path=ROOT_DIR / "isaac-inference" / "results" / "Gal-merged-tailed-auto-no-lang-no-home" / "flat_latest.txt",
+        dataset="Teleop+Auto",
+        policy="SmolVLA",
+        mode="monotask",
+        tag="T+A",
+    ),
+    ResultFile(
+        label="SmolVLA\nTeleop+Auto\nsubtasks",
+        description="SmolVLA subtask model trained on teleoperated data merged with automated data generation",
+        path=ROOT_DIR / "isaac-inference" / "results" / "Gal-merged-tailed-auto" / "latest.txt",
+        dataset="Teleop+Auto",
+        policy="SmolVLA",
+        mode="subtasks",
+        tag="T+A",
     ),
 ]
 
 
 def main() -> None:
-    results = [(result_file, parse_result(result_file)) for result_file in RESULT_FILES]
-    draw_figure(results, OUTPUT_PDF)
+    results = [
+        (result_file, None if result_file.placeholder else parse_result(result_file))
+        for result_file in RESULT_FILES
+    ]
+    draw_grouped_figure(results, OUTPUT_PDF)
 
     print(f"Wrote {OUTPUT_PDF}")
     for result_file, parsed in results:
+        if parsed is None:
+            print(f"{result_file.description}: placeholder")
+            continue
         values = ", ".join(f"{oranges}/3={parsed.outcomes[oranges][2]:.1f}%" for oranges in [0, 1, 2, 3])
         print(f"{result_file.description}: N={parsed.total}, mean={parsed.mean:.2f}/3, {values}")
         print(f"  source: {result_file.path}")

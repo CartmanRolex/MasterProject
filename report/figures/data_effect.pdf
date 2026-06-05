@@ -15,7 +15,7 @@ endobj
 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
 endobj
 6 0 obj
-<< /Length 3067 >>
+<< /Length 3020 >>
 stream
 0.000 0.000 0.000 rg
 BT /F2 15.0 Tf 225.00 434.00 Td (Final orange count per episode) Tj ET
@@ -43,63 +43,63 @@ BT /F1 8.0 Tf 48.56 364.00 Td (100) Tj ET
 72.00 108.00 m 72.00 368.00 l S
 72.00 108.00 m 692.00 108.00 l S
 0.420 0.450 0.500 rg
-182.00 108.00 90.00 55.03 re f
+182.00 108.00 90.00 20.80 re f
 1.000 1.000 1.000 rg
-BT /F2 7.1 Tf 216.35 132.52 Td (21.2%) Tj ET
+BT /F2 7.1 Tf 222.74 115.40 Td (8%) Tj ET
 0.930 0.560 0.210 rg
-182.00 163.03 90.00 87.73 re f
+182.00 128.80 90.00 85.80 re f
 0.050 0.050 0.050 rg
-BT /F2 7.1 Tf 216.35 203.90 Td (33.7%) Tj ET
+BT /F2 7.1 Tf 220.61 168.70 Td (33%) Tj ET
 0.340 0.630 0.760 rg
-182.00 250.76 90.00 96.50 re f
+182.00 214.60 90.00 93.60 re f
 0.050 0.050 0.050 rg
-BT /F2 7.1 Tf 216.35 296.01 Td (37.1%) Tj ET
+BT /F2 7.1 Tf 220.61 258.40 Td (36%) Tj ET
 0.230 0.550 0.310 rg
-182.00 347.26 90.00 20.74 re f
+182.00 308.20 90.00 59.80 re f
 1.000 1.000 1.000 rg
-BT /F2 7.1 Tf 222.74 354.63 Td (8%) Tj ET
+BT /F2 7.1 Tf 220.61 335.10 Td (23%) Tj ET
 0.580 0.220 0.100 RG
 1.60 w
 182.00 108.00 90.00 260.00 re S
 0.000 0.000 0.000 rg
-BT /F2 7.0 Tf 195.50 390.00 Td (N eval runs=326) Tj ET
+BT /F2 7.0 Tf 195.50 390.00 Td (N eval runs=100) Tj ET
 0.200 0.200 0.200 rg
-BT /F1 7.6 Tf 203.59 378.00 Td (mean=1.32/3) Tj ET
+BT /F1 7.6 Tf 203.59 378.00 Td (mean=1.74/3) Tj ET
 0.580 0.220 0.100 rg
 BT /F2 8.4 Tf 209.36 89.00 Td (SmolVLA) Tj ET
 0.000 0.000 0.000 rg
-BT /F1 7.4 Tf 191.78 78.00 Td (Handmade subtasks) Tj ET
+BT /F1 7.4 Tf 214.57 78.00 Td (Teleop) Tj ET
 0.000 0.000 0.000 rg
-BT /F1 7.4 Tf 183.49 67.00 Td (orchestrated subtasks) Tj ET
+BT /F1 7.4 Tf 210.42 67.00 Td (subtasks) Tj ET
 0.420 0.450 0.500 rg
-492.00 108.00 90.00 25.37 re f
+492.00 108.00 90.00 39.00 re f
 1.000 1.000 1.000 rg
-BT /F2 7.1 Tf 528.48 117.68 Td (9.8%) Tj ET
+BT /F2 7.1 Tf 530.61 124.50 Td (15%) Tj ET
 0.930 0.560 0.210 rg
-492.00 133.37 90.00 177.56 re f
+492.00 147.00 90.00 101.40 re f
 0.050 0.050 0.050 rg
-BT /F2 7.1 Tf 526.35 219.15 Td (68.3%) Tj ET
+BT /F2 7.1 Tf 530.61 194.70 Td (39%) Tj ET
 0.340 0.630 0.760 rg
-492.00 310.93 90.00 50.73 re f
+492.00 248.40 90.00 67.60 re f
 0.050 0.050 0.050 rg
-BT /F2 7.1 Tf 526.35 333.29 Td (19.5%) Tj ET
+BT /F2 7.1 Tf 530.61 279.20 Td (26%) Tj ET
 0.230 0.550 0.310 rg
-492.00 361.66 90.00 6.34 re f
+492.00 316.00 90.00 52.00 re f
+1.000 1.000 1.000 rg
+BT /F2 7.1 Tf 530.61 339.00 Td (20%) Tj ET
 0.580 0.220 0.100 RG
 1.60 w
 492.00 108.00 90.00 260.00 re S
 0.000 0.000 0.000 rg
-BT /F2 7.0 Tf 507.60 390.00 Td (N eval runs=41) Tj ET
+BT /F2 7.0 Tf 505.50 390.00 Td (N eval runs=100) Tj ET
 0.200 0.200 0.200 rg
-BT /F1 7.6 Tf 513.59 378.00 Td (mean=1.15/3) Tj ET
+BT /F1 7.6 Tf 513.59 378.00 Td (mean=1.51/3) Tj ET
 0.580 0.220 0.100 rg
 BT /F2 8.4 Tf 519.36 89.00 Td (SmolVLA) Tj ET
 0.000 0.000 0.000 rg
-BT /F1 7.4 Tf 518.35 78.00 Td (Hand+auto) Tj ET
+BT /F1 7.4 Tf 514.21 78.00 Td (Teleop+Auto) Tj ET
 0.000 0.000 0.000 rg
-BT /F1 7.4 Tf 493.49 67.00 Td (orchestrated subtasks) Tj ET
-0.000 0.000 0.000 rg
-BT /F1 7.4 Tf 522.50 56.00 Td (prelim.) Tj ET
+BT /F1 7.4 Tf 520.42 67.00 Td (subtasks) Tj ET
 0.420 0.450 0.500 rg
 118.00 20.00 11.00 11.00 re f
 0.000 0.000 0.000 rg
@@ -130,5 +130,5 @@ xref
 trailer
 << /Size 7 /Root 1 0 R >>
 startxref
-3515
+3468
 %%EOF
