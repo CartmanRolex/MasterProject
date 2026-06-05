@@ -10,8 +10,8 @@
     "sha256": "812885552604b60060a608a6139d78d0e589635470dd435a22e1e6811df52e96"
   },
   "target_n_episodes": 100,
-  "completed_episodes": 15,
-  "last_update": "2026-06-05T10:38:16",
+  "completed_episodes": 22,
+  "last_update": "2026-06-05T11:06:32",
   "episodes": [
     {
       "episode": 0,
@@ -1720,6 +1720,811 @@
               -0.01034562,
               0.18305877,
               0.98302925
+            ]
+          },
+          "wrist": {
+            "view_position_world": [
+              2.07938433,
+              -0.29252779,
+              1.15585196
+            ],
+            "view_quat_opengl": [
+              0.66005933,
+              0.20699753,
+              -0.65649611,
+              0.30080986
+            ]
+          }
+        }
+      }
+    },
+    {
+      "episode": 15,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 0,
+      "n_infer_calls": 40,
+      "last_infer_ms": 6.094616022892296,
+      "avg_step_ms": 46.830234685493636,
+      "ended_at": "2026-06-05T10:42:19",
+      "seed": 1782648034,
+      "seed_index": 15,
+      "seed_set_name": "pick_orange_reference_100_v1",
+      "seed_set_hash": "812885552604b60060a608a6139d78d0e589635470dd435a22e1e6811df52e96",
+      "initial_scene": {
+        "relative_to_env_origin": true,
+        "plate": {
+          "name": "Plate",
+          "position": [
+            2.44349265,
+            -0.34034166,
+            0.93748701
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "oranges": {
+          "Orange001": {
+            "com_position": [
+              2.11910748,
+              -0.30700302,
+              0.94551396
+            ],
+            "root_position": [
+              2.11960888,
+              -0.3230274,
+              0.92443275
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "Orange002": {
+            "com_position": [
+              2.27531457,
+              -0.32845071,
+              0.94443339
+            ],
+            "root_position": [
+              2.25375676,
+              -0.32644674,
+              0.92410499
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "Orange003": {
+            "com_position": [
+              2.17072105,
+              -0.40051115,
+              0.94261569
+            ],
+            "root_position": [
+              2.16006613,
+              -0.40281323,
+              0.92302793
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "cameras": {
+          "front": {
+            "view_position_world": [
+              2.21728849,
+              -0.094028,
+              1.49541652
+            ],
+            "view_quat_opengl": [
+              -0.00353967,
+              0.01879287,
+              0.15953581,
+              0.9870069
+            ]
+          },
+          "wrist": {
+            "view_position_world": [
+              2.07938433,
+              -0.29252779,
+              1.15585196
+            ],
+            "view_quat_opengl": [
+              0.66005933,
+              0.20699753,
+              -0.65649611,
+              0.30080986
+            ]
+          }
+        }
+      }
+    },
+    {
+      "episode": 16,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 0,
+      "n_infer_calls": 49,
+      "last_infer_ms": 5.4341250215657055,
+      "avg_step_ms": 46.746177178062496,
+      "ended_at": "2026-06-05T10:46:21",
+      "seed": 1985403165,
+      "seed_index": 16,
+      "seed_set_name": "pick_orange_reference_100_v1",
+      "seed_set_hash": "812885552604b60060a608a6139d78d0e589635470dd435a22e1e6811df52e96",
+      "initial_scene": {
+        "relative_to_env_origin": true,
+        "plate": {
+          "name": "Plate",
+          "position": [
+            2.4291904,
+            -0.31476766,
+            0.93748701
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "oranges": {
+          "Orange001": {
+            "com_position": [
+              2.13641548,
+              -0.28070232,
+              0.94551396
+            ],
+            "root_position": [
+              2.11316705,
+              -0.30050313,
+              0.92443275
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "Orange002": {
+            "com_position": [
+              2.2342968,
+              -0.33138815,
+              0.94443339
+            ],
+            "root_position": [
+              2.22895885,
+              -0.35251787,
+              0.92410499
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "Orange003": {
+            "com_position": [
+              2.16964626,
+              -0.3974472,
+              0.94261569
+            ],
+            "root_position": [
+              2.15404868,
+              -0.38362089,
+              0.92302793
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "cameras": {
+          "front": {
+            "view_position_world": [
+              2.20625591,
+              -0.13454539,
+              1.4999069
+            ],
+            "view_quat_opengl": [
+              -0.0151895,
+              0.02332373,
+              0.18444246,
+              0.98244911
+            ]
+          },
+          "wrist": {
+            "view_position_world": [
+              2.07938433,
+              -0.29252779,
+              1.15585196
+            ],
+            "view_quat_opengl": [
+              0.66005933,
+              0.20699753,
+              -0.65649611,
+              0.30080986
+            ]
+          }
+        }
+      }
+    },
+    {
+      "episode": 17,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 0,
+      "n_infer_calls": 47,
+      "last_infer_ms": 5.504246975760907,
+      "avg_step_ms": 46.59879644357134,
+      "ended_at": "2026-06-05T10:50:23",
+      "seed": 1897898206,
+      "seed_index": 17,
+      "seed_set_name": "pick_orange_reference_100_v1",
+      "seed_set_hash": "812885552604b60060a608a6139d78d0e589635470dd435a22e1e6811df52e96",
+      "initial_scene": {
+        "relative_to_env_origin": true,
+        "plate": {
+          "name": "Plate",
+          "position": [
+            2.425879,
+            -0.33327088,
+            0.93748701
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "oranges": {
+          "Orange001": {
+            "com_position": [
+              2.12398434,
+              -0.32654852,
+              0.94551396
+            ],
+            "root_position": [
+              2.12576127,
+              -0.29344985,
+              0.92443275
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "Orange002": {
+            "com_position": [
+              2.26942539,
+              -0.33155346,
+              0.94443339
+            ],
+            "root_position": [
+              2.26897597,
+              -0.32181868,
+              0.92410499
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "Orange003": {
+            "com_position": [
+              2.16526604,
+              -0.4198837,
+              0.94261569
+            ],
+            "root_position": [
+              2.17324877,
+              -0.40220624,
+              0.92302793
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "cameras": {
+          "front": {
+            "view_position_world": [
+              2.22052336,
+              -0.12190515,
+              1.49110711
+            ],
+            "view_quat_opengl": [
+              0.00607468,
+              -0.01348816,
+              0.14532343,
+              0.98927361
+            ]
+          },
+          "wrist": {
+            "view_position_world": [
+              2.07938433,
+              -0.29252779,
+              1.15585196
+            ],
+            "view_quat_opengl": [
+              0.66005933,
+              0.20699753,
+              -0.65649611,
+              0.30080986
+            ]
+          }
+        }
+      }
+    },
+    {
+      "episode": 18,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 0,
+      "n_infer_calls": 48,
+      "last_infer_ms": 5.004782986361533,
+      "avg_step_ms": 47.22375400902238,
+      "ended_at": "2026-06-05T10:54:27",
+      "seed": 1809941803,
+      "seed_index": 18,
+      "seed_set_name": "pick_orange_reference_100_v1",
+      "seed_set_hash": "812885552604b60060a608a6139d78d0e589635470dd435a22e1e6811df52e96",
+      "initial_scene": {
+        "relative_to_env_origin": true,
+        "plate": {
+          "name": "Plate",
+          "position": [
+            2.41084576,
+            -0.3495262,
+            0.93748701
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "oranges": {
+          "Orange001": {
+            "com_position": [
+              2.11971331,
+              -0.28885853,
+              0.94551396
+            ],
+            "root_position": [
+              2.14913249,
+              -0.2812489,
+              0.92443275
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "Orange002": {
+            "com_position": [
+              2.27371955,
+              -0.31757113,
+              0.94443339
+            ],
+            "root_position": [
+              2.22072673,
+              -0.30519414,
+              0.92410499
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "Orange003": {
+            "com_position": [
+              2.17312908,
+              -0.43443221,
+              0.94261569
+            ],
+            "root_position": [
+              2.15499783,
+              -0.40810385,
+              0.92302793
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "cameras": {
+          "front": {
+            "view_position_world": [
+              2.20269156,
+              -0.13222843,
+              1.51180387
+            ],
+            "view_quat_opengl": [
+              -0.00583777,
+              -0.00116024,
+              0.1572185,
+              0.98754591
+            ]
+          },
+          "wrist": {
+            "view_position_world": [
+              2.07938433,
+              -0.29252779,
+              1.15585196
+            ],
+            "view_quat_opengl": [
+              0.66005933,
+              0.20699753,
+              -0.65649611,
+              0.30080986
+            ]
+          }
+        }
+      }
+    },
+    {
+      "episode": 19,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 0,
+      "n_infer_calls": 47,
+      "last_infer_ms": 5.408209981396794,
+      "avg_step_ms": 46.749090557848106,
+      "ended_at": "2026-06-05T10:58:30",
+      "seed": 437240035,
+      "seed_index": 19,
+      "seed_set_name": "pick_orange_reference_100_v1",
+      "seed_set_hash": "812885552604b60060a608a6139d78d0e589635470dd435a22e1e6811df52e96",
+      "initial_scene": {
+        "relative_to_env_origin": true,
+        "plate": {
+          "name": "Plate",
+          "position": [
+            2.42781758,
+            -0.33448952,
+            0.93748701
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "oranges": {
+          "Orange001": {
+            "com_position": [
+              2.10937071,
+              -0.27562439,
+              0.94551396
+            ],
+            "root_position": [
+              2.14871311,
+              -0.32804677,
+              0.92443275
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "Orange002": {
+            "com_position": [
+              2.24476409,
+              -0.35641712,
+              0.94443339
+            ],
+            "root_position": [
+              2.24459386,
+              -0.32555622,
+              0.92410499
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "Orange003": {
+            "com_position": [
+              2.18289113,
+              -0.426054,
+              0.94261569
+            ],
+            "root_position": [
+              2.13265228,
+              -0.4033407,
+              0.92302793
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "cameras": {
+          "front": {
+            "view_position_world": [
+              2.20278883,
+              -0.1106348,
+              1.48842251
+            ],
+            "view_quat_opengl": [
+              -0.00266022,
+              -0.01108725,
+              0.14625575,
+              0.9891811
+            ]
+          },
+          "wrist": {
+            "view_position_world": [
+              2.07938433,
+              -0.29252779,
+              1.15585196
+            ],
+            "view_quat_opengl": [
+              0.66005933,
+              0.20699753,
+              -0.65649611,
+              0.30080986
+            ]
+          }
+        }
+      }
+    },
+    {
+      "episode": 20,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 0,
+      "n_infer_calls": 47,
+      "last_infer_ms": 5.277150950860232,
+      "avg_step_ms": 46.77269952303031,
+      "ended_at": "2026-06-05T11:02:32",
+      "seed": 1350550319,
+      "seed_index": 20,
+      "seed_set_name": "pick_orange_reference_100_v1",
+      "seed_set_hash": "812885552604b60060a608a6139d78d0e589635470dd435a22e1e6811df52e96",
+      "initial_scene": {
+        "relative_to_env_origin": true,
+        "plate": {
+          "name": "Plate",
+          "position": [
+            2.42079782,
+            -0.3582356,
+            0.93748701
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "oranges": {
+          "Orange001": {
+            "com_position": [
+              2.13684869,
+              -0.28258067,
+              0.94551396
+            ],
+            "root_position": [
+              2.0987668,
+              -0.32276365,
+              0.92443275
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "Orange002": {
+            "com_position": [
+              2.2478497,
+              -0.30682829,
+              0.94443339
+            ],
+            "root_position": [
+              2.22043133,
+              -0.33603629,
+              0.92410499
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "Orange003": {
+            "com_position": [
+              2.14079332,
+              -0.43336335,
+              0.94261569
+            ],
+            "root_position": [
+              2.17541718,
+              -0.40562731,
+              0.92302793
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "cameras": {
+          "front": {
+            "view_position_world": [
+              2.18473792,
+              -0.10991639,
+              1.49961841
+            ],
+            "view_quat_opengl": [
+              -0.01305006,
+              -0.00207095,
+              0.17098671,
+              0.98518473
+            ]
+          },
+          "wrist": {
+            "view_position_world": [
+              2.07938433,
+              -0.29252779,
+              1.15585196
+            ],
+            "view_quat_opengl": [
+              0.66005933,
+              0.20699753,
+              -0.65649611,
+              0.30080986
+            ]
+          }
+        }
+      }
+    },
+    {
+      "episode": 21,
+      "step_count": 5000,
+      "is_terminated": false,
+      "oranges_in_plate": 0,
+      "n_infer_calls": 46,
+      "last_infer_ms": 5.300030985381454,
+      "avg_step_ms": 46.30829474021448,
+      "ended_at": "2026-06-05T11:06:32",
+      "seed": 297622765,
+      "seed_index": 21,
+      "seed_set_name": "pick_orange_reference_100_v1",
+      "seed_set_hash": "812885552604b60060a608a6139d78d0e589635470dd435a22e1e6811df52e96",
+      "initial_scene": {
+        "relative_to_env_origin": true,
+        "plate": {
+          "name": "Plate",
+          "position": [
+            2.40835166,
+            -0.31318247,
+            0.93748701
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "oranges": {
+          "Orange001": {
+            "com_position": [
+              2.10844684,
+              -0.32067099,
+              0.94551396
+            ],
+            "root_position": [
+              2.13889861,
+              -0.2972112,
+              0.92443275
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "Orange002": {
+            "com_position": [
+              2.26166582,
+              -0.30235451,
+              0.94443339
+            ],
+            "root_position": [
+              2.26087904,
+              -0.31637359,
+              0.92410499
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "Orange003": {
+            "com_position": [
+              2.12935591,
+              -0.4112618,
+              0.94261569
+            ],
+            "root_position": [
+              2.16452408,
+              -0.37702706,
+              0.92302793
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "cameras": {
+          "front": {
+            "view_position_world": [
+              2.19597816,
+              -0.11911234,
+              1.48617911
+            ],
+            "view_quat_opengl": [
+              -0.00600558,
+              0.01068179,
+              0.16706759,
+              0.98586929
             ]
           },
           "wrist": {
