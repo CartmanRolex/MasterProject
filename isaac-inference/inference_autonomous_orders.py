@@ -664,8 +664,8 @@ try:
         obs = refresh_observation_after_reset(env, obs)
         start_policy_obs = obs["policy"]
         start_camera_images = {
-            "front": start_policy_obs["front"][0].cpu().numpy(),
-            "wrist": start_policy_obs["wrist"][0].cpu().numpy(),
+            "front": start_policy_obs["front"][0].cpu().numpy().copy(),
+            "wrist": start_policy_obs["wrist"][0].cpu().numpy().copy(),
         }
         initial_scene_audit = capture_initial_scene_audit(env)
         policy.reset()
@@ -831,7 +831,7 @@ try:
             policy_obs = obs["policy"]
             raw_front = policy_obs["front"][0].cpu().numpy()
             raw_wrist = policy_obs["wrist"][0].cpu().numpy()
-            last_camera_images = {"front": raw_front, "wrist": raw_wrist}
+            last_camera_images = {"front": raw_front.copy(), "wrist": raw_wrist.copy()}
 
             # Save episode-start joint pose (scripted reset target) after the
             # reset refresh, so scripted spatial reset returns to the real start.

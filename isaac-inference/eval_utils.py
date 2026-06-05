@@ -191,7 +191,7 @@ def _camera_array_for_image(img):
         if max_val <= 1.0:
             arr = arr * 255.0
         arr = np.clip(arr, 0, 255).astype(np.uint8)
-    return arr
+    return arr.copy()
 
 
 def camera_image_to_hwc_uint8(img):
@@ -199,13 +199,15 @@ def camera_image_to_hwc_uint8(img):
     return _camera_array_for_image(img)
 
 
-def refresh_observation_after_reset(env, obs=None):
-    """Advance one hold step after reset so sensor and rigid-body buffers are fresh.
+def refresh_observation_after_reset(env, obs=None, steps=2):
+    """Advance hold steps after reset so sensor and rigid-body buffers are fresh.
 
     LeIsaac can return the previous episode's rendered camera tensors and COM
-    buffers immediately after ``env.reset(seed=...)``. A single hold step updates
-    the observation used for start snapshots and the first policy inference.
+    buffers immediately after ``env.reset(seed=...)``. On the desktop stack,
+    camera tensors remain stale for the first hold step and update on the second.
+    The returned observation is used for start snapshots and first policy inference.
     """
+    refreshed_obs = obs
     try:
         hold_action = env.scene["robot"].data.joint_pos[0].detach().clone()
     except Exception:
@@ -215,7 +217,8 @@ def refresh_observation_after_reset(env, obs=None):
 
     if hold_action.ndim == 1:
         hold_action = hold_action.unsqueeze(0)
-    refreshed_obs, _reward, _terminated, _truncated, _info = env.step(hold_action)
+    for _ in range(max(1, int(steps))):
+        refreshed_obs, _reward, _terminated, _truncated, _info = env.step(hold_action)
     return refreshed_obs
 
 
