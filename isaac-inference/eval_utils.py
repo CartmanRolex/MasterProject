@@ -199,6 +199,26 @@ def camera_image_to_hwc_uint8(img):
     return _camera_array_for_image(img)
 
 
+def refresh_observation_after_reset(env, obs=None):
+    """Advance one hold step after reset so sensor and rigid-body buffers are fresh.
+
+    LeIsaac can return the previous episode's rendered camera tensors and COM
+    buffers immediately after ``env.reset(seed=...)``. A single hold step updates
+    the observation used for start snapshots and the first policy inference.
+    """
+    try:
+        hold_action = env.scene["robot"].data.joint_pos[0].detach().clone()
+    except Exception:
+        if obs is None:
+            raise
+        hold_action = obs["policy"]["joint_pos"][0].detach().clone()
+
+    if hold_action.ndim == 1:
+        hold_action = hold_action.unsqueeze(0)
+    refreshed_obs, _reward, _terminated, _truncated, _info = env.step(hold_action)
+    return refreshed_obs
+
+
 def save_episode_camera_snapshots(
     model_id,
     run_type,

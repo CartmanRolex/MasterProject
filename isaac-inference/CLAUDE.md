@@ -154,6 +154,10 @@ evaluators accept `EVAL_SEED_LIST_PATH`, `EVAL_RESULT_NAME`,
 `ACTIONS_PER_CHUNK`, `MODEL_ID`, `N_INFERENCE_RUNS`, `MAX_STEPS`,
 `EVAL_RESUME`, `EVAL_CHECKPOINT_PATH`, `EVAL_SUMMARY_PATH`, and
 `SAVE_CAMERA_SNAPSHOTS` so queue jobs can be reproduced exactly.
+After every `env.reset(seed=...)`, evaluators run one non-policy hold step via
+`refresh_observation_after_reset()` before saving start snapshots, auditing the
+initial scene, or performing the first policy inference; immediate reset
+observations can contain the previous episode's camera/COM buffers.
 Orchestrated `checkpoint.json` files include `trace_schema_version`
 and per-episode story fields (`episode_summary`, `initial_scene`,
 `final_scene`, `timeline`, `subtask_attempts`) so each run can be

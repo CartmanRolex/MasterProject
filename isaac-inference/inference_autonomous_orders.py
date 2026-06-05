@@ -27,6 +27,7 @@ from eval_utils import (
     count_oranges_in_plate,
     load_eval_seed_set,
     perturb_plate_debug,
+    refresh_observation_after_reset,
     save_positions,
     seed_metadata_for_episode,
 )
@@ -660,6 +661,7 @@ try:
         else:
             print(f"  Seed: {episode_seed} (index {run_idx})")
             obs, _ = env.reset(seed=episode_seed)
+        obs = refresh_observation_after_reset(env, obs)
         start_policy_obs = obs["policy"]
         start_camera_images = {
             "front": start_policy_obs["front"][0].cpu().numpy(),
@@ -749,15 +751,15 @@ try:
             _, _, _, _, _, plate_pos, orange_positions = sub_tracker._get_env_data(env)
             last_plate_pos = plate_pos
             last_orange_positions = orange_positions
-            if step_count == 1:
-                # Step 0 still has stale Isaac Sim buffers from the previous episode.
-                # Heights and _select_target are deferred to step 1 (first valid scene state).
+            if step_count == 0:
+                # reset() returns stale camera/COM buffers on this stack. The
+                # post-reset hold step above makes step 0 the first valid scene state.
                 for name, pos in orange_positions.items():
                     sub_tracker.initial_orange_z[name] = pos[2].item()
                 if episode_story and not story_initial_scene_recorded:
                     episode_story.record_initial_scene(step_count, plate_pos, orange_positions)
                     story_initial_scene_recorded = True
-            if controller.phase == "SELECT_TARGET" and step_count > 0:
+            if controller.phase == "SELECT_TARGET":
                 if controller._needs_episode_reset:
                     sub_tracker.reset_display()
                     if episode_story:
@@ -831,9 +833,9 @@ try:
             raw_wrist = policy_obs["wrist"][0].cpu().numpy()
             last_camera_images = {"front": raw_front, "wrist": raw_wrist}
 
-            # Save episode-start joint pose (scripted reset target). Deferred to step 1
-            # for the same reason as height init: step 0 buffers are stale post-reset.
-            if step_count == 1 and SCRIPTED_SPATIAL_RESET:
+            # Save episode-start joint pose (scripted reset target) after the
+            # reset refresh, so scripted spatial reset returns to the real start.
+            if step_count == 0 and SCRIPTED_SPATIAL_RESET:
                 episode_start_joint_pos = policy_obs["joint_pos"][0].cpu().numpy()
 
             # Snapshot arm pose on the first step of reset; stage 1 moves only

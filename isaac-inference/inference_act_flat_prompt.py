@@ -24,6 +24,7 @@ from eval_utils import (
     evaluation_result_dir,
     is_plate_upside_down,
     load_eval_seed_set,
+    refresh_observation_after_reset,
     save_episode_camera_snapshots,
     save_positions,
     seed_metadata_for_episode,
@@ -483,6 +484,7 @@ try:
         else:
             print(f"  Seed: {episode_seed} (index {episode})")
             obs, _ = env.reset(seed=episode_seed)
+        obs = refresh_observation_after_reset(env, obs)
         start_policy_obs = obs["policy"]
         start_camera_images = {
             "front": camera_image_to_hwc_uint8(start_policy_obs["front"][0].cpu().numpy()),
