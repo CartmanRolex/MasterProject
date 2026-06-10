@@ -134,7 +134,7 @@ def main() -> None:
     grasp = (286, 432, 168, 96)
     lift = (514, 432, 168, 96)
     place = (742, 432, 168, 96)
-    finish = (924, 444, 64, 72)
+    finish = (926, 446, 70, 70)
     reset = (272, 250, 210, 96)
     retry = (596, 250, 232, 96)
 
@@ -178,18 +178,19 @@ def main() -> None:
     add_arrow(ax, right(lift), left(place), color=FLOW_COLOR)
     add_label(ax, 712, 480, "ok")
     add_arrow(ax, right(place), left(finish), color=FLOW_COLOR)
-    add_label(ax, 917, 480, "all 3")
+    add_label(ax, 918, 500, "all 3")
 
     # Loop back from PLACE to SELECT_TARGET (more oranges remain).
     arrow = FancyArrowPatch(
         top(place), top(select),
-        connectionstyle="arc3,rad=-0.22",
+        connectionstyle="arc3,rad=0.16",
         arrowstyle="-|>", mutation_scale=15, linewidth=1.7,
         color=FLOW_COLOR, shrinkA=2, shrinkB=2, zorder=2,
         capstyle="round", joinstyle="round",
     )
     ax.add_patch(arrow)
-    add_label(ax, 500, 600, "place confirmed; more oranges remain", color=MUTED)
+    # Label sits on the arc; its white bbox cleanly masks the line behind it.
+    add_label(ax, 484, 600, "place confirmed; more oranges remain", color=MUTED)
 
     # GRASP timeout -> home-pose reset.
     add_arrow(ax, bottom(grasp, 0.45), top(reset, 0.7),
@@ -207,10 +208,11 @@ def main() -> None:
     add_arrow(ax, bottom(place, 0.5), top(retry, 0.75),
               color=ROUTE_COLOR, dashed=True, rad=-0.12)
     add_label(ax, 700, 392, "drop or timeout in LIFT / PLACE")
-    # Local retry -> back to GRASP, same target.
-    add_arrow(ax, left(retry), bottom(grasp, 0.6),
-              color=ROUTE_COLOR, dashed=True, rad=-0.32)
-    add_label(ax, 505, 300, "same target, direct retry")
+    # Local retry -> back to GRASP, same target. Routed up-left through the
+    # open corridor between HOME-POSE RESET and LOCAL RETRY (avoids overlap).
+    add_arrow(ax, top(retry, 0.0), bottom(grasp, 0.95),
+              color=ROUTE_COLOR, dashed=True, rad=0.0)
+    add_label(ax, 476, 360, "same target, direct retry")
 
     # Footer panel: physical success checks.
     footer = FancyBboxPatch(
