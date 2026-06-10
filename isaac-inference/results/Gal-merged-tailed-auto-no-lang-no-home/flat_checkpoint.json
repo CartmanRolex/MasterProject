@@ -10,8 +10,8 @@
     "sha256": "812885552604b60060a608a6139d78d0e589635470dd435a22e1e6811df52e96"
   },
   "target_n_episodes": 100,
-  "completed_episodes": 90,
-  "last_update": "2026-06-10T10:49:46",
+  "completed_episodes": 91,
+  "last_update": "2026-06-10T10:54:13",
   "episodes": [
     {
       "episode": 0,
@@ -108323,6 +108323,633 @@
             "episode_ended": 1
           },
           "event_count": 13
+        }
+      }
+    },
+    {
+      "episode": 90,
+      "step_count": 4998,
+      "is_terminated": false,
+      "oranges_in_plate": 0,
+      "n_infer_calls": 250,
+      "last_infer_ms": 90.1188530260697,
+      "avg_step_ms": 39.57334534610201,
+      "ended_at": "2026-06-10T10:54:12",
+      "seed": 731875093,
+      "seed_index": 90,
+      "seed_set_name": "pick_orange_reference_100_v1",
+      "seed_set_hash": "812885552604b60060a608a6139d78d0e589635470dd435a22e1e6811df52e96",
+      "initial_scene_audit": {
+        "relative_to_env_origin": true,
+        "plate": {
+          "name": "Plate",
+          "position": [
+            2.41182208,
+            -0.34058106,
+            0.92931199
+          ],
+          "quat_wxyz": [
+            1.0,
+            -0.0,
+            0.0,
+            1e-08
+          ]
+        },
+        "oranges": {
+          "Orange001": {
+            "com_position": [
+              2.10552645,
+              -0.33085483,
+              0.9406625
+            ],
+            "root_position": [
+              2.10594296,
+              -0.33039835,
+              0.91958249
+            ],
+            "quat_wxyz": [
+              0.99977648,
+              0.0211197,
+              -0.00093745,
+              5.597e-05
+            ]
+          },
+          "Orange002": {
+            "com_position": [
+              2.24690104,
+              -0.31008643,
+              0.93912232
+            ],
+            "root_position": [
+              2.24679041,
+              -0.30953777,
+              0.91880071
+            ],
+            "quat_wxyz": [
+              0.99993622,
+              0.01120153,
+              -0.00147705,
+              -4.28e-06
+            ]
+          },
+          "Orange003": {
+            "com_position": [
+              2.16636229,
+              -0.3912476,
+              0.93923497
+            ],
+            "root_position": [
+              2.16637397,
+              -0.39082322,
+              0.91964829
+            ],
+            "quat_wxyz": [
+              0.99980152,
+              0.01964034,
+              0.00335377,
+              -4.989e-05
+            ]
+          }
+        },
+        "cameras": {
+          "front": {
+            "view_position_world": [
+              2.21585369,
+              -0.09242433,
+              1.46762669
+            ],
+            "view_quat_opengl": [
+              0.00443577,
+              0.00197716,
+              0.16452566,
+              0.98636085
+            ]
+          },
+          "wrist": {
+            "view_position_world": [
+              2.07938433,
+              -0.29252779,
+              1.15585196
+            ],
+            "view_quat_opengl": [
+              0.66005933,
+              0.20699753,
+              -0.65649611,
+              0.30080986
+            ]
+          }
+        }
+      },
+      "episode_summary": {
+        "episode": 90,
+        "model_id": "MasterProject2026/Gal-merged-tailed-auto-no-lang-no-home",
+        "total_steps": 4998,
+        "final_oranges_in_plate": 0,
+        "end_reason": "env_truncated",
+        "success": false,
+        "trace_source": "flat_observed_physics",
+        "inferred": true
+      },
+      "initial_scene": {
+        "plate_position": [
+          2.41182,
+          -0.34058,
+          0.92931
+        ],
+        "oranges": {
+          "Orange001": {
+            "label": "right",
+            "position": [
+              2.10553,
+              -0.33085,
+              0.94066
+            ],
+            "status": "unknown"
+          },
+          "Orange002": {
+            "label": "left",
+            "position": [
+              2.2469,
+              -0.31009,
+              0.93912
+            ],
+            "status": "unknown"
+          },
+          "Orange003": {
+            "label": "middle",
+            "position": [
+              2.16636,
+              -0.39125,
+              0.93923
+            ],
+            "status": "unknown"
+          }
+        }
+      },
+      "final_scene": {
+        "plate_position": [
+          2.41182,
+          -0.34058,
+          0.92
+        ],
+        "oranges": {
+          "Orange001": {
+            "label": "right",
+            "position": [
+              2.10612,
+              -0.33257,
+              0.9398
+            ],
+            "status": "unplaced"
+          },
+          "Orange002": {
+            "label": "left",
+            "position": [
+              2.24552,
+              -0.30996,
+              0.93907
+            ],
+            "status": "unplaced"
+          },
+          "Orange003": {
+            "label": "middle",
+            "position": [
+              2.14509,
+              -0.38423,
+              0.93944
+            ],
+            "status": "unplaced"
+          }
+        }
+      },
+      "timeline": [
+        {
+          "step": 0,
+          "event_type": "episode_started",
+          "phase": "OBSERVE",
+          "requested_orange": null,
+          "requested_label": null,
+          "inferred_target_orange": null,
+          "inferred_target_label": null,
+          "actual_orange": null,
+          "actual_label": null,
+          "outcome": "started",
+          "reason": null
+        },
+        {
+          "step": 1,
+          "event_type": "grasp_started",
+          "phase": "GRASP",
+          "requested_orange": null,
+          "requested_label": null,
+          "inferred_target_orange": "Orange002",
+          "inferred_target_label": "left",
+          "actual_orange": null,
+          "actual_label": null,
+          "outcome": "started",
+          "reason": null,
+          "metrics": {
+            "center_distance_m": 0.21318,
+            "finger_gap_m": 0.02546,
+            "grip_axis_t": -7.69542,
+            "gripper_force_n": 0.0,
+            "jaw_force_n": 0.0
+          }
+        },
+        {
+          "step": 36,
+          "event_type": "grasp_retargeted",
+          "phase": "GRASP",
+          "requested_orange": null,
+          "requested_label": null,
+          "inferred_target_orange": "Orange003",
+          "inferred_target_label": "middle",
+          "actual_orange": null,
+          "actual_label": null,
+          "outcome": "retargeted",
+          "reason": "inferred_target_changed"
+        },
+        {
+          "step": 36,
+          "event_type": "grasp_started",
+          "phase": "GRASP",
+          "requested_orange": null,
+          "requested_label": null,
+          "inferred_target_orange": "Orange003",
+          "inferred_target_label": "middle",
+          "actual_orange": null,
+          "actual_label": null,
+          "outcome": "started",
+          "reason": null,
+          "metrics": {
+            "center_distance_m": 0.1089,
+            "finger_gap_m": 0.02574,
+            "grip_axis_t": -4.19835,
+            "gripper_force_n": 0.0,
+            "jaw_force_n": 0.0
+          }
+        },
+        {
+          "step": 2170,
+          "event_type": "grasp_retargeted",
+          "phase": "GRASP",
+          "requested_orange": null,
+          "requested_label": null,
+          "inferred_target_orange": "Orange002",
+          "inferred_target_label": "left",
+          "actual_orange": null,
+          "actual_label": null,
+          "outcome": "retargeted",
+          "reason": "inferred_target_changed"
+        },
+        {
+          "step": 2170,
+          "event_type": "grasp_started",
+          "phase": "GRASP",
+          "requested_orange": null,
+          "requested_label": null,
+          "inferred_target_orange": "Orange002",
+          "inferred_target_label": "left",
+          "actual_orange": null,
+          "actual_label": null,
+          "outcome": "started",
+          "reason": null,
+          "metrics": {
+            "center_distance_m": 0.03288,
+            "finger_gap_m": 0.1003,
+            "grip_axis_t": 1.03448,
+            "gripper_force_n": 0.04115,
+            "jaw_force_n": 0.0
+          }
+        },
+        {
+          "step": 2216,
+          "event_type": "grasp_retargeted",
+          "phase": "GRASP",
+          "requested_orange": null,
+          "requested_label": null,
+          "inferred_target_orange": "Orange003",
+          "inferred_target_label": "middle",
+          "actual_orange": null,
+          "actual_label": null,
+          "outcome": "retargeted",
+          "reason": "inferred_target_changed"
+        },
+        {
+          "step": 2216,
+          "event_type": "grasp_started",
+          "phase": "GRASP",
+          "requested_orange": null,
+          "requested_label": null,
+          "inferred_target_orange": "Orange003",
+          "inferred_target_label": "middle",
+          "actual_orange": null,
+          "actual_label": null,
+          "outcome": "started",
+          "reason": null,
+          "metrics": {
+            "center_distance_m": 0.03817,
+            "finger_gap_m": 0.09369,
+            "grip_axis_t": 0.02994,
+            "gripper_force_n": 0.14657,
+            "jaw_force_n": 0.0
+          }
+        },
+        {
+          "step": 4998,
+          "event_type": "grasp_failure",
+          "phase": "GRASP",
+          "requested_orange": null,
+          "requested_label": null,
+          "inferred_target_orange": "Orange003",
+          "inferred_target_label": "middle",
+          "actual_orange": null,
+          "actual_label": null,
+          "outcome": "failure",
+          "reason": "no_confirmed_progress"
+        },
+        {
+          "step": 4998,
+          "event_type": "episode_finished",
+          "phase": null,
+          "requested_orange": null,
+          "requested_label": null,
+          "inferred_target_orange": null,
+          "inferred_target_label": null,
+          "actual_orange": null,
+          "actual_label": null,
+          "outcome": "failure",
+          "reason": "env_truncated",
+          "details": {
+            "oranges_in_plate": 0
+          }
+        }
+      ],
+      "subtask_attempts": [
+        {
+          "attempt_id": 1,
+          "subtask": "GRASP",
+          "start_step": 1,
+          "end_step": 36,
+          "duration_steps": 35,
+          "requested_orange": null,
+          "requested_label": null,
+          "inferred_target_orange": "Orange002",
+          "inferred_target_label": "left",
+          "actual_orange": null,
+          "actual_label": null,
+          "target_match": null,
+          "result": "retargeted",
+          "failure_reason": "inferred_target_changed",
+          "metrics": {
+            "center_distance_m": 0.21318,
+            "finger_gap_m": 0.02546,
+            "grip_axis_t": -7.69542,
+            "gripper_force_n": 0.0,
+            "jaw_force_n": 0.0,
+            "new_inferred_target_orange": "Orange003"
+          }
+        },
+        {
+          "attempt_id": 2,
+          "subtask": "GRASP",
+          "start_step": 36,
+          "end_step": 2170,
+          "duration_steps": 2134,
+          "requested_orange": null,
+          "requested_label": null,
+          "inferred_target_orange": "Orange003",
+          "inferred_target_label": "middle",
+          "actual_orange": null,
+          "actual_label": null,
+          "target_match": null,
+          "result": "retargeted",
+          "failure_reason": "inferred_target_changed",
+          "metrics": {
+            "center_distance_m": 0.1089,
+            "finger_gap_m": 0.02574,
+            "grip_axis_t": -4.19835,
+            "gripper_force_n": 0.0,
+            "jaw_force_n": 0.0,
+            "new_inferred_target_orange": "Orange002"
+          }
+        },
+        {
+          "attempt_id": 3,
+          "subtask": "GRASP",
+          "start_step": 2170,
+          "end_step": 2216,
+          "duration_steps": 46,
+          "requested_orange": null,
+          "requested_label": null,
+          "inferred_target_orange": "Orange002",
+          "inferred_target_label": "left",
+          "actual_orange": null,
+          "actual_label": null,
+          "target_match": null,
+          "result": "retargeted",
+          "failure_reason": "inferred_target_changed",
+          "metrics": {
+            "center_distance_m": 0.03288,
+            "finger_gap_m": 0.1003,
+            "grip_axis_t": 1.03448,
+            "gripper_force_n": 0.04115,
+            "jaw_force_n": 0.0,
+            "new_inferred_target_orange": "Orange003"
+          }
+        },
+        {
+          "attempt_id": 4,
+          "subtask": "GRASP",
+          "start_step": 2216,
+          "end_step": 4998,
+          "duration_steps": 2782,
+          "requested_orange": null,
+          "requested_label": null,
+          "inferred_target_orange": "Orange003",
+          "inferred_target_label": "middle",
+          "actual_orange": null,
+          "actual_label": null,
+          "target_match": null,
+          "result": "failure",
+          "failure_reason": "no_confirmed_progress",
+          "metrics": {
+            "center_distance_m": 0.03817,
+            "finger_gap_m": 0.09369,
+            "grip_axis_t": 0.02994,
+            "gripper_force_n": 0.14657,
+            "jaw_force_n": 0.0
+          }
+        }
+      ],
+      "phase_debug": {
+        "schema_version": 2,
+        "trace_source": "flat_observed_physics",
+        "inferred": true,
+        "heuristic": "non_lift_non_place_means_inferred_grasp_search",
+        "retarget_frames": 10,
+        "final_phase": "SEARCHING",
+        "active_orange": null,
+        "placed_oranges_observed": [],
+        "events": [
+          {
+            "step": 1,
+            "event_type": "grasp_started",
+            "phase": "GRASP",
+            "requested_orange": null,
+            "requested_label": null,
+            "inferred_target_orange": "Orange002",
+            "inferred_target_label": "left",
+            "actual_orange": null,
+            "actual_label": null,
+            "outcome": "started",
+            "reason": null,
+            "metrics": {
+              "center_distance_m": 0.21318,
+              "finger_gap_m": 0.02546,
+              "grip_axis_t": -7.69542,
+              "gripper_force_n": 0.0,
+              "jaw_force_n": 0.0
+            }
+          },
+          {
+            "step": 36,
+            "event_type": "grasp_retargeted",
+            "phase": "GRASP",
+            "requested_orange": null,
+            "requested_label": null,
+            "inferred_target_orange": "Orange003",
+            "inferred_target_label": "middle",
+            "actual_orange": null,
+            "actual_label": null,
+            "outcome": "retargeted",
+            "reason": "inferred_target_changed"
+          },
+          {
+            "step": 36,
+            "event_type": "grasp_started",
+            "phase": "GRASP",
+            "requested_orange": null,
+            "requested_label": null,
+            "inferred_target_orange": "Orange003",
+            "inferred_target_label": "middle",
+            "actual_orange": null,
+            "actual_label": null,
+            "outcome": "started",
+            "reason": null,
+            "metrics": {
+              "center_distance_m": 0.1089,
+              "finger_gap_m": 0.02574,
+              "grip_axis_t": -4.19835,
+              "gripper_force_n": 0.0,
+              "jaw_force_n": 0.0
+            }
+          },
+          {
+            "step": 2170,
+            "event_type": "grasp_retargeted",
+            "phase": "GRASP",
+            "requested_orange": null,
+            "requested_label": null,
+            "inferred_target_orange": "Orange002",
+            "inferred_target_label": "left",
+            "actual_orange": null,
+            "actual_label": null,
+            "outcome": "retargeted",
+            "reason": "inferred_target_changed"
+          },
+          {
+            "step": 2170,
+            "event_type": "grasp_started",
+            "phase": "GRASP",
+            "requested_orange": null,
+            "requested_label": null,
+            "inferred_target_orange": "Orange002",
+            "inferred_target_label": "left",
+            "actual_orange": null,
+            "actual_label": null,
+            "outcome": "started",
+            "reason": null,
+            "metrics": {
+              "center_distance_m": 0.03288,
+              "finger_gap_m": 0.1003,
+              "grip_axis_t": 1.03448,
+              "gripper_force_n": 0.04115,
+              "jaw_force_n": 0.0
+            }
+          },
+          {
+            "step": 2216,
+            "event_type": "grasp_retargeted",
+            "phase": "GRASP",
+            "requested_orange": null,
+            "requested_label": null,
+            "inferred_target_orange": "Orange003",
+            "inferred_target_label": "middle",
+            "actual_orange": null,
+            "actual_label": null,
+            "outcome": "retargeted",
+            "reason": "inferred_target_changed"
+          },
+          {
+            "step": 2216,
+            "event_type": "grasp_started",
+            "phase": "GRASP",
+            "requested_orange": null,
+            "requested_label": null,
+            "inferred_target_orange": "Orange003",
+            "inferred_target_label": "middle",
+            "actual_orange": null,
+            "actual_label": null,
+            "outcome": "started",
+            "reason": null,
+            "metrics": {
+              "center_distance_m": 0.03817,
+              "finger_gap_m": 0.09369,
+              "grip_axis_t": 0.02994,
+              "gripper_force_n": 0.14657,
+              "jaw_force_n": 0.0
+            }
+          },
+          {
+            "step": 4998,
+            "event_type": "grasp_failure",
+            "phase": "GRASP",
+            "requested_orange": null,
+            "requested_label": null,
+            "inferred_target_orange": "Orange003",
+            "inferred_target_label": "middle",
+            "actual_orange": null,
+            "actual_label": null,
+            "outcome": "failure",
+            "reason": "no_confirmed_progress"
+          },
+          {
+            "step": 4998,
+            "event_type": "episode_finished",
+            "phase": null,
+            "requested_orange": null,
+            "requested_label": null,
+            "inferred_target_orange": null,
+            "inferred_target_label": null,
+            "actual_orange": null,
+            "actual_label": null,
+            "outcome": "failure",
+            "reason": "env_truncated",
+            "details": {
+              "oranges_in_plate": 0
+            }
+          }
+        ],
+        "summary": {
+          "attempt_counts": {
+            "GRASP": 4
+          },
+          "failure_counts": {
+            "inferred_target_changed": 3,
+            "no_confirmed_progress": 1
+          },
+          "event_count": 9
         }
       }
     }
