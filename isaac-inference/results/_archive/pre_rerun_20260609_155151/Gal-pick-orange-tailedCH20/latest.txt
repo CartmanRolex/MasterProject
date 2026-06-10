@@ -1,0 +1,23 @@
+
+========================================
+EVALUATION COMPLETE
+Model ID:             MasterProject2026/Gal-pick-orange-tailedCH20
+Result name:          Gal-pick-orange-tailedCH20
+Seed set:             pick_orange_reference_100_v1 (812885552604b60060a608a6139d78d0e589635470dd435a22e1e6811df52e96)
+Success Rate:         23/100 (23.00%)
+Avg oranges in plate: 1.74/3
+Mean steps (success): 2861.1
+3/3 oranges:          23/100 (23.0%)
+2/3 oranges:          36/100 (36.0%)
+1/3 oranges:          33/100 (33.0%)
+0/3 oranges:          8/100 (8.0%)
+Per-episode oranges:  [1, 2, 1, 3, 2, 1, 2, 2, 2, 2, 3, 2, 2, 0, 1, 3, 1, 2, 3, 2, 2, 2, 3, 1, 2, 3, 3, 1, 2, 1, 2, 2, 2, 1, 3, 1, 1, 3, 2, 3, 3, 0, 2, 1, 2, 2, 2, 3, 1, 3, 2, 1, 1, 2, 2, 1, 2, 1, 0, 2, 1, 3, 3, 1, 3, 2, 1, 3, 3, 0, 2, 0, 1, 2, 1, 1, 2, 1, 1, 2, 1, 2, 1, 1, 1, 2, 3, 2, 3, 1, 2, 3, 3, 1, 1, 1, 0, 0, 3, 0]
+Per-subtask success rates (by oranges in plate at subtask start):
+  GRASP:  0 placed: 140/254 ( 55.1%)   1 placed:  72/213 ( 33.8%)   2 placed:  37/130 ( 28.5%)
+  LIFT:   0 placed: 113/140 ( 80.7%)   1 placed:  62/69  ( 89.9%)   2 placed:  32/37  ( 86.5%)
+  PLACE:  0 placed:  77/109 ( 70.6%)   1 placed:  56/66  ( 84.8%)   2 placed:  25/32  ( 78.1%)
+Mechanism usage (local retry = same orange after slip; redirection = new orange after timeout):
+  Local retries:      178 total, fired in 68/100 episodes
+  Target redirections:260 total, fired in 77/100 episodes
+  Oranges abandoned:  0 total (0.00 avg/episode)
+========================================

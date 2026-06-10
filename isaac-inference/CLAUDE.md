@@ -68,6 +68,8 @@ Implementation and evaluation are complete. The orchestrator refactor, scripted 
 | `inference_privileged_grasp.py` | Privileged grasp policy — uses DLS (Damped Least Squares) IK to position the gripper above each orange's exact XY from Isaac privileged state. Fully scripted/geometric; no VLA. |
 | `inference_flat_prompt.py` | Flat single-instruction SmolVLA eval — one fixed prompt ("Place the orange into plate"), no subtask sequencing. Used to evaluate the no-lang-no-home model variant. |
 | `inference_act_flat_prompt.py` | ACT policy eval — same flat single-instruction structure as `inference_flat_prompt.py` but uses `ACTPolicy` with chunked action execution (`predict_action_chunk`; chunk size comes from `policy.config.chunk_size`). Saves to `results/<model>/act_checkpoint.json` and `act_latest.txt`. |
+| `phase_monitor.py` | `PhaseMonitor` — passive observer-inferred subtask trace for flat (no-language) policies, derived from physics state alone (`SubtaskTracker`, orange/plate positions). Used by `inference_flat_prompt.py` and `inference_act_flat_prompt.py` to produce per-episode subtask traces for policies that don't expose intent. |
+| `test_phase_monitor.py` | Unit tests for `PhaseMonitor` trace generation. |
 
 ## Legacy / alternative entry points (do not modify without reason)
 

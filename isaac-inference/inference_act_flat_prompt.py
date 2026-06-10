@@ -35,7 +35,7 @@ from robot_utils import (
     convert_leisaac_action_to_lerobot,
     convert_lerobot_action_to_leisaac,
 )
-
+from phase_monitor import PhaseMonitor
 
 # ==========================================
 # 1. Configuration & Setup
@@ -228,6 +228,7 @@ class ACTEvaluationTracker:
         seed_metadata=None,
         initial_scene=None,
         start_camera_images=None,
+        phase_debug=None,
     ):
         n_infer_calls = len(self._infer_times)
         last_infer = self._infer_times[-1] if self._infer_times else float("nan")
@@ -248,7 +249,9 @@ class ACTEvaluationTracker:
         if seed_metadata:
             record.update(seed_metadata)
         if initial_scene:
-            record["initial_scene"] = initial_scene
+            record["initial_scene_audit"] = initial_scene
+        if phase_debug:
+            record.update(phase_debug)
         self.episode_records = [r for r in self.episode_records if r["episode"] != episode]
         self.episode_records.append(record)
         self.episode_records.sort(key=lambda r: r["episode"])
@@ -493,6 +496,8 @@ try:
         initial_scene = capture_initial_scene_audit(env)
         policy.reset()
         tracker.start_episode()
+        phase_monitor = PhaseMonitor(model_id=model_id)
+        phase_monitor.warm_up(env)
 
         done = False
         step_count = 0
@@ -506,6 +511,7 @@ try:
             if reset_controller.stop_requested:
                 print("\nStop requested - ending current episode as failed.")
                 oranges_in_plate = count_oranges_in_plate(last_positions)
+                phase_monitor.finish_line()
                 tracker.end_episode(
                     episode,
                     step_count,
@@ -515,6 +521,14 @@ try:
                     seed_metadata=seed_metadata,
                     initial_scene=initial_scene,
                     start_camera_images=start_camera_images,
+                    phase_debug=phase_monitor.build_record(
+                        episode,
+                        step_count,
+                        oranges_in_plate,
+                        end_reason="stop_requested",
+                        is_success=False,
+                        final_positions=last_positions,
+                    ),
                 )
                 done = True
                 break
@@ -522,6 +536,7 @@ try:
             if reset_controller.get_and_clear_reset():
                 print("\nEpisode reset requested - ending current episode as failed.")
                 oranges_in_plate = count_oranges_in_plate(last_positions)
+                phase_monitor.finish_line()
                 tracker.end_episode(
                     episode,
                     step_count,
@@ -531,6 +546,14 @@ try:
                     seed_metadata=seed_metadata,
                     initial_scene=initial_scene,
                     start_camera_images=start_camera_images,
+                    phase_debug=phase_monitor.build_record(
+                        episode,
+                        step_count,
+                        oranges_in_plate,
+                        end_reason="manual_reset",
+                        is_success=False,
+                        final_positions=last_positions,
+                    ),
                 )
                 done = True
                 break
@@ -594,10 +617,12 @@ try:
 
             tracker.record_timing(infer_time_ms, step_time_ms)
             step_count += 1
+            phase_monitor.update(env, step_count, episode)
 
             post_step_positions = save_positions(env)
             if is_plate_upside_down(post_step_positions):
                 print("\nPlate flipped upside down - truncating episode as failure.")
+                phase_monitor.finish_line()
                 tracker.end_episode(
                     episode,
                     step_count,
@@ -607,6 +632,14 @@ try:
                     seed_metadata=seed_metadata,
                     initial_scene=initial_scene,
                     start_camera_images=start_camera_images,
+                    phase_debug=phase_monitor.build_record(
+                        episode,
+                        step_count,
+                        0,
+                        end_reason="plate_flipped",
+                        is_success=False,
+                        final_positions=post_step_positions,
+                    ),
                 )
                 done = True
                 break
@@ -626,6 +659,15 @@ try:
                 else:
                     count_positions = last_positions
                 oranges_in_plate = count_oranges_in_plate(count_positions)
+                if stable_plate_count >= STABLE_PLATE_FRAMES:
+                    end_reason = "all_oranges_stable_in_plate"
+                elif is_truncated:
+                    end_reason = "env_truncated"
+                elif tensor_to_bool(terminated):
+                    end_reason = "env_terminated"
+                else:
+                    end_reason = "episode_ended"
+                phase_monitor.finish_line()
                 tracker.end_episode(
                     episode,
                     step_count,
@@ -635,6 +677,14 @@ try:
                     seed_metadata=seed_metadata,
                     initial_scene=initial_scene,
                     start_camera_images=start_camera_images,
+                    phase_debug=phase_monitor.build_record(
+                        episode,
+                        step_count,
+                        oranges_in_plate,
+                        end_reason=end_reason,
+                        is_success=oranges_in_plate >= 3,
+                        final_positions=count_positions,
+                    ),
                 )
 
         if reset_controller.stop_requested:
