@@ -18,22 +18,22 @@ OUTPUT_PDF = REPORT_DIR / "figures" / "orange_outcome_distribution.pdf"
 
 RESULT_FILES = [
     ResultFile(
-        label="ACT\nHF Full-Task\nmonotask",
-        description="ACT on the HF Full-Task dataset (execute chunk size 20)",
+        label="ACT\nLightwheelAI\nBaseline\nmonotask",
+        description="ACT on the LightwheelAI Baseline dataset (execute chunk size 20)",
         path=ROOT_DIR / "isaac-inference" / "results" / "ACT-pick-orange-chunk20" / "act_latest.txt",
-        dataset="HF Full-Task",
+        dataset="LightwheelAI Baseline",
         policy="ACT",
         mode="monotask",
-        tag="HF",
+        tag="LW",
     ),
     ResultFile(
-        label="SmolVLA\nHF Full-Task\nmonotask",
-        description="SmolVLA on the HF Full-Task dataset",
+        label="SmolVLA\nLightwheelAI\nBaseline\nmonotask",
+        description="SmolVLA on the LightwheelAI Baseline dataset",
         path=ROOT_DIR / "isaac-inference" / "results" / "pick-orange-mimic" / "flat_latest.txt",
-        dataset="HF Full-Task",
+        dataset="LightwheelAI Baseline",
         policy="SmolVLA",
         mode="monotask",
-        tag="HF",
+        tag="LW",
     ),
     ResultFile(
         label="SmolVLA\nTeleop\nmonotask",

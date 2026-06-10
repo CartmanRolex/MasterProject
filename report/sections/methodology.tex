@@ -20,9 +20,9 @@ This work studies orchestrated manipulation in a simulated pick-and-place task. 
     \label{fig:environment}
 \end{figure}
 
-\subsection{HF Full-Task Baseline}
+\subsection{LightwheelAI Baseline}
 
-The first experimental setting treats the task as a single full-episode imitation-learning problem. This report refers to this training source as the \textbf{HF Full-Task} dataset. It contains 60 complete pick-and-place demonstrations, where each episode covers the full sequence of picking the three oranges and placing them in the plate. The demonstrations are monolithic: they are not segmented into subtasks, and the learned policy is expected to execute the full task from the beginning of the episode to the end.
+The first experimental setting treats the task as a single full-episode imitation-learning problem. This report refers to this training source as the \textbf{LightwheelAI Baseline} dataset. It is the 60-episode \texttt{leisaac-pick-orange-mimic-v0} dataset published by LightwheelAI, the developers of the upstream \texttt{leisaac} library this project builds on, and serves as the official reference dataset for the task. It contains 60 complete pick-and-place demonstrations, where each episode covers the full sequence of picking the three oranges and placing them in the plate. The demonstrations are monolithic: they are not segmented into subtasks, and the learned policy is expected to execute the full task from the beginning of the episode to the end.
 
 Two policy classes are compared: ACT, an action-chunking transformer policy, and SmolVLA, a Vision-Language-Action model. Both are trained from the same 60-demonstration full-task source, using compatible LeRobot dataset versions. SmolVLA receives a single fixed instruction for the whole episode, so neither model exploits language conditioning in any meaningful way. The comparison serves as a sanity check: if SmolVLA performs no better than ACT under this monolithic formulation, it confirms that the VLA model choice alone does not determine performance in this setting.
 
@@ -57,11 +57,11 @@ Targeted grasp prompts use relative spatial labels computed from the current ora
 
 In this formulation, a subtask failure is any case where the intended physical outcome is not reached within the allotted time. This includes failed grasps, an orange falling during lift, unsuccessful placement, or timeout.
 
-An intermediate attempt was made by slicing the HF Full-Task dataset into shorter subtask segments. This produced a subtask-style dataset, but the original demonstrations always follow the same object order. As a result, the sliced data does not provide a meaningful signal connecting a language instruction to a specific target object: target identity is entangled with progress through the fixed sequence rather than with the instruction itself. This limitation motivated the creation of a custom dataset.
+An intermediate attempt was made by slicing the LightwheelAI Baseline dataset into shorter subtask segments. This produced a subtask-style dataset, but the original demonstrations always follow the same object order. As a result, the sliced data does not provide a meaningful signal connecting a language instruction to a specific target object: target identity is entangled with progress through the fixed sequence rather than with the instruction itself. This limitation motivated the creation of a custom dataset.
 
 \subsection{Teleop Dataset Construction}
 
-A custom teleoperated dataset was collected to support orchestrated execution. This report refers to the final manually collected training set as \textbf{Teleop}. Unlike the HF Full-Task dataset, each Teleop episode corresponds to one subtask rather than one complete three-orange trajectory. This makes it possible to discard failed teleoperation attempts, annotate each successful attempt with a subtask instruction, and train the policy on behaviours that can be sequenced by a higher-level controller.
+A custom teleoperated dataset was collected to support orchestrated execution. This report refers to the final manually collected training set as \textbf{Teleop}. Unlike the LightwheelAI Baseline dataset, each Teleop episode corresponds to one subtask rather than one complete three-orange trajectory. This makes it possible to discard failed teleoperation attempts, annotate each successful attempt with a subtask instruction, and train the policy on behaviours that can be sequenced by a higher-level controller.
 
 The dataset contains instructions such as ``Grasp left orange'', ``Grasp middle orange'', ``Grasp right orange'', ``Grasp top right orange'', ``Pick it up'', and ``Place it into plate''. The pick order is randomised across episodes. This breaks the fixed-order correlation in the original demonstrations and makes relative-position instructions meaningful: the policy cannot infer the target from task progress alone and must instead learn to associate the instruction with the specified orange.
 
@@ -102,7 +102,7 @@ The autonomous generation run produced subtask episodes that were then filtered 
 
 \subsection{Monotask Fair Comparison}
 
-The Teleop+Auto subtask model cannot be compared only against the HF Full-Task baseline, because both the dataset and the task formulation changed. To isolate the effect of subtasking more clearly, a second SmolVLA model was trained on the same Teleop+Auto trajectories but treated as a \textbf{monotask} policy. The subtask-specific instructions were replaced by the same fixed prompt used in the monolithic setting, ``Place the orange into plate'', and the model was evaluated without the orchestrator's GRASP/LIFT/PLACE checkpoints.
+The Teleop+Auto subtask model cannot be compared only against the LightwheelAI Baseline, because both the dataset and the task formulation changed. To isolate the effect of subtasking more clearly, a second SmolVLA model was trained on the same Teleop+Auto trajectories but treated as a \textbf{monotask} policy. The subtask-specific instructions were replaced by the same fixed prompt used in the monolithic setting, ``Place the orange into plate'', and the model was evaluated without the orchestrator's GRASP/LIFT/PLACE checkpoints.
 
 For both the Teleop and Teleop+Auto monotask/subtask comparisons, every evaluation episode uses the same global budget of 5000 environment steps. The orchestrated subtask controller has additional internal timeouts for GRASP, LIFT, and PLACE, but the total episode horizon is identical to the monotask setting.
 
