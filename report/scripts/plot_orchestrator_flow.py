@@ -1,263 +1,240 @@
-"""Generate the orchestrator decision-flow diagram for the report."""
+"""Generate the orchestrator decision-flow diagram for the report.
+
+Rendered with matplotlib (FancyBboxPatch boxes + FancyArrowPatch connectors)
+for rounded boxes, soft shadows, and filled arrowheads.
+"""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from plot_lib import PdfFigure
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.font_manager as fm
+import matplotlib.patheffects as pe
+import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
+from matplotlib.patches import FancyArrowPatch, FancyBboxPatch
 
 
 REPORT_DIR = Path(__file__).resolve().parents[1]
 OUTPUT_PDF = REPORT_DIR / "figures" / "orchestrator_decision_flow.pdf"
 
+plt.rcParams["font.family"] = "DejaVu Sans"
 
-INK = (0.13, 0.13, 0.13)
-MUTED = (0.35, 0.35, 0.35)
-CONTROLLER = (0.88, 0.93, 0.98)
-VLA = (0.88, 0.96, 0.89)
-MOTION = (0.99, 0.95, 0.78)
-ROUTING = (0.98, 0.88, 0.86)
-TERMINAL = (0.91, 0.92, 0.95)
-GRAY = (0.95, 0.95, 0.93)
-LABEL_BG = (0.985, 0.985, 0.97)
+INK = "#1f2330"
+MUTED = "#5a606e"
 
+# (fill, edge/accent) per category.
+CONTROLLER = ("#e8f0fc", "#2f6fd0")
+VLA = ("#e6f6ec", "#2f9e57")
+MOTION = ("#fdf3d6", "#d39b1b")
+ROUTING = ("#fce8e4", "#cf5340")
+TERMINAL = ("#eceef5", "#5b6276")
 
-def box(
-    fig: PdfFigure,
-    x: float,
-    y: float,
-    w: float,
-    h: float,
-    title: str,
-    lines: list[str],
-    *,
-    fill: tuple[float, float, float],
-    stroke: tuple[float, float, float] = INK,
-) -> None:
-    fig.set_fill(fill)
-    fig.rect(x, y, w, h)
-    fig.set_stroke(stroke, 1.0)
-    fig.rect(x, y, w, h, fill=False)
-    fig.text(x + w / 2, y + h - 19, title, 9.2, "center", rgb=INK, bold=True)
-    line_y = y + h - 37
-    for line in lines:
-        fig.text(x + w / 2, line_y, line, 7.0, "center", rgb=MUTED)
-        line_y -= 12
+ROUTE_COLOR = "#cf5340"  # dashed retry/redirection routing
+FLOW_COLOR = "#3a3f4c"   # solid main flow
 
 
-def label_box(
-    fig: PdfFigure,
-    x: float,
-    y: float,
-    text: str,
-    *,
-    size: float = 7.2,
-    fill: tuple[float, float, float] = LABEL_BG,
-) -> None:
-    width = len(text) * size * 0.58 + 12
-    height = size + 7
-    fig.set_fill(fill)
-    fig.rect(x - width / 2, y - 3, width, height)
-    fig.set_stroke((0.78, 0.78, 0.74), 0.35)
-    fig.rect(x - width / 2, y - 3, width, height, fill=False)
-    fig.text(x, y + 1.5, text, size, "center", rgb=MUTED)
+def add_box(ax, x, y, w, h, title, lines, fill, accent, *, title_size=11):
+    """Draw a rounded box with a soft drop shadow, accent border and divider."""
+    cx, cy = x + w / 2, y + h / 2
+    # Soft shadow.
+    shadow = FancyBboxPatch(
+        (x + 1.6, y - 1.6), w, h,
+        boxstyle="round,pad=0,rounding_size=8",
+        linewidth=0, facecolor="#11141c", alpha=0.10, zorder=1,
+        mutation_aspect=1,
+    )
+    ax.add_patch(shadow)
+    box = FancyBboxPatch(
+        (x, y), w, h,
+        boxstyle="round,pad=0,rounding_size=8",
+        linewidth=1.6, edgecolor=accent, facecolor=fill, zorder=2,
+        mutation_aspect=1,
+    )
+    ax.add_patch(box)
+    # Title.
+    title_y = y + h - 16
+    ax.text(cx, title_y, title, ha="center", va="center",
+            fontsize=title_size, fontweight="bold", color=INK, zorder=4)
+    # Accent divider under title.
+    div_y = title_y - 11
+    ax.plot([x + 14, x + w - 14], [div_y, div_y], color=accent,
+            lw=1.1, alpha=0.55, zorder=3, solid_capstyle="round")
+    # Body lines.
+    line_y = div_y - 13
+    for ln in lines:
+        ax.text(cx, line_y, ln, ha="center", va="center",
+                fontsize=8.0, color=MUTED, zorder=4)
+        line_y -= 12.5
 
 
-def legend_item(
-    fig: PdfFigure,
-    x: float,
-    y: float,
-    fill: tuple[float, float, float],
-    text: str,
-) -> None:
-    fig.set_fill(fill)
-    fig.rect(x, y, 12, 12)
-    fig.set_stroke((0.28, 0.28, 0.28), 0.55)
-    fig.rect(x, y, 12, 12, fill=False)
-    fig.text(x + 18, y + 2, text, 7.6, "left", rgb=MUTED)
+def add_arrow(ax, posA, posB, *, color, dashed=False, rad=0.0, lw=1.7, z=2):
+    style = "arc3,rad=%.3f" % rad
+    arrow = FancyArrowPatch(
+        posA, posB,
+        connectionstyle=style,
+        arrowstyle="-|>", mutation_scale=15,
+        linewidth=lw, color=color,
+        linestyle=(0, (5, 4)) if dashed else "solid",
+        shrinkA=2, shrinkB=2, zorder=z,
+        capstyle="round", joinstyle="round",
+    )
+    ax.add_patch(arrow)
 
 
-def arrowhead(fig: PdfFigure, x: float, y: float, direction: str) -> None:
-    if direction == "right":
-        fig.line(x, y, x - 8, y + 4)
-        fig.line(x, y, x - 8, y - 4)
-    elif direction == "left":
-        fig.line(x, y, x + 8, y + 4)
-        fig.line(x, y, x + 8, y - 4)
-    elif direction == "up":
-        fig.line(x, y, x - 4, y - 8)
-        fig.line(x, y, x + 4, y - 8)
-    elif direction == "down":
-        fig.line(x, y, x - 4, y + 8)
-        fig.line(x, y, x + 4, y + 8)
-
-
-def arrow(
-    fig: PdfFigure,
-    points: list[tuple[float, float]],
-    *,
-    label: str | None = None,
-    label_xy: tuple[float, float] | None = None,
-    dashed: bool = False,
-    stroke: tuple[float, float, float] = INK,
-) -> None:
-    fig.set_stroke(stroke, 1.0)
-    if dashed:
-        fig.commands.append("[5 4] 0 d")
-    for (x1, y1), (x2, y2) in zip(points, points[1:]):
-        fig.line(x1, y1, x2, y2)
-    (x1, y1), (x2, y2) = points[-2], points[-1]
-    if abs(x2 - x1) >= abs(y2 - y1):
-        direction = "right" if x2 > x1 else "left"
-    else:
-        direction = "up" if y2 > y1 else "down"
-    arrowhead(fig, x2, y2, direction)
-    if dashed:
-        fig.commands.append("[] 0 d")
-    if label and label_xy:
-        label_box(fig, label_xy[0], label_xy[1], label)
+def add_label(ax, x, y, text, *, color=MUTED):
+    ax.text(
+        x, y, text, ha="center", va="center", fontsize=7.6, color=color,
+        zorder=5,
+        bbox=dict(boxstyle="round,pad=0.32", fc="#ffffff", ec="#d7dae2", lw=0.7),
+    )
 
 
 def main() -> None:
-    fig = PdfFigure(width=1000, height=660)
+    W, H = 1000.0, 700.0
+    fig, ax = plt.subplots(figsize=(W / 100, H / 100), dpi=200)
+    ax.set_xlim(0, W)
+    ax.set_ylim(0, H)
+    ax.axis("off")
+    ax.set_aspect("equal")
 
-    fig.text(500, 632, "Orchestrator decision logic", 16, "center", bold=True)
-    fig.text(
-        500,
-        612,
-        "The VLA executes only GRASP(target), LIFT, and PLACE; the controller sequences prompts from privileged simulator state.",
-        9.2,
-        "center",
-        rgb=MUTED,
-    )
-
-    legend_item(fig, 90, 574, CONTROLLER, "controller decision")
-    legend_item(fig, 250, 574, VLA, "prompted VLA task")
-    legend_item(fig, 410, 574, MOTION, "controller motion")
-    legend_item(fig, 565, 574, ROUTING, "retry routing")
-    legend_item(fig, 710, 574, TERMINAL, "terminal state")
-
-    select = (58, 432, 160, 92)
-    grasp = (278, 432, 160, 92)
-    lift = (494, 432, 160, 92)
-    place = (710, 432, 160, 92)
-    finish = (906, 432, 88, 92)
-    reset = (270, 252, 205, 92)
-    retry = (590, 252, 230, 92)
-
-    box(
-        fig,
-        *select,
-        "SELECT_TARGET",
-        ["choose unplaced orange", "assign left/middle/right", "avoid last timeout if possible"],
-        fill=CONTROLLER,
-    )
-    box(
-        fig,
-        *grasp,
-        "GRASP(target)",
-        ["prompt: Grasp label", "confirm contact", "timeout: 700 steps"],
-        fill=VLA,
-    )
-    box(
-        fig,
-        *lift,
-        "LIFT",
-        ["prompt: Pick it up", "confirm held + height", "timeout: 400 steps"],
-        fill=VLA,
-    )
-    box(
-        fig,
-        *place,
-        "PLACE",
-        ["prompt: Place in plate", "confirm plate release", "timeout: 500 steps"],
-        fill=VLA,
-    )
-    box(
-        fig,
-        *finish,
-        "END",
-        ["3 oranges", "in plate", "log count"],
-        fill=TERMINAL,
-    )
-    box(
-        fig,
-        *reset,
-        "HOME-POSE RESET",
-        ["bypass VLA", "40 steps shoulder_lift", "60 steps all joints", "clear policy queue"],
-        fill=MOTION,
-    )
-    box(
-        fig,
-        *retry,
-        "LOCAL RETRY",
-        ["same target preserved", "return directly to GRASP", "no home reset"],
-        fill=ROUTING,
+    # Title block.
+    ax.text(W / 2, 678, "Orchestrator decision logic", ha="center", va="center",
+            fontsize=17, fontweight="bold", color=INK)
+    ax.text(
+        W / 2, 656,
+        "The VLA executes only GRASP(target), LIFT and PLACE; the controller sequences prompts from privileged simulator state.",
+        ha="center", va="center", fontsize=9.5, color=MUTED,
     )
 
-    arrow(fig, [(218, 478), (278, 478)], label="target", label_xy=(249, 493))
-    arrow(fig, [(438, 478), (494, 478)], label="ok", label_xy=(467, 493))
-    arrow(fig, [(654, 478), (710, 478)], label="ok", label_xy=(682, 493))
-    arrow(fig, [(870, 478), (906, 478)], label="all 3", label_xy=(888, 493))
+    # Legend.
+    legend = [
+        (CONTROLLER, "controller decision"),
+        (VLA, "prompted VLA task"),
+        (MOTION, "controller motion"),
+        (ROUTING, "retry routing"),
+        (TERMINAL, "terminal state"),
+    ]
+    lx = 96
+    for (fill, accent), text in legend:
+        chip = FancyBboxPatch(
+            (lx, 626), 14, 14,
+            boxstyle="round,pad=0,rounding_size=3",
+            linewidth=1.1, edgecolor=accent, facecolor=fill, zorder=3,
+        )
+        ax.add_patch(chip)
+        ax.text(lx + 20, 633, text, ha="left", va="center", fontsize=8.2, color=MUTED)
+        lx += 22 + len(text) * 5.6 + 26
 
-    arrow(
-        fig,
-        [(790, 524), (790, 550), (138, 550), (138, 524)],
-        label="place confirmed; more oranges remain",
-        label_xy=(462, 558),
-    )
+    # Box geometry: (x, y, w, h).
+    select = (58, 432, 168, 96)
+    grasp = (286, 432, 168, 96)
+    lift = (514, 432, 168, 96)
+    place = (742, 432, 168, 96)
+    finish = (924, 444, 64, 72)
+    reset = (272, 250, 210, 96)
+    retry = (596, 250, 232, 96)
 
-    arrow(
-        fig,
-        [(358, 432), (358, 344)],
-        label="GRASP timeout",
-        label_xy=(358, 391),
-        dashed=True,
-    )
-    arrow(
-        fig,
-        [(270, 298), (138, 298), (138, 432)],
-        dashed=True,
-    )
-    label_box(fig, 170, 320, "reselect target")
-    label_box(fig, 170, 303, "avoid failed orange if possible")
+    add_box(ax, *select, "SELECT_TARGET",
+            ["choose unplaced orange", "assign left / middle / right",
+             "avoid last timeout if possible"], *CONTROLLER)
+    add_box(ax, *grasp, "GRASP(target)",
+            ["prompt: “Grasp <label>”", "confirm contact",
+             "timeout: 700 steps"], *VLA)
+    add_box(ax, *lift, "LIFT",
+            ["prompt: “Pick it up”", "confirm held + height",
+             "timeout: 400 steps"], *VLA)
+    add_box(ax, *place, "PLACE",
+            ["prompt: “Place in plate”", "confirm plate release",
+             "timeout: 500 steps"], *VLA)
+    add_box(ax, *finish, "END", ["3 oranges", "in plate"], *TERMINAL, title_size=10)
+    add_box(ax, *reset, "HOME-POSE RESET",
+            ["bypass VLA", "40 steps shoulder-lift",
+             "60 steps all joints", "clear policy queue"], *MOTION)
+    add_box(ax, *retry, "LOCAL RETRY",
+            ["same target preserved", "return directly to GRASP",
+             "no home reset"], *ROUTING)
 
-    arrow(
-        fig,
-        [(574, 432), (574, 382), (642, 382), (642, 344)],
-        dashed=True,
-    )
-    arrow(
-        fig,
-        [(790, 432), (790, 382), (770, 382), (770, 344)],
-        dashed=True,
-    )
-    label_box(fig, 700, 390, "drop or timeout in LIFT/PLACE")
-    arrow(
-        fig,
-        [(590, 298), (500, 298), (500, 372), (398, 372), (398, 432)],
-        label="same target, direct retry",
-        label_xy=(502, 384),
-        dashed=True,
-    )
+    def right(b):
+        return (b[0] + b[2], b[1] + b[3] / 2)
 
-    fig.set_fill(GRAY)
-    fig.rect(58, 68, 882, 120)
-    fig.set_stroke((0.64, 0.64, 0.61), 0.8)
-    fig.rect(58, 68, 882, 120, fill=False)
-    fig.text(76, 166, "Physical success checks", 9.0, "left", rgb=INK, bold=True)
+    def left(b):
+        return (b[0], b[1] + b[3] / 2)
+
+    def top(b, fx=0.5):
+        return (b[0] + b[2] * fx, b[1] + b[3])
+
+    def bottom(b, fx=0.5):
+        return (b[0] + b[2] * fx, b[1])
+
+    # Main left-to-right flow.
+    add_arrow(ax, right(select), left(grasp), color=FLOW_COLOR)
+    add_label(ax, 256, 480, "target")
+    add_arrow(ax, right(grasp), left(lift), color=FLOW_COLOR)
+    add_label(ax, 484, 480, "ok")
+    add_arrow(ax, right(lift), left(place), color=FLOW_COLOR)
+    add_label(ax, 712, 480, "ok")
+    add_arrow(ax, right(place), left(finish), color=FLOW_COLOR)
+    add_label(ax, 917, 480, "all 3")
+
+    # Loop back from PLACE to SELECT_TARGET (more oranges remain).
+    arrow = FancyArrowPatch(
+        top(place), top(select),
+        connectionstyle="arc3,rad=-0.22",
+        arrowstyle="-|>", mutation_scale=15, linewidth=1.7,
+        color=FLOW_COLOR, shrinkA=2, shrinkB=2, zorder=2,
+        capstyle="round", joinstyle="round",
+    )
+    ax.add_patch(arrow)
+    add_label(ax, 500, 600, "place confirmed; more oranges remain", color=MUTED)
+
+    # GRASP timeout -> home-pose reset.
+    add_arrow(ax, bottom(grasp, 0.45), top(reset, 0.7),
+              color=ROUTE_COLOR, dashed=True, rad=-0.12)
+    add_label(ax, 318, 392, "GRASP timeout")
+    # Home reset -> reselect target.
+    add_arrow(ax, left(reset), bottom(select, 0.5),
+              color=ROUTE_COLOR, dashed=True, rad=-0.30)
+    add_label(ax, 175, 320, "reselect target")
+    add_label(ax, 175, 300, "avoid failed orange if possible")
+
+    # LIFT / PLACE drop or timeout -> local retry.
+    add_arrow(ax, bottom(lift, 0.5), top(retry, 0.25),
+              color=ROUTE_COLOR, dashed=True, rad=0.12)
+    add_arrow(ax, bottom(place, 0.5), top(retry, 0.75),
+              color=ROUTE_COLOR, dashed=True, rad=-0.12)
+    add_label(ax, 700, 392, "drop or timeout in LIFT / PLACE")
+    # Local retry -> back to GRASP, same target.
+    add_arrow(ax, left(retry), bottom(grasp, 0.6),
+              color=ROUTE_COLOR, dashed=True, rad=-0.32)
+    add_label(ax, 505, 300, "same target, direct retry")
+
+    # Footer panel: physical success checks.
+    footer = FancyBboxPatch(
+        (58, 60), 882, 132,
+        boxstyle="round,pad=0,rounding_size=8",
+        linewidth=1.0, edgecolor="#c9ccd4", facecolor="#f6f7f9", zorder=1,
+    )
+    ax.add_patch(footer)
+    ax.text(78, 172, "Physical success checks", ha="left", va="center",
+            fontsize=10, fontweight="bold", color=INK)
     footer_lines = [
         "GRASP: centred closed grip plus projected contact force on both fingertips for 10 consecutive frames.",
         "LIFT: active orange remains held and rises at least 0.06 m above its initial height for 10 consecutive frames.",
         "PLACE: active orange is inside the oriented plate bounds, stable for 10 frames, and released with the gripper open.",
-        "A GRASP timeout triggers a home-pose reset before reselection; LIFT/PLACE failures preserve the same target.",
+        "A GRASP timeout triggers a home-pose reset before reselection; LIFT / PLACE failures preserve the same target.",
     ]
-    y = 148
-    for line in footer_lines:
-        fig.text(76, y, line, 7.8, "left", rgb=MUTED)
-        y -= 22
+    fy = 150
+    for ln in footer_lines:
+        ax.text(78, fy, ln, ha="left", va="center", fontsize=8.4, color=MUTED)
+        fy -= 23
 
-    fig.save(OUTPUT_PDF)
+    fig.subplots_adjust(left=0, right=1, top=1, bottom=0)
+    fig.savefig(OUTPUT_PDF, format="pdf", bbox_inches="tight", pad_inches=0.06)
+    plt.close(fig)
     print(f"Wrote {OUTPUT_PDF}")
 
 

@@ -71,7 +71,7 @@ Python scripts that generate the report figures. Run from `report/scripts/` on t
 | `plot_baseline_comparison.py` | `figures/baseline_comparison.pdf` |
 | `plot_data_effect.py` | `figures/data_effect.pdf` |
 | `plot_orange_outcomes.py` | `figures/orange_outcome_distribution.pdf` |
-| `plot_orchestrator_flow.py` | `figures/orchestrator_decision_flow.pdf` |
+| `plot_orchestrator_flow.py` | `figures/orchestrator_decision_flow.pdf` — decision-flow diagram. **Requires `matplotlib`** (the only script that does; the rest use the pure-Python `plot_lib` writer). |
 | `plot_subtask_placeholders.py` | `figures/subtask_{grasp,lift,place}_placeholder.pdf` |
 | `plot_dataset_composition.py` | `figures/dataset_composition.pdf` — subtask episode-length boxplot, Teleop vs Auto. Self-contained: stats baked in from `extract_dataset_composition.py`. |
 | `extract_dataset_composition.py` | (no figure) Reads the LeRobot training datasets from the desktop HF cache and prints the per-source × per-subtask episode-length stats used by `plot_dataset_composition.py`. **Desktop only** — needs the datasets + `pyarrow`/`numpy`. |
