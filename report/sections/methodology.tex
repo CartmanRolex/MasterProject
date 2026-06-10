@@ -100,6 +100,45 @@ This produces an automatically generated dataset of successful subtasks collecte
 
 The autonomous generation run produced subtask episodes that were then filtered to balance the dataset by scene state: the number of episodes collected with one or two oranges already in the plate was equalised against those collected at the start of the episode, so the merged dataset does not over-represent early-scene behaviour. After filtering, 414 Auto episodes were retained and merged with the 846 Teleop training episodes to form \textbf{Teleop+Auto}, a 1260-episode subtask dataset. A new model --- referred to as the Teleop+Auto subtask model --- was trained on this combined dataset.
 
+\subsection{Dataset Composition}
+
+The training data is organised as subtask episodes rather than full-task trajectories, so its composition is best summarised per subtask and per source. \Cref{tab:dataset_composition} reports the episode counts and length statistics for the GRASP, LIFT, and PLACE subtasks, separating the manually collected \textbf{Teleop} part from the autonomously generated \textbf{Auto} part that was added during merging. The two sources are roughly balanced across the three subtasks, so the merge increases data volume without skewing the subtask mix. Reported lengths include the 20-frame terminal hold tail appended to every subtask episode (30\,fps); the nine residual HOME/reset episodes in the Teleop part are excluded from the per-subtask rows.
+
+\begin{table}[H]
+\centering
+\caption{Subtask composition of the Teleop+Auto training dataset. Lengths are in frames at 30\,fps and include the 20-frame terminal hold.}
+\label{tab:dataset_composition}
+\small
+\begin{tabular}{llrrrrr}
+\toprule
+Source & Subtask & Episodes & Median & Mean & p5--p95 & Range \\
+\midrule
+\multirow{3}{*}{Teleop}
+ & GRASP & 281 & 240 & 260.2 & 82--551 & 41--716 \\
+ & LIFT  & 274 &  85 &  93.8 & 59--159 & 52--241 \\
+ & PLACE & 282 & 105 & 122.3 & 65--267 & 51--436 \\
+\midrule
+\multirow{3}{*}{Auto}
+ & GRASP & 143 & 207 & 200.7 & 71--316 & 52--393 \\
+ & LIFT  & 136 &  81 &  86.8 & 64--136 & 53--167 \\
+ & PLACE & 135 &  81 &  85.9 & 61--114 & 50--171 \\
+\midrule
+\multicolumn{2}{l}{Teleop total (incl.\ 9 HOME)} & 846 & \multicolumn{4}{c}{} \\
+\multicolumn{2}{l}{Auto total} & 414 & \multicolumn{4}{c}{} \\
+\multicolumn{2}{l}{\textbf{Teleop+Auto total}} & \textbf{1260} & \multicolumn{4}{c}{} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.92\textwidth]{dataset_composition.pdf}
+    \caption{Episode-length distribution per subtask, split into the Teleop and Auto data sources. GRASP episodes are markedly longer and more variable than LIFT and PLACE, reflecting the search and approach phase before contact. The Auto source has a tighter, slightly shorter distribution --- it is collected under the policy's own execution distribution rather than human teleoperation --- and contributes additional in-distribution examples across all three subtasks.}
+    \label{fig:dataset_composition}
+\end{figure}
+
+Two features of \cref{fig:dataset_composition} are relevant to later results. First, GRASP dominates the length budget: it is two to three times longer than LIFT or PLACE and carries by far the heaviest tail, because it includes the variable search-and-approach phase before contact. Second, the Auto episodes are shorter and less dispersed than their Teleop counterparts, consistent with their being drawn from the policy's own visited states rather than from human demonstration.
+
 \subsection{Monotask Fair Comparison}
 
 The Teleop+Auto subtask model cannot be compared only against the LightwheelAI Baseline, because both the dataset and the task formulation changed. To isolate the effect of subtasking more clearly, a second SmolVLA model was trained on the same Teleop+Auto trajectories but treated as a \textbf{monotask} policy. The subtask-specific instructions were replaced by the same fixed prompt used in the monolithic setting, ``Place the orange into plate'', and the model was evaluated without the orchestrator's GRASP/LIFT/PLACE checkpoints.
