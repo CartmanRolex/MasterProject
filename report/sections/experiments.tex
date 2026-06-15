@@ -62,12 +62,12 @@ One caveat frames the comparison: the monotask traces are observer-inferred from
 \subsection{Placing Failures}
 \label{sec:place}
 
-Placing the lifted orange into the plate is the last subtask and a significant failure point. A \textbf{place} succeeds when the orange comes to rest inside the plate and is released; it fails either by a \textbf{drop} (the orange leaves the gripper outside the plate) or, for the orchestrated runs, by a \textbf{timeout} (the PLACE subtask exhausts its step budget without completing). The \textbf{place success rate} (\Cref{tab:place_success}) treats both as failures, excluding only attempts cut short when the episode ends or the plate is knocked over. The orchestrated runs additionally record the \textbf{scene state} --- how many oranges are already in the plate --- which the whole-episode monotask traces do not.
+Placing the lifted orange into the plate is the last subtask and a significant failure point. A \textbf{place} succeeds when the orange comes to rest inside the plate and is released; it fails either by a \textbf{drop} (the orange leaves the gripper outside the plate) or, for the orchestrated runs, by a \textbf{timeout} (the PLACE subtask exhausts its step budget without completing). The \textbf{place success rate} (\Cref{tab:place_success}) treats both as failures, excluding only attempts cut short when the episode ends or the plate is knocked over. We also split it by \textbf{scene state} --- how many oranges are already in the plate when the place begins (logged by the orchestrator, and reconstructed from the placement events in the trace for the monotask runs).
 
 \begin{table}[H]
     \centering
     \small
-    \caption{Place success rate by training set and formulation: successes over genuine PLACE attempts (drops and, for the orchestrated runs, timeouts count as failures; episode-end and plate-flip truncations excluded). The orchestrated runs are also split by the number of oranges already in the plate when the place began; the monotask traces do not record this (``--'').}
+    \caption{Place success rate by training set and formulation: successes over genuine PLACE attempts (drops and, for the orchestrated runs, timeouts count as failures; episode-end and plate-flip truncations excluded). The right block splits the rate by the number of oranges already in the plate when the place began; for the monotask runs this count is reconstructed from placement events. The 2-placed (third orange) cells rest on few attempts.}
     \label{tab:place_success}
     \begin{tabular}{llcccc}
         \toprule
@@ -75,16 +75,18 @@ Placing the lifted orange into the plate is the last subtask and a significant f
         \cmidrule(lr){4-6}
         Training set & Formulation & Place success & 0 placed & 1 placed & 2 placed \\
         \midrule
-        Teleop      & Monotask & 80.5\% (99/123)  & --             & --            & --            \\
+        Teleop      & Monotask & 80.5\% (99/123)  & 86.7\% (65/75) & 78.6\% (33/42)& 16.7\% (1/6)  \\
         Teleop      & Subtask  & 69.4\% (150/216) & 70.3\% (78/111)& 69.6\% (48/69)& 66.7\% (24/36)\\
         \midrule
-        Teleop+Auto & Monotask & 79.5\% (116/146) & --             & --            & --            \\
+        Teleop+Auto & Monotask & 79.5\% (116/146) & 83.3\% (70/84) & 90.2\% (46/51)& 0.0\% (0/11)  \\
         Teleop+Auto & Subtask  & 60.3\% (117/194) & 52.9\% (64/121)& 73.7\% (42/57)& 68.8\% (11/16)\\
         \bottomrule
     \end{tabular}
 \end{table}
 
-\paragraph{Drops are comparable; the orchestrated runs add timeouts.} Outright drops at placement occur at a similar rate across all four models --- roughly one orange in five. The orchestrated subtask policies, however, also fail by timing out, their per-subtask budget expiring before the orange is released --- a mode the monotask formulation cannot register, as it runs end-to-end with no subtask budget. \textbf{This timeout mode accounts for the apparent gap between the formulations}, and is most pronounced for Teleop+Auto, where it makes placing the least reliable subtask. Across scene states there is no consistent trend; if anything the very first placement is the hardest for Teleop+Auto.
+\paragraph{Drops are comparable; the orchestrated runs add timeouts.} Outright drops at placement occur at a similar rate across all four models --- roughly one orange in five. The orchestrated subtask policies, however, also fail by timing out, their per-subtask budget expiring before the orange is released --- a mode the monotask formulation cannot register, as it runs end-to-end with no subtask budget. \textbf{This timeout mode accounts for the apparent gap between the formulations}, and is most pronounced for Teleop+Auto, where it makes placing the least reliable subtask.
+
+\paragraph{The monotask policies collapse on the third orange.} The scene-state split exposes a sharp asymmetry. The orchestrated policies place at a roughly steady rate regardless of how full the plate is, whereas the monotask policies place the first two oranges well but almost never manage the third (\Cref{tab:place_success}, 2-placed column) --- albeit on few attempts, since most monotask episodes never reach a third placement at all. \textbf{Decomposition keeps the placing skill intact as the plate fills, while the end-to-end policy degrades.}
 
 \subsection{Target Obedience in the Subtask Policies}
 \label{sec:obedience}
