@@ -108,61 +108,97 @@ def confusion(subdir: str, fname: str, n_placed: int):
     return conf
 
 
-def cell_color(frac: float):
-    return (1 - 0.80 * frac, 1 - 0.55 * frac, 1 - 0.28 * frac)  # white -> blue
+CW, CH = 48.0, 30.0          # cell size
+LABEL_W = 92.0               # row-label gutter
+INK = (0.16, 0.17, 0.20)
+MUTE = (0.42, 0.44, 0.48)
+GRID = (0.88, 0.88, 0.90)
+OBEY_TARGET = (0.20, 0.59, 0.36)   # green, for the diagonal (obeyed)
+MISS_TARGET = (0.86, 0.42, 0.30)   # warm red, for off-diagonal (misgrab)
 
 
-def draw_panel(fig: PdfFigure, x0: float, y0: float, title: str, conf: dict) -> None:
-    cw, ch = 42.0, 22.0
-    grid_left = x0 + 104
-    header_y = y0 - 26
-    grid_top = header_y - 8
-    rows = [r for r in COLS if r in conf]  # requested positions present, in canonical order
+def ramp(target, frac):
+    frac = max(0.0, min(1.0, frac))
+    return tuple(1 - (1 - t) * frac for t in target)
 
-    fig.text(x0, y0 - 2, title, 10.5, "left", bold=True)
-    fig.text(grid_left + len(COLS) * cw / 2, header_y + 12, "grasped", 7.6, "center", rgb=(0.30, 0.30, 0.30))
+
+def draw_panel(fig: PdfFigure, x0: float, top: float, state_label: str, conf: dict) -> None:
+    grid_left = x0 + LABEL_W
+    rows = [r for r in COLS if r in conf]
+    gh = len(rows) * CH
+    grid_top = top - 16
+
+    # state tag, with overall obeyed rate for the panel
+    tot = sum(sum(conf[r].values()) for r in rows)
+    cor = sum(conf[r][r] for r in rows)
+    fig.set_fill((0.95, 0.95, 0.97))
+    fig.rect(x0, top + 2, LABEL_W + len(COLS) * CW, 15)
+    fig.text(x0 + 6, top + 6, state_label, 8.6, "left", bold=True, rgb=INK)
+    fig.text(grid_left + len(COLS) * CW, top + 6, f"{100 * cor / tot:.0f}% obeyed overall", 8.2, "right", bold=True, rgb=OBEY_TARGET)
+
+    # column headers
     for j, c in enumerate(COLS):
-        fig.text(grid_left + j * cw + cw / 2, header_y, SHORT[c], 7.8, "center", bold=True)
+        fig.text(grid_left + j * CW + CW / 2, grid_top + 5, SHORT[c], 8.2, "center", bold=True, rgb=MUTE)
 
+    # cells
     for i, r in enumerate(rows):
         total = sum(conf[r].values())
-        correct = conf[r][r]
-        cy = grid_top - i * ch - ch
-        fig.text(grid_left - 8, cy + ch / 2 - 3, f"{r}", 8.0, "right", bold=True)
-        fig.text(grid_left - 8, cy + ch / 2 - 11, f"{100 * correct / total:.0f}%  n={total}", 6.4, "right", rgb=(0.35, 0.35, 0.35))
+        cy = grid_top - (i + 1) * CH
         for j, c in enumerate(COLS):
             v = conf[r].get(c, 0)
-            frac = v / total if total else 0
-            cx = grid_left + j * cw
-            fig.set_fill(cell_color(frac))
-            fig.rect(cx, cy, cw, ch)
-            if c == r:  # diagonal = obeyed: green outline
-                fig.set_stroke((0.16, 0.52, 0.24), 1.6)
-                fig.rect(cx, cy, cw, ch, fill=False)
+            frac = v / total if total else 0.0
+            cx = grid_left + j * CW
+            on_diag = (c == r)
+            fig.set_fill(ramp(OBEY_TARGET if on_diag else MISS_TARGET, frac) if v else (0.975, 0.975, 0.978))
+            fig.rect(cx, cy, CW, CH)
             if v:
-                txt_rgb = (1, 1, 1) if frac > 0.55 else (0.10, 0.10, 0.10)
-                fig.text(cx + cw / 2, cy + ch / 2 - 3, str(v), 8.2, "center", rgb=txt_rgb, bold=(c == r))
-        fig.set_stroke((0.80, 0.80, 0.80), 0.4)
-        for j in range(len(COLS) + 1):
-            fig.line(grid_left + j * cw, grid_top, grid_left + j * cw, grid_top - len(rows) * ch)
-        fig.line(grid_left, cy, grid_left + len(COLS) * cw, cy)
-    fig.line(grid_left, grid_top, grid_left + len(COLS) * cw, grid_top)
-    fig.text(grid_left - 104 + 8, grid_top - len(rows) * ch - 14, "rows: requested", 6.8, "left", rgb=(0.30, 0.30, 0.30))
+                light = frac > 0.5
+                fig.text(cx + CW / 2, cy + CH / 2 - 3.5, str(v), 9.5, "center",
+                         rgb=(1, 1, 1) if light else INK, bold=on_diag)
+        # row label + obeyed rate
+        fig.text(grid_left - 7, cy + CH / 2 - 1, r, 8.6, "right", bold=True, rgb=INK)
+        fig.text(grid_left - 7, cy + CH / 2 - 10, f"{100 * conf[r][r] / total:.0f}% obeyed  (n={total})", 6.3, "right", rgb=MUTE)
+
+    # thin gridlines + frame
+    fig.set_stroke(GRID, 0.5)
+    for j in range(len(COLS) + 1):
+        fig.line(grid_left + j * CW, grid_top, grid_left + j * CW, grid_top - gh)
+    for i in range(len(rows) + 1):
+        fig.line(grid_left, grid_top - i * CH, grid_left + len(COLS) * CW, grid_top - i * CH)
+    fig.set_stroke(INK, 1.0)
+    fig.rect(grid_left, grid_top - gh, len(COLS) * CW, gh, fill=False)
+
+
+def swatch(fig, x, y, target, label):
+    fig.set_fill(ramp(target, 0.85))
+    fig.rect(x, y, 13, 13)
+    fig.set_stroke(INK, 0.6)
+    fig.rect(x, y, 13, 13, fill=False)
+    fig.text(x + 19, y + 3, label, 8.6, "left", rgb=INK)
 
 
 def main() -> None:
-    fig = PdfFigure(width=760, height=470)
-    fig.text(fig.width / 2, fig.height - 24, "Grasp obedience: requested vs. actually grasped position", 14, "center", bold=True)
-    fig.text(fig.width / 2, fig.height - 40, "Cell = grasps; green box = obeyed (diagonal); shade = row fraction. Left of each row: obeyed %, n.", 8.4, "center", rgb=(0.28, 0.28, 0.28))
+    fig = PdfFigure(width=792, height=508)
+    grid_w = LABEL_W + len(COLS) * CW
+    col_x = [44, 44 + grid_w + 60]
+    center_l, center_r = col_x[0] + LABEL_W + len(COLS) * CW / 2, col_x[1] + LABEL_W + len(COLS) * CW / 2
 
-    col_x = [40, 412]
-    row_y = [fig.height - 70, fig.height - 285]
-    states = [(0, "0 placed (all three on table)"), (1, "1 placed (two remaining)")]
+    fig.text(fig.width / 2, fig.height - 28, "Which orange is grasped vs. which was requested", 15, "center", bold=True, rgb=INK)
+    fig.text(fig.width / 2, fig.height - 45, "Rows: requested position.   Columns: position actually grasped.   Cell shade = share of that row.",
+             8.8, "center", rgb=MUTE)
+
+    # model super-headers
+    for cx, (disp, _, _) in zip((center_l, center_r), MODELS):
+        fig.text(cx, fig.height - 72, disp, 12.0, "center", bold=True, rgb=INK)
+
+    row_top = [fig.height - 92, fig.height - 300]
+    states = [(0, "All three oranges on the table"), (1, "One already placed (two remaining)")]
     for ri, (n_placed, state_label) in enumerate(states):
         for ci, (disp, subdir, fname) in enumerate(MODELS):
-            conf = confusion(subdir, fname, n_placed)
-            draw_panel(fig, col_x[ci], row_y[ri], f"{disp} - {state_label}", conf)
+            draw_panel(fig, col_x[ci], row_top[ri], state_label, confusion(subdir, fname, n_placed))
 
+    swatch(fig, col_x[0], 30, OBEY_TARGET, "obeyed (grasped the requested orange)")
+    swatch(fig, col_x[0] + 250, 30, MISS_TARGET, "misgrab (grasped a different orange)")
     fig.save(OUT)
     print(f"wrote {OUT}")
 
