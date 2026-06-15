@@ -24,17 +24,15 @@ The current evaluations use the same reference seed set, \texttt{pick\_orange\_r
 
 \paragraph{Aggregating autonomous data did not help.} Adding the automatically generated episodes to Teleop did not strengthen the policy. Under the orchestrated subtask formulation it in fact regressed performance on both metrics relative to Teleop alone (full-task success 29\% to 13\%, mean occupancy 1.80 to 1.47). Augmenting the dataset with in-distribution successful subtasks was thus not sufficient to improve full-task behaviour; the subtask-level analysis below isolates which behaviours degraded.
 
-\subsection{Within-Episode Behaviour: Lift Recovery and Target Obedience}
-\label{sec:within_episode}
+\subsection{Lift Failures and Recovery}
+\label{sec:lift_recovery}
 
-The full-task outcomes above measure what each policy achieves, not how it behaves while attempting the task. This section reconstructs two within-episode behaviours from the per-step physics traces: how policies respond when a grasped orange slips during the lift, and --- for the orchestrated runs --- whether a positional grasp instruction is actually obeyed. The four models compared are the two task formulations (monotask versus orchestrated subtask) on each of the two custom training sets (Teleop and Teleop+Auto). The two monotask traces are observer-inferred from physics state alone (the end-to-end policy exposes no intent), whereas the subtask traces are the orchestrator's own ground-truth subtask log; comparisons across formulations should be read with that asymmetry in mind.
-
-\paragraph{Lift failures and recovery.} A \emph{lift} begins once a grasped orange is held and rises above its initial height; it \emph{drops} if the orange leaves the gripper before reaching the plate. \Cref{tab:lift_recovery} reports the per-attempt lift success rate (successes over successes plus drops, excluding attempts truncated by episode end), and what happens after a drop. Two recovery quantities are distinguished following the project's mechanism vocabulary: whether a dropped orange is \emph{eventually} lifted later in the same episode, and whether the \emph{next} lift attempt re-engages the \emph{same} orange that was just dropped --- the signature of a local retry, as opposed to abandoning that orange for another.
+Beyond the final outcome, the per-step traces show how each policy reacts when a grasped orange slips during the lift. A \emph{lift} begins once a held orange rises above its initial height and \emph{drops} if it leaves the gripper before reaching the plate. \Cref{tab:lift_recovery} reports the per-attempt lift success rate and what follows a drop, for all four models. (The monotask traces are observer-inferred from physics, the subtask traces are the orchestrator's own log; the comparison should be read with that asymmetry in mind.)
 
 \begin{table}[H]
     \centering
     \small
-    \caption{Lift outcomes and post-drop behaviour, by training set and task formulation. Lift success is per genuine attempt (successes / successes+drops). \emph{Drop recovered} is the fraction of oranges whose first lift dropped that were nonetheless lifted later in the episode (a placed orange counts as lifted). \emph{Re-engaged same orange} is the fraction of drops whose next lift attempt targeted the same orange rather than a different one.}
+    \caption{Lift outcomes and post-drop behaviour, by training set and task formulation. Lift success is per genuine attempt (successes / successes+drops, excluding episode-end truncations). \emph{Drop recovered}: fraction of oranges whose first lift dropped that were nonetheless lifted later in the episode (a placed orange counts as lifted). \emph{Re-engaged same orange}: fraction of drops whose next lift attempt targeted the same orange rather than a different one.}
     \label{tab:lift_recovery}
     \begin{tabular}{llccc}
         \toprule
@@ -49,20 +47,46 @@ The full-task outcomes above measure what each policy achieves, not how it behav
     \end{tabular}
 \end{table}
 
-The dominant effect is not the raw lift success rate --- which is comparable across formulations except for the weak Teleop monotask model --- but what happens after a drop. The orchestrated subtask policies re-engage the dropped orange far more often than the monotask policies (83.9\% vs.\ 50.0\% on Teleop; 63.2\% vs.\ 25.0\% on Teleop+Auto), and correspondingly recover a much larger share of dropped oranges (72.7\% vs.\ 26.0\%; 38.5\% vs.\ 14.3\%). This is the local-retry mechanism made visible: when an orange slips during the lift, the orchestrator returns to GRASP for the \emph{same} orange, whereas the monotask policy, having no such mechanism, tends to drift to a different orange and the dropped one is rarely reclaimed. When recovery does occur it is almost always immediate --- on average a single retry separates the drop from the eventual successful lift in every model --- so the recovery gap is driven by \emph{whether} the same orange is re-attempted at all, not by how persistently it is retried. The contrast is sharpest on Teleop+Auto, where the monotask policy abandons three out of four dropped oranges.
+The decisive difference is not the raw lift rate, which is comparable except for the weak Teleop monotask model, but the response to a drop. The subtask policies re-engage the dropped orange far more often than the monotask ones (83.9\% vs.\ 50.0\% on Teleop; 63.2\% vs.\ 25.0\% on Teleop+Auto) and so recover a much larger share of dropped oranges (72.7\% vs.\ 26.0\%; 38.5\% vs.\ 14.3\%). This is the local-retry mechanism made visible: the orchestrator returns to GRASP for the same orange, whereas the monotask policy drifts to a different one and rarely reclaims the dropped orange --- abandoning three of four on Teleop+Auto. When recovery does happen it is near-immediate (a single retry on average in every model), so the gap is driven by \emph{whether} the same orange is re-attempted, not how persistently.
 
-\paragraph{Obedience to positional grasp instructions.} The orchestrated runs request a specific orange by spatial label (e.g.\ ``grasp the right orange''), so we can ask how often the policy grasps the orange it was told to. Obedience is measured only over grasps that actually engaged an orange --- timeouts and empty grasps are failures to grasp, not wrong-orange grasps --- and counts a grasp as obedient when the grasped orange is the requested one by identity, not merely by label.
+\subsection{Target Obedience in the Subtask Policies}
+\label{sec:obedience}
 
-A measurement caveat constrains the positional breakdown. The spatial labels are recomputed live at each target selection, but always over all three oranges, including those already resting in the plate. Once oranges are placed, the remaining labels therefore degenerate: with two oranges placed, the single remaining orange is labelled ``right'' in 100\% of cases, because the two plated oranges occupy the other slots. Aggregating over all grasps thus inflates obedience with trivially unambiguous late-episode requests. We therefore restrict the per-position breakdown in \Cref{tab:obedience} to the opening grasp of each episode, when all three oranges are genuinely on the table and the labels carry real positional meaning.
+Only the orchestrated runs request a specific orange by spatial label (``Grasp \emph{<position>} orange''), so obedience --- did the policy grasp the orange it was told to --- is a subtask-only question. We first measure how often each positional referent appears in training, then how reliably it is obeyed at evaluation.
+
+\paragraph{Instruction prevalence in the training data.} \Cref{tab:label_prevalence} counts the GRASP episodes carrying each positional label in the Teleop and Auto training sets, parsed from the language task strings. The distribution is heavily skewed: \emph{right} alone accounts for almost half of all grasp instructions (135/290 in Teleop, 209/433 combined), followed by \emph{middle} and \emph{left}, while the compound diagonal labels are rare. Adding the Auto episodes did not rebalance this --- it reinforced the same head of the distribution, contributing mostly more \emph{right} and \emph{middle} examples.
 
 \begin{table}[H]
     \centering
     \small
-    \caption{Positional grasp obedience for the orchestrated subtask models, restricted to the first grasp of each episode (all three oranges on the table). Each cell is the fraction of grasps for that requested position that engaged the correct orange by identity. Two positions with a single sample (top left, bottom left) are omitted from the rows but included in the overall figure.}
+    \caption{Prevalence of positional grasp instructions in the training data: number of GRASP episodes per label, by source. ``Other'' aggregates the rarely used top left, top middle, and bottom middle labels.}
+    \label{tab:label_prevalence}
+    \begin{tabular}{lccc}
+        \toprule
+        Position & Teleop & Auto & Combined \\
+        \midrule
+        top right    & 25  & 4   & 29  \\
+        left         & 34  & 11  & 45  \\
+        middle       & 74  & 48  & 122 \\
+        right        & 135 & 74  & 209 \\
+        bottom right & 15  & 1   & 16  \\
+        other        & 7   & 5   & 12  \\
+        \midrule
+        Total        & 290 & 143 & 433 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\paragraph{Obedience at evaluation.} A grasp is obedient when the grasped orange is the requested one \emph{by identity}, measured only over grasps that actually engaged an orange (timeouts are failures to grasp, not wrong-orange grasps). The positional breakdown is restricted to the opening grasp of each episode: the labels are recomputed live but always over all three oranges including any already in the plate, so once oranges are placed the labels degenerate (with two placed, the last orange is labelled ``right'' 100\% of the time), which would otherwise inflate the count with trivially unambiguous late-episode requests.
+
+\begin{table}[H]
+    \centering
+    \small
+    \caption{Positional grasp obedience for the subtask models on the opening grasp of each episode (all three oranges on the table). Each cell is the fraction of grasps for that requested position that engaged the correct orange. Two single-sample positions (top left, bottom left) are omitted from the rows but kept in the overall figure.}
     \label{tab:obedience}
     \begin{tabular}{lcc}
         \toprule
-        Requested position & Teleop subtask & Teleop+Auto subtask \\
+        Requested position & Teleop & Teleop+Auto \\
         \midrule
         top right    & 87.5\% (14/16) & 93.8\% (30/32) \\
         left         & 97.1\% (34/35) & 87.5\% (21/24) \\
@@ -75,4 +99,4 @@ A measurement caveat constrains the positional breakdown. The spatial labels are
     \end{tabular}
 \end{table}
 
-Overall obedience on genuinely ambiguous scenes is only about two-thirds (65.4\% Teleop, 69.0\% Teleop+Auto), well below the figure obtained when the degenerate late-episode requests are included. The error is strongly directional and consistent across both training sets: requests for the \emph{right} orange are obeyed only 24--32\% of the time, and \emph{bottom right} 53--64\%, whereas \emph{left} and \emph{top right} are obeyed 88--97\%. The policy thus reliably resolves some spatial referents but systematically mishandles others, grasping a neighbouring orange instead. This is direct evidence that the VLA's language conditioning is an imperfect and spatially biased channel --- the same context-dependence that motivates the scripted spatial reset --- rather than a clean selector that the orchestrator can assume is obeyed.
+Obedience on genuinely ambiguous scenes is only about two-thirds (65.4\% Teleop, 69.0\% Teleop+Auto), and the error is strongly directional and consistent across both training sets: \emph{right} is obeyed only 24--32\% of the time and \emph{bottom right} 53--64\%, against 88--97\% for \emph{left} and \emph{top right}. Crucially, this ordering runs \emph{opposite} to training prevalence (\Cref{tab:label_prevalence}): the most heavily represented label, \emph{right}, is the worst obeyed, while the sparse \emph{top right} is obeyed best. Obedience is therefore not limited by how often a referent was seen --- the deficit cannot be closed simply by adding more examples of the failing labels, which is precisely what the Auto data did without effect. The pattern instead points to a grounding problem: \emph{right} is a catch-all for the rightmost orange across many layouts, the region where the policy most often grasps a neighbour instead. This is direct evidence that the VLA's language conditioning is an imperfect, spatially biased channel rather than a clean selector, the same context-dependence that motivates the scripted spatial reset.
