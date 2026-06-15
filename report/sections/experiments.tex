@@ -77,44 +77,13 @@ Only the orchestrated runs request a specific orange by spatial label (``Grasp \
     \end{tabular}
 \end{table}
 
-\paragraph{Obedience.} A grasp is obedient when it engages the requested orange by identity, counted only over grasps that actually engaged one (timeouts are failures to grasp, not wrong-orange grasps). Overall the policies obey 75.1\% (193/257) of engaged grasps on Teleop and 77.0\% (187/243) on Teleop+Auto, but this rises as the scene empties --- from 65--69\% with all three oranges present (overall 83/127 and 100/145), to 75--85\% with one already placed (61/81 and 64/75), to a trivial 100\% with two placed (one orange remains, always labelled ``right'') --- because fewer distractors make the referent easier to resolve. \Cref{tab:obedience} gives the per-position rates for the two informative states, alongside where the grasp actually landed when all three are present.
+\paragraph{Obedience.} A grasp is obedient when it engages the requested orange by identity, counted only over grasps that actually engaged one (timeouts are failures to grasp, not wrong-orange grasps). Overall the policies obey 75.1\% (193/257) of engaged grasps on Teleop and 77.0\% (187/243) on Teleop+Auto, but this rises as the scene empties --- from 65--69\% with all three oranges present (overall 83/127 and 100/145), to 75--85\% with one already placed (61/81 and 64/75), to a trivial 100\% with two placed (one orange remains, always labelled ``right'') --- because fewer distractors make the referent easier to resolve. \Cref{fig:grasp_confusion} shows, for both states, not just the obeyed rate (the diagonal) but where each missed grasp actually landed.
 
-\begin{table}[H]
+\begin{figure}[H]
     \centering
-    \small
-    \caption{Per-position grasp obedience and misgrab pattern for the subtask models. The left block is a confusion matrix over the opening grasp (all three oranges present): rows are the requested position, columns the position actually grasped by identity, and the \textbf{bold} diagonal is obeyed grasps. \emph{Obeyed} gives the rate (correct/total) when 0 and when 1 orange is already placed; ``--'' marks a label absent in that state. Two single-sample requests (top left, bottom left), both obeyed, and the trivial 2-placed state are omitted.}
-    \label{tab:obedience}
-    \setlength{\tabcolsep}{5pt}
-    \textbf{Teleop}\par\smallskip
-    \begin{tabular}{lccccc@{\quad}cc}
-        \toprule
-        & \multicolumn{5}{c}{Grasped (0 placed)} & \multicolumn{2}{c}{Obeyed} \\
-        \cmidrule(lr){2-6}\cmidrule(lr){7-8}
-        Requested & left & middle & right & top right & bottom right & 0 placed & 1 placed \\
-        \midrule
-        left         & \textbf{34} & 1           & 0          & 0           & 0           & 97\% (34/35) & --             \\
-        middle       & 10          & \textbf{18} & 0          & 0           & 0           & 64\% (18/28) & 100\% (28/28)  \\
-        right        & 0           & 19          & \textbf{7} & 3           & 0           & 24\% (7/29)  & 55\% (21/38)   \\
-        top right    & 2           & 0           & 0          & \textbf{14} & 0           & 88\% (14/16) & 91\% (10/11)   \\
-        bottom right & 0           & 1           & 0          & 8           & \textbf{10} & 53\% (10/19) & 50\% (2/4)     \\
-        \bottomrule
-    \end{tabular}
+    \includegraphics[width=\textwidth]{grasp_obedience_confusion.pdf}
+    \caption{Grasp-obedience confusion matrices for the two subtask models, with no oranges placed (top, all three on the table) and one placed (bottom, two remaining). Rows are the requested position, columns the position actually grasped by orange identity; the green-boxed diagonal is obeyed grasps and each cell is shaded by its row fraction. The obeyed rate and row count are printed beside each row. Labels are taken from the scene as it stood at grasp time; the 2-placed state is omitted (one orange remains, trivially obeyed), as are two single-sample requests.}
+    \label{fig:grasp_confusion}
+\end{figure}
 
-    \medskip
-    \textbf{Teleop+Auto}\par\smallskip
-    \begin{tabular}{lccccc@{\quad}cc}
-        \toprule
-        & \multicolumn{5}{c}{Grasped (0 placed)} & \multicolumn{2}{c}{Obeyed} \\
-        \cmidrule(lr){2-6}\cmidrule(lr){7-8}
-        Requested & left & middle & right & top right & bottom right & 0 placed & 1 placed \\
-        \midrule
-        left         & \textbf{23} & 0           & 1           & 0           & 0          & 96\% (23/24) & --             \\
-        middle       & 9           & \textbf{26} & 0           & 0           & 0          & 74\% (26/35) & 100\% (36/36)  \\
-        right        & 3           & 21          & \textbf{12} & 2           & 0          & 32\% (12/38) & 71\% (22/31)   \\
-        top right    & 1           & 0           & 0           & \textbf{30} & 1          & 94\% (30/32) & 100\% (4/4)    \\
-        bottom right & 0           & 1           & 0           & 4           & \textbf{9} & 64\% (9/14)  & 50\% (2/4)     \\
-        \bottomrule
-    \end{tabular}
-\end{table}
-
-The errors expose a single directional bias, consistent across both training sets. \emph{right} is the worst-obeyed label (24--32\% with three present); when it is missed the policy almost always takes the \emph{middle} orange (19/29 and 21/38), just as \emph{middle} is misgrabbed as \emph{left} and \emph{bottom right} as its close-pair \emph{top right} --- the arm consistently grasps an orange to the \emph{left of, or inward from}, the requested one, while the outermost \emph{left} and \emph{top right} are obeyed 88--97\%. This is not a logging artefact: the grasped orange is identified from contact forces, in every \emph{right}$\to$\emph{middle} case the requested orange is verifiably the true rightmost, and the substitute is a genuinely distinct orange (median 10\,cm away), so the confusion reflects a real $\sim$4\,cm under-reach in tightly packed scenes (median inter-orange gap 32\,mm), not mislabelling. Crucially the obedience ordering runs \emph{opposite} to training prevalence: the most represented label, \emph{right}, is the worst obeyed, the sparse \emph{top right} the best. The deficit is therefore not a coverage gap that more examples could close --- as the Auto data confirms --- but a grounding one: the VLA's language conditioning is a spatially biased channel rather than a clean selector, the context-dependence that motivates the scripted spatial reset.
+The errors expose a single directional bias, consistent across both training sets and both states. \emph{right} is the worst-obeyed label (24--32\% with three present); when it is missed the policy almost always takes the \emph{middle} orange (19/29 and 21/38 with three present, and still 16/17 and 8/9 of misses once one is placed), just as \emph{middle} is misgrabbed as \emph{left} and \emph{bottom right} as its close-pair \emph{top right} --- the arm consistently grasps an orange to the \emph{left of, or inward from}, the requested one, while the outermost \emph{left} and \emph{top right} are obeyed 88--97\%. This is not a logging artefact: the grasped orange is identified from contact forces, in every \emph{right}$\to$\emph{middle} case the requested orange is verifiably the true rightmost, and the substitute is a genuinely distinct orange (median 10\,cm away), so the confusion reflects a real $\sim$4\,cm under-reach in tightly packed scenes (median inter-orange gap 32\,mm), not mislabelling. Crucially the obedience ordering runs \emph{opposite} to training prevalence: the most represented label, \emph{right}, is the worst obeyed, the sparse \emph{top right} the best. The deficit is therefore not a coverage gap that more examples could close --- as the Auto data confirms --- but a grounding one: the VLA's language conditioning is a spatially biased channel rather than a clean selector, the context-dependence that motivates the scripted spatial reset.

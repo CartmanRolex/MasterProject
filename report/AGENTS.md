@@ -76,6 +76,7 @@ Python scripts that generate the report figures. Run from `report/scripts/` on t
 | `plot_dataset_composition.py` | `figures/dataset_composition.pdf` — subtask episode-length boxplot, Teleop vs Auto. Self-contained: stats baked in from `extract_dataset_composition.py`. |
 | `extract_dataset_composition.py` | (no figure) Reads the LeRobot training datasets from the desktop HF cache and prints the per-source × per-subtask episode-length stats used by `plot_dataset_composition.py`. **Desktop only** — needs the datasets + `pyarrow`/`numpy`. |
 | `extract_positional_prevalence.py` | (no figure) Prints the per-source count of GRASP episodes per positional label (left/right/middle/…) for the `tab:label_prevalence` table in `experiments.tex`. Downloads only the small `meta/episodes` parquet from HF (Xet disabled), so it runs on the laptop; needs `huggingface_hub`/`pyarrow`. |
+| `plot_grasp_confusion.py` | `figures/grasp_obedience_confusion.pdf` — 2×2 grid of grasp-obedience confusion matrices (requested vs. actually-grasped position) for the two subtask models × {0,1} oranges placed. Reads the git-tracked subtask checkpoints under `isaac-inference/results`; reconstructs grasp-time position labels. Pure-Python via `plot_lib`. |
 | `plot_lib.py` | Shared helpers (colors, axis formatting, save wrappers) — imported by the scripts above; not run directly. |
 
 ## Figures (`figures/`)
