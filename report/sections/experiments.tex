@@ -102,3 +102,39 @@ Only the orchestrated runs request a specific orange by spatial label (``Grasp \
 \end{table}
 
 Two patterns stand out. First, obedience rises as the scene empties --- from 65--69\% with all three oranges present to 75--85\% with two, simply because fewer distractors make the referent easier to resolve. Second, the error is strongly directional: \emph{right} is the worst-obeyed label in every state, badly so when all three are present (24--32\%) and only partly recovered with two remaining (55--71\%), whereas \emph{left} and \emph{top right} are obeyed 88--97\%. Crucially, this ordering runs \emph{opposite} to training prevalence (\Cref{tab:label_prevalence}): the most heavily represented label, \emph{right}, is the worst obeyed, while the sparse \emph{top right} is obeyed best. Obedience is therefore not limited by how often a referent was seen --- the deficit cannot be closed simply by adding more examples of the failing labels, which is precisely what the Auto data did without effect. It points instead to a grounding problem: \emph{right} is a catch-all for the rightmost orange across many layouts and the region where the policy most often grasps a neighbour instead. This is direct evidence that the VLA's language conditioning is an imperfect, spatially biased channel rather than a clean selector --- the same context-dependence that motivates the scripted spatial reset.
+
+\paragraph{Where the wrong grasps go.} The misgrabs are not random. \Cref{tab:misgrab} is a confusion matrix over the opening grasp of each episode: each row is a requested position and each column the position actually grasped (by identity), so the bold diagonal is the obeyed grasps and every off-diagonal entry is a specific substitution. A single directional bias dominates both models. When asked for \emph{right}, the policy overwhelmingly grasps the \emph{middle} orange instead (19 of 29 grasps on Teleop, 21 of 38 on Teleop+Auto); when asked for \emph{middle}, the errors fall on \emph{left} (10/28 and 9/35); and \emph{bottom right} is most often confused with its close-pair neighbour \emph{top right} (8/19 and 4/14). In other words the arm consistently grasps an orange to the \emph{left of, or inward from}, the one it was told to take, while the outermost referents --- \emph{left} and \emph{top right} --- are almost never confused. The deficit is thus concentrated geometrically, among targets that sit to the right of or between other oranges, exactly where a left-biased reach picks up the wrong neighbour.
+
+\begin{table}[H]
+    \centering
+    \small
+    \caption{Misgrab confusion matrix at the opening grasp (all three oranges on the table). Rows: requested position; columns: position actually grasped, by identity. The \textbf{bold} diagonal is obeyed grasps; off-diagonal entries are substitutions. $n$ is the row total and \emph{obeyed} the diagonal as a percentage. Two single-sample requests (top left, bottom left), both obeyed, are omitted.}
+    \label{tab:misgrab}
+    \setlength{\tabcolsep}{5pt}
+    \textbf{Teleop}\par\smallskip
+    \begin{tabular}{lccccc@{\quad}cc}
+        \toprule
+        Requested $\downarrow$ / grasped $\rightarrow$ & left & middle & right & top right & bottom right & $n$ & obeyed \\
+        \midrule
+        left         & \textbf{34} & 1           & 0          & 0           & 0           & 35 & 97\% \\
+        middle       & 10          & \textbf{18} & 0          & 0           & 0           & 28 & 64\% \\
+        right        & 0           & 19          & \textbf{7} & 3           & 0           & 29 & 24\% \\
+        top right    & 2           & 0           & 0          & \textbf{14} & 0           & 16 & 88\% \\
+        bottom right & 0           & 1           & 0          & 8           & \textbf{10} & 19 & 53\% \\
+        \bottomrule
+    \end{tabular}
+
+    \medskip
+    \textbf{Teleop+Auto}\par\smallskip
+    \begin{tabular}{lccccc@{\quad}cc}
+        \toprule
+        Requested $\downarrow$ / grasped $\rightarrow$ & left & middle & right & top right & bottom right & $n$ & obeyed \\
+        \midrule
+        left         & \textbf{23} & 0           & 1           & 0           & 0          & 24 & 96\% \\
+        middle       & 9           & \textbf{26} & 0           & 0           & 0          & 35 & 74\% \\
+        right        & 3           & 21          & \textbf{12} & 2           & 0          & 38 & 32\% \\
+        top right    & 1           & 0           & 0           & \textbf{30} & 1          & 32 & 94\% \\
+        bottom right & 0           & 1           & 0           & 4           & \textbf{9} & 14 & 64\% \\
+        \bottomrule
+    \end{tabular}
+\end{table}
