@@ -77,26 +77,28 @@ Only the orchestrated runs request a specific orange by spatial label (``Grasp \
     \end{tabular}
 \end{table}
 
-\paragraph{Obedience at evaluation.} A grasp is obedient when the grasped orange is the requested one \emph{by identity}, measured only over grasps that actually engaged an orange (timeouts are failures to grasp, not wrong-orange grasps). The positional breakdown is restricted to the opening grasp of each episode: the labels are recomputed live but always over all three oranges including any already in the plate, so once oranges are placed the labels degenerate (with two placed, the last orange is labelled ``right'' 100\% of the time), which would otherwise inflate the count with trivially unambiguous late-episode requests.
+\paragraph{Obedience at evaluation.} A grasp is obedient when the grasped orange is the requested one \emph{by identity}, measured only over grasps that actually engaged an orange (timeouts are failures to grasp, not wrong-orange grasps). Globally, the subtask policies obey 75.1\% (193/257) of engaged grasps on Teleop and 77.0\% (187/243) on Teleop+Auto. This headline figure depends strongly on how many oranges remain, so \Cref{tab:obedience} breaks obedience down by the number already placed. We stop at one orange placed: with two placed only a single orange remains, which the labelling always calls ``right'' and which is trivially grasped (100\% in both models), so that case carries no information. The labels themselves are recomputed live but always over all three oranges including any already in the plate, which is why no ``left'' request survives once an orange is placed.
 
 \begin{table}[H]
     \centering
     \small
-    \caption{Positional grasp obedience for the subtask models on the opening grasp of each episode (all three oranges on the table). Each cell is the fraction of grasps for that requested position that engaged the correct orange. Two single-sample positions (top left, bottom left) are omitted from the rows but kept in the overall figure.}
+    \caption{Positional grasp obedience for the subtask models, by number of oranges already in the plate (0 = all three on the table, 1 = two remaining). Each cell is the fraction of grasps for that requested position that engaged the correct orange by identity; ``--'' marks a label that does not occur in that state. Some 1-placed cells rest on few samples. The 2-placed state is omitted (only one orange remains; obedience is trivially 100\%).}
     \label{tab:obedience}
-    \begin{tabular}{lcc}
+    \begin{tabular}{lcccc}
         \toprule
-        Requested position & Teleop & Teleop+Auto \\
+        & \multicolumn{2}{c}{Teleop} & \multicolumn{2}{c}{Teleop+Auto} \\
+        \cmidrule(lr){2-3}\cmidrule(lr){4-5}
+        Requested position & 0 placed & 1 placed & 0 placed & 1 placed \\
         \midrule
-        top right    & 87.5\% (14/16) & 93.8\% (30/32) \\
-        left         & 97.1\% (34/35) & 87.5\% (21/24) \\
-        middle       & 64.3\% (18/28) & 74.3\% (26/35) \\
-        right        & 24.1\% (7/29)  & 31.6\% (12/38) \\
-        bottom right & 52.6\% (10/19) & 64.3\% (9/14)  \\
+        top right    & 87.5\% (14/16) & 90.9\% (10/11) & 93.8\% (30/32) & 100.0\% (4/4)  \\
+        left         & 97.1\% (34/35) & --             & 87.5\% (21/24) & --             \\
+        middle       & 64.3\% (18/28) & 100.0\% (28/28)& 74.3\% (26/35) & 100.0\% (36/36)\\
+        right        & 24.1\% (7/29)  & 55.3\% (21/38) & 31.6\% (12/38) & 71.0\% (22/31) \\
+        bottom right & 52.6\% (10/19) & 50.0\% (2/4)   & 64.3\% (9/14)  & 50.0\% (2/4)   \\
         \midrule
-        Overall      & 65.4\% (83/127) & 69.0\% (100/145) \\
+        Overall      & 65.4\% (83/127)& 75.3\% (61/81) & 69.0\% (100/145)& 85.3\% (64/75)\\
         \bottomrule
     \end{tabular}
 \end{table}
 
-Obedience on genuinely ambiguous scenes is only about two-thirds (65.4\% Teleop, 69.0\% Teleop+Auto), and the error is strongly directional and consistent across both training sets: \emph{right} is obeyed only 24--32\% of the time and \emph{bottom right} 53--64\%, against 88--97\% for \emph{left} and \emph{top right}. Crucially, this ordering runs \emph{opposite} to training prevalence (\Cref{tab:label_prevalence}): the most heavily represented label, \emph{right}, is the worst obeyed, while the sparse \emph{top right} is obeyed best. Obedience is therefore not limited by how often a referent was seen --- the deficit cannot be closed simply by adding more examples of the failing labels, which is precisely what the Auto data did without effect. The pattern instead points to a grounding problem: \emph{right} is a catch-all for the rightmost orange across many layouts, the region where the policy most often grasps a neighbour instead. This is direct evidence that the VLA's language conditioning is an imperfect, spatially biased channel rather than a clean selector, the same context-dependence that motivates the scripted spatial reset.
+Two patterns stand out. First, obedience rises as the scene empties --- from 65--69\% with all three oranges present to 75--85\% with two, simply because fewer distractors make the referent easier to resolve. Second, the error is strongly directional: \emph{right} is the worst-obeyed label in every state, badly so when all three are present (24--32\%) and only partly recovered with two remaining (55--71\%), whereas \emph{left} and \emph{top right} are obeyed 88--97\%. Crucially, this ordering runs \emph{opposite} to training prevalence (\Cref{tab:label_prevalence}): the most heavily represented label, \emph{right}, is the worst obeyed, while the sparse \emph{top right} is obeyed best. Obedience is therefore not limited by how often a referent was seen --- the deficit cannot be closed simply by adding more examples of the failing labels, which is precisely what the Auto data did without effect. It points instead to a grounding problem: \emph{right} is a catch-all for the rightmost orange across many layouts and the region where the policy most often grasps a neighbour instead. This is direct evidence that the VLA's language conditioning is an imperfect, spatially biased channel rather than a clean selector --- the same context-dependence that motivates the scripted spatial reset.
