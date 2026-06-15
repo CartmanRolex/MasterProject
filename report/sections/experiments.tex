@@ -27,7 +27,15 @@ The current evaluations use the same reference seed set, \texttt{pick\_orange\_r
 \subsection{Lift Failures and Recovery}
 \label{sec:lift_recovery}
 
-Beyond the final outcome, the per-step traces show how each policy reacts when a grasped orange slips during the lift. A \emph{lift} begins once a held orange rises above its initial height and \emph{drops} if it leaves the gripper before reaching the plate. \Cref{tab:lift_recovery} reports the per-attempt lift success rate and what follows a drop, for all four models. (The monotask traces are observer-inferred from physics, the subtask traces are the orchestrator's own log; the comparison should be read with that asymmetry in mind.)
+Beyond the final outcome, the per-step traces show how each policy reacts when a grasped orange slips during the lift. A \textbf{lift} begins once a held orange rises above its initial height; it is a \textbf{drop} if the orange leaves the gripper before reaching the plate. From these traces we read three metrics, all reported in \Cref{tab:lift_recovery}:
+
+\begin{itemize}[leftmargin=1.4em,itemsep=2pt,topsep=2pt]
+    \item \textbf{Lift success rate} --- successes as a fraction of genuine lift attempts (successes plus drops, excluding attempts cut short when the episode ends).
+    \item \textbf{Drop-recovery rate} --- of the oranges whose \emph{first} lift dropped, the fraction nonetheless lifted later in the same episode (a placed orange counts as lifted).
+    \item \textbf{Re-engagement} --- the fraction of drops whose \emph{next} lift attempt returns to the same orange rather than moving to a different one: the signature of a \emph{local retry}.
+\end{itemize}
+
+One caveat frames the comparison: the monotask traces are observer-inferred from physics, whereas the subtask traces are the orchestrator's own log.
 
 \begin{table}[H]
     \centering
@@ -47,7 +55,9 @@ Beyond the final outcome, the per-step traces show how each policy reacts when a
     \end{tabular}
 \end{table}
 
-The decisive difference is not the raw lift rate, which is comparable except for the weak Teleop monotask model, but the response to a drop. The subtask policies re-engage the dropped orange far more often than the monotask ones (83.9\% vs.\ 50.0\% on Teleop; 63.2\% vs.\ 25.0\% on Teleop+Auto) and so recover a much larger share of dropped oranges (72.7\% vs.\ 26.0\%; 38.5\% vs.\ 14.3\%). This is the local-retry mechanism made visible: the orchestrator returns to GRASP for the same orange, whereas the monotask policy drifts to a different one and rarely reclaims the dropped orange --- abandoning three of four on Teleop+Auto. When recovery does happen it is near-immediate (a single retry on average in every model), so the gap is driven by \emph{whether} the same orange is re-attempted, not how persistently.
+\paragraph{Lift success is comparable; the response to a drop is not.} Raw lift success is similar across formulations --- only the Teleop monotask model is markedly weaker --- so the decisive difference lies in what happens \emph{after} a drop. The subtask policies re-engage the dropped orange far more often than the monotask ones, and consequently recover a much larger share of dropped oranges; the monotask policies instead drift to a different orange and rarely reclaim the dropped one, abandoning the large majority of them on Teleop+Auto. \textbf{Decomposition does not make the lift itself more reliable --- it makes a failed lift recoverable.}
+
+\paragraph{This is the local-retry mechanism made visible.} The gap is exactly what the orchestrator's local retry is built to produce: on a slip it returns to GRASP for the \emph{same} orange, a step the end-to-end monotask policy has no means to take. And when recovery does happen it is near-immediate --- a single retry suffices on average --- so \textbf{the gap is driven by \emph{whether} the dropped orange is re-attempted at all, not by how persistently it is retried.}
 
 \subsection{Target Obedience in the Subtask Policies}
 \label{sec:obedience}
