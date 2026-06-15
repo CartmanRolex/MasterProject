@@ -21,6 +21,13 @@ def _env_int(name, default):
     return int(value)
 
 
+def _env_float(name, default):
+    value = os.environ.get(name)
+    if value is None or value.strip() == "":
+        return default
+    return float(value)
+
+
 class PhaseMonitor:
     """Live passive subtask monitor for whole-episode policies.
 
@@ -39,6 +46,10 @@ class PhaseMonitor:
         self.live_every_steps = max(1, _env_int("PHASE_DEBUG_EVERY_STEPS", 5))
         self.retarget_frames = max(1, _env_int("PHASE_DEBUG_RETARGET_FRAMES", 10))
         self.bounce_frames = max(1, _env_int("PHASE_DEBUG_BOUNCE_FRAMES", 5))
+        # Min height gain (m) above the orange's initial height to consider a lift "started".
+        self.lift_start_height_threshold = _env_float("PHASE_LIFT_START_HEIGHT_M", 0.02)
+        # Consecutive frames above that threshold (gripper closed) before the lift is considered started.
+        self.lift_start_frames = max(1, _env_int("PHASE_LIFT_START_FRAMES", 3))
         self.reset()
 
     def reset(self):
@@ -55,6 +66,8 @@ class PhaseMonitor:
 
         self.grasp_streak = 0
         self.lift_streak = 0
+        self.lift_start_streak = 0
+        self.lift_started = False
         self.place_stability = {}
         self.inferred_grasp_target = None
         self.pending_grasp_target = None
@@ -165,13 +178,18 @@ class PhaseMonitor:
         else:
             self.grasp_streak = 0
 
+        cand_pos = orange_positions[candidate["name"]]
+        cand_held, cand_held_dist = self.tracker._is_orange_held(cand_pos)
+        cand_initial_z = self.initial_orange_z.get(candidate["name"], cand_pos[2].item())
+        cand_height_gain = cand_pos[2].item() - cand_initial_z
         self._live(
             episode,
             step_count,
             "GRASP?",
             f"inferred={self.inferred_grasp_target} nearest={candidate['name']} "
             f"center={candidate['center_dist']:.3f}m gap={candidate['gap']:.3f}m "
-            f"force={candidate['min_force']:.1f}N",
+            f"force={candidate['min_force']:.1f}N held={'yes' if cand_held else 'no'} "
+            f"height_gain={cand_height_gain:.3f}m",
         )
 
         if self.grasp_streak >= self.tracker.patience_frames:
@@ -179,6 +197,8 @@ class PhaseMonitor:
             self.active_orange = actual
             self.current_phase = "LIFTING"
             self.lift_streak = 0
+            self.lift_start_streak = 0
+            self.lift_started = False
             self._finish_attempt(
                 step_count,
                 result="success",
@@ -193,7 +213,51 @@ class PhaseMonitor:
                 actual_orange=actual,
                 metrics=self._grasp_metrics(candidate),
             )
-            self._start_attempt(step_count, "LIFT", actual, metrics={"height_gain_m": 0.0})
+            return
+
+        # Height-based fallback: the force-based grasp confirmation above is strict
+        # and often never fires for flat policies, leaving us stuck in SEARCHING while
+        # the orange is visibly lifted. If a held orange (tip within ORANGE_HELD_MAX_DIST)
+        # has risen above its initial center-of-mass height for lift_start_frames frames,
+        # infer the grasp succeeded and that the lift has begun. Height + held only —
+        # no contact-force or gripper-closure gating.
+        lifted = self._held_lifted_candidate(orange_positions)
+        self.lift_start_streak = self.lift_start_streak + 1 if lifted else 0
+        if lifted is not None and self.lift_start_streak >= self.lift_start_frames:
+            actual, height_gain, held_dist = lifted
+            self.active_orange = actual
+            self.current_phase = "LIFTING"
+            self.lift_streak = 0
+            self.lift_started = True
+            metrics = {
+                "height_gain_m": round(float(height_gain), 5),
+                "tip_distance_m": round(float(held_dist), 5),
+                "inferred_from_lift": True,
+            }
+            self._finish_attempt(step_count, result="success", actual_orange=actual, metrics=metrics)
+            self._event(episode, step_count, "GRASP", "grasp_success", actual_orange=actual, metrics=metrics)
+            # _start_attempt already records the "lift_started" event; just surface it on the terminal.
+            self._start_attempt(step_count, "LIFT", actual, metrics={"height_gain_m": round(float(height_gain), 5)})
+            self._print_event(episode, step_count, "LIFT", f"lift_started target={actual} height_gain={height_gain:.3f}m")
+
+    def _held_lifted_candidate(self, orange_positions):
+        """Return (name, height_gain, tip_distance) for the held unplaced orange that has
+        risen above lift_start_height_threshold, or None. Height uses the orange center of
+        mass (rotation-invariant); 'held' uses tip proximity, not gripper closure."""
+        best = None
+        for name, opos in orange_positions.items():
+            if name in self.placed_oranges:
+                continue
+            held, held_dist = self.tracker._is_orange_held(opos)
+            if not held:
+                continue
+            initial_z = self.initial_orange_z.get(name, opos[2].item())
+            height_gain = opos[2].item() - initial_z
+            if height_gain <= self.lift_start_height_threshold:
+                continue
+            if best is None or held_dist < best[2]:
+                best = (name, height_gain, held_dist)
+        return best
 
     def _update_lift(self, episode, step_count, gripper_pos, orange_positions):
         name = self.active_orange
@@ -215,61 +279,50 @@ class PhaseMonitor:
         }
 
         if not held:
-            self._fail_active_and_reset(episode, step_count, "LIFT", "dropped_during_lift", name, metrics)
+            # The orange left the gripper. If it is resting in the plate, this is not a
+            # dropped lift — the lift is complete and we are now placing. Record the lift as
+            # a success and hand off to PLACING so the place gets confirmed normally.
+            # (Lift and place happen almost together here; we keep them as two attempts.)
+            place_metrics = self._observe_place_metrics(name, opos, self.last_plate_pos, gripper_pos)
+            if place_metrics["in_plate"]:
+                if not self.lift_started:
+                    # Lift was never separately observed (fast pick-and-place); open one now
+                    # so the trace still reads grasp -> lift -> place.
+                    self.lift_started = True
+                    self._start_attempt(step_count, "LIFT", name, metrics={"height_gain_m": round(float(height_gain), 5)})
+                self.current_phase = "PLACING"
+                self.place_stability.pop(name, None)
+                self._finish_attempt(step_count, result="success", actual_orange=name, metrics=metrics)
+                self._event(episode, step_count, "LIFT", "lift_success", actual_orange=name, metrics=metrics)
+                self._start_attempt(step_count, "PLACE", name, metrics=metrics)
+                return
+            if self.lift_started:
+                self._fail_active_and_reset(episode, step_count, "LIFT", "dropped_during_lift", name, metrics)
+            else:
+                self._fail_active_and_reset(episode, step_count, "GRASP", "dropped_after_grasp", name, metrics)
             return
 
-        place_metrics = self._observe_place_metrics(name, opos, self.last_plate_pos, gripper_pos)
-        if self._place_confirmed(place_metrics):
-            self.placed_oranges.add(name)
-            self.placed_outside_streak.pop(name, None)
-            self._finish_attempt(
-                step_count,
-                result="skipped",
-                actual_orange=name,
-                failure_reason="inferred_place_without_lift",
-                metrics={**metrics, "place_confirmed_before_lift": True},
-            )
-            self._event(
-                episode,
-                step_count,
-                "LIFT",
-                "lift_skipped",
-                actual_orange=name,
-                outcome="skipped",
-                reason="inferred_place_without_lift",
-                metrics={**metrics, "place_confirmed_before_lift": True},
-            )
-            self._start_attempt(
-                step_count,
-                "PLACE",
-                name,
-                metrics={"inferred_place_without_lift": True},
-            )
-            self._finish_attempt(
-                step_count,
-                result="success",
-                actual_orange=name,
-                metrics={**place_metrics, "placed_count": len(self.placed_oranges), "inferred_place_without_lift": True},
-            )
-            self._event(
-                episode,
-                step_count,
-                "PLACE",
-                "place_success",
-                actual_orange=name,
-                metrics={**place_metrics, "placed_count": len(self.placed_oranges), "inferred_place_without_lift": True},
-            )
-            self._reset_to_search()
-            return
+        # Lift detection is height-only (orange center of mass above its initial height);
+        # 'held' is already guaranteed above. No gripper-closure gating — a grasped orange
+        # props the jaws open, so the gripper joint often does not read as "closed".
+        if not self.lift_started:
+            self.lift_start_streak = self.lift_start_streak + 1 if height_gain > self.lift_start_height_threshold else 0
+            if self.lift_start_streak >= self.lift_start_frames:
+                self.lift_started = True
+                start_metrics = {"height_gain_m": round(float(height_gain), 5)}
+                # _start_attempt already records the "lift_started" event; just surface it on the terminal.
+                self._start_attempt(step_count, "LIFT", name, metrics=start_metrics)
+                self._print_event(episode, step_count, "LIFT", f"lift_started target={name} height_gain={height_gain:.3f}m")
 
-        lifted = gripper_closed and height_gain > self.tracker.lift_height_threshold
+        lifted = height_gain > self.tracker.lift_height_threshold
         self.lift_streak = self.lift_streak + 1 if lifted else 0
         grip = "closed" if gripper_closed else "open"
+        started = "yes" if self.lift_started else "no"
         self._live(
             episode,
             step_count,
             "LIFTING",
-            f"target={name} height_gain={height_gain:.3f}m held=yes "
+            f"target={name} height_gain={height_gain:.3f}m held=yes started={started} "
             f"tip_dist={held_dist:.3f}m gripper={grip}",
         )
 
@@ -642,10 +695,15 @@ class PhaseMonitor:
         }
 
     def _place_confirmed(self, metrics):
+        # Success = the orange is resting in the plate and is no longer held by the gripper.
+        # We intentionally do NOT require the gripper tip to rise to a given height above the
+        # plate: the tip often stays low after release, which previously kept us stuck in
+        # PLACING forever. 'not held' (tip beyond ORANGE_HELD_MAX_DIST) already means the
+        # gripper has let go and moved away. Stability is kept only as a brief debounce.
         return (
-            metrics["stable_frames"] >= self.tracker.stability_frames
-            and metrics["gripper_open"]
-            and metrics["gripper_z_above_plate_m"] >= self.tracker.PLACE_GRIPPER_Z_MIN
+            metrics["in_plate"]
+            and not metrics["held"]
+            and metrics["stable_frames"] >= self.tracker.stability_frames
         )
 
     def _reset_to_search(self):
@@ -656,6 +714,8 @@ class PhaseMonitor:
         self.pending_grasp_streak = 0
         self.grasp_streak = 0
         self.lift_streak = 0
+        self.lift_start_streak = 0
+        self.lift_started = False
         self.place_stability = {}
         self.opportunistic_place_stability = {}
 

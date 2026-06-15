@@ -1115,7 +1115,7 @@ class SubtaskTracker:
 
     DEBUG_DRAW            = False  # set to True to visualize the grip axis in the Isaac Sim viewport
     DEBUG_DRAW_PLATE_BOUNDS = True   # DEBUG: draw the plate occupancy cylinder — turn OFF for real eval
-    ORANGE_HELD_MAX_DIST  = 0.06   # max tip-to-orange distance (m) to consider orange still held
+    ORANGE_HELD_MAX_DIST  = 0.08   # max tip-to-orange distance (m) to consider orange still held
     PLACE_GRIPPER_Z_MIN   = 0.04   # gripper tip must be at or above this env-relative Z to confirm place
     GRASP_APPROACH_DIST   = 0.10   # tip-to-orange distance (m) beyond which only V_approach contributes
 

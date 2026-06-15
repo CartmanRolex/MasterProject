@@ -1,16 +1,16 @@
 
 ========================================
-ACT EVALUATION SUMMARY (stopped after 81/100 runs)
+ACT EVALUATION COMPLETE
 Model ID:             MasterProject2026/ACT-pick-orange
 Result name:          ACT-pick-orange-chunk100
 Execute chunk:        100
 Seed set:             pick_orange_reference_100_v1 (812885552604b60060a608a6139d78d0e589635470dd435a22e1e6811df52e96)
-Success Rate:         9/81 (11.11%)
-Avg oranges in plate: 0.58/3
+Success Rate:         9/100 (9.00%)
+Avg oranges in plate: 0.52/3
 Mean steps (success): 1862.7
-3/3 oranges:          9/81 (11.1%)
-2/3 oranges:          6/81 (7.4%)
-1/3 oranges:          8/81 (9.9%)
-0/3 oranges:          58/81 (71.6%)
-Per-episode oranges:  [0, 0, 0, 0, 0, 1, 3, 3, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 2, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 2, 3, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 2, 0, 0, 2, 0, 0, 3, 2, 1, 0, 1, 3, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 3]
+3/3 oranges:          9/100 (9.0%)
+2/3 oranges:          8/100 (8.0%)
+1/3 oranges:          9/100 (9.0%)
+0/3 oranges:          74/100 (74.0%)
+Per-episode oranges:  [0, 0, 0, 0, 0, 1, 3, 3, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 2, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 2, 3, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 2, 0, 0, 2, 0, 0, 3, 2, 1, 0, 1, 3, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 3, 2, 0, 0, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0]
 ========================================
