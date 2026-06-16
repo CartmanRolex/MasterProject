@@ -62,12 +62,14 @@ One caveat frames the comparison: the monotask traces are observer-inferred from
 \subsection{Placing Failures}
 \label{sec:place}
 
-Placing the lifted orange into the plate is the last subtask and a significant failure point. A \textbf{place} succeeds when the orange comes to rest inside the plate and is released; it fails either by a \textbf{drop} (the orange leaves the gripper outside the plate) or, for the orchestrated runs, by a \textbf{timeout} (the PLACE subtask exhausts its step budget without completing). The \textbf{place success rate} (\Cref{tab:place_success}) treats both as failures, excluding only attempts cut short when the episode ends or the plate is knocked over. We also split it by \textbf{scene state} --- how many oranges are already in the plate when the place begins (logged by the orchestrator, and reconstructed from the placement events in the trace for the monotask runs).
+Placing the lifted orange into the plate is the final subtask. A \textbf{place} succeeds when the orange comes to rest inside the plate; it fails by a \textbf{drop} (the orange leaves the gripper outside the plate). One subtlety affects how the orchestrated runs record this: a place is only \emph{confirmed} once the orange is in the plate \emph{and} the gripper has opened and retracted clear of it --- a criterion added to curate clean hand-off poses for the next subtask. An orange left resting in the plate with the gripper still low is therefore never confirmed, and once its step budget expires the attempt is logged as a timeout, even though the orange is placed. We correct for this by counting a place as successful whenever the orange ends up in the plate, detected from the orchestrator's own behaviour: a failed place whose orange is never re-engaged was placed and dropped from the target pool. This recovered placed-set matches the trustworthy geometric in-plate count in the large majority of episodes (86--92 of 100).
+
+The \textbf{place success rate} (\Cref{tab:place_success}) uses this corrected count for the orchestrated runs; the monotask confirmation has no gripper-retraction gate and no per-subtask budget, so its rates are unaffected. We also split by \textbf{scene state} --- how many oranges are already in the plate when the place begins (reconstructed from placement events for the monotask runs).
 
 \begin{table}[H]
     \centering
     \small
-    \caption{Place success rate by training set and formulation: successes over genuine PLACE attempts (drops and, for the orchestrated runs, timeouts count as failures; episode-end and plate-flip truncations excluded). The right block splits the rate by the number of oranges already in the plate when the place began; for the monotask runs this count is reconstructed from placement events. The 2-placed (third orange) cells rest on few attempts.}
+    \caption{Place success rate by training set and formulation. For the orchestrated subtask runs a place counts as successful whenever the orange ends up in the plate, correcting the recorded confirmation that also requires the gripper to open and retract clear of the plate (which otherwise logs many placed oranges as timeouts); the monotask confirmation has no such gate. Genuine drops count against the rate; episode-end and plate-flip truncations are excluded. The right block splits by oranges already in the plate when the place began (reconstructed from placement events for the monotask runs); the 2-placed (third orange) cells rest on few attempts.}
     \label{tab:place_success}
     \begin{tabular}{llcccc}
         \toprule
@@ -76,17 +78,17 @@ Placing the lifted orange into the plate is the last subtask and a significant f
         Training set & Formulation & Place success & 0 placed & 1 placed & 2 placed \\
         \midrule
         Teleop      & Monotask & 80.5\% (99/123)  & 86.7\% (65/75) & 78.6\% (33/42)& 16.7\% (1/6)  \\
-        Teleop      & Subtask  & 69.4\% (150/216) & 70.3\% (78/111)& 69.6\% (48/69)& 66.7\% (24/36)\\
+        Teleop      & Subtask  & 86.1\% (186/216) & 88.3\% (98/111)& 85.5\% (59/69)& 80.6\% (29/36)\\
         \midrule
         Teleop+Auto & Monotask & 79.5\% (116/146) & 83.3\% (70/84) & 90.2\% (46/51)& 0.0\% (0/11)  \\
-        Teleop+Auto & Subtask  & 60.3\% (117/194) & 52.9\% (64/121)& 73.7\% (42/57)& 68.8\% (11/16)\\
+        Teleop+Auto & Subtask  & 83.0\% (161/194) & 80.2\% (97/121)& 87.7\% (50/57)& 87.5\% (14/16)\\
         \bottomrule
     \end{tabular}
 \end{table}
 
-\paragraph{Drops are comparable; the orchestrated runs add timeouts.} Outright drops at placement occur at a similar rate across all four models --- roughly one orange in five. The orchestrated subtask policies, however, also fail by timing out, their per-subtask budget expiring before the orange is released --- a mode the monotask formulation cannot register, as it runs end-to-end with no subtask budget. \textbf{This timeout mode accounts for the apparent gap between the formulations}, and is most pronounced for Teleop+Auto, where it makes placing the least reliable subtask.
+\paragraph{Placing is reliable, and comparable across formulations.} Once the confirmation artefact is corrected, \textbf{all four models place the orange roughly four times in five.} The large subtask deficit suggested by the raw confirmation flag was not extra dropping but unretracted-gripper timeouts on oranges that were in fact placed; genuine drops are comparable across formulations.
 
-\paragraph{The monotask policies collapse on the third orange.} The scene-state split exposes a sharp asymmetry. The orchestrated policies place at a roughly steady rate regardless of how full the plate is, whereas the monotask policies place the first two oranges well but almost never manage the third (\Cref{tab:place_success}, 2-placed column) --- albeit on few attempts, since most monotask episodes never reach a third placement at all. \textbf{Decomposition keeps the placing skill intact as the plate fills, while the end-to-end policy degrades.}
+\paragraph{The monotask policies collapse on the third orange.} The scene-state split still exposes one sharp asymmetry. The orchestrated policies place at a steady rate however full the plate is, whereas the monotask policies place the first two oranges well but almost never manage the third (\Cref{tab:place_success}, 2-placed column) --- on few attempts, since most monotask episodes never reach a third placement at all. \textbf{Decomposition keeps the placing skill intact as the plate fills, while the end-to-end policy degrades.}
 
 \subsection{Target Obedience in the Subtask Policies}
 \label{sec:obedience}
