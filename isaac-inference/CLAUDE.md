@@ -144,6 +144,22 @@ and per-episode story fields (`episode_summary`, `initial_scene`,
 `final_scene`, `timeline`, `subtask_attempts`) so each run can be
 reconstructed without console logs.
 
+**Geometric outcome capture (schema: `EpisodeStory` v2, `PhaseMonitor` v3).**
+Subtask attempts now carry `scene_start`/`scene_end` snapshots
+(`scene_geometry()` in `eval_utils.py`: per-orange `in_plate`/position +
+`n_in_plate`, tilt-aware and consistent with `oranges_in_plate`) and a derived
+`target_in_plate_end`. This lets failures and timeouts be read directly from
+"is the orange in the plate" for **both** monotask and subtask runs, replacing
+brittle post-processing (the place gripper-retraction confirmation no longer
+hides placements; placed-orange identities are explicit; no event/heuristic
+reconstruction). Monotask has no subtask timeout (no per-subtask budget).
+`final_scene` is now built from the same pre-reset snapshot used for the count
+(fixing a bug where truncated episodes recorded post-auto-reset positions). These
+are logging-only changes — control flow is unchanged, so a seeded rerun
+reproduces identical trajectories with the richer fields. See
+`EVAL_LOGGING_REWRITE.md`. **The current committed checkpoints predate this and
+must be re-run to populate the new fields.**
+
 ## Gitignored paths
 - `${data}/` — Isaac Sim NvStreamer `.etli` streaming logs (auto-generated)
 - `teleop-datasets/` — 236 GB HDF5 teleoperation datasets

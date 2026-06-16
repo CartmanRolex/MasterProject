@@ -577,6 +577,41 @@ def count_oranges_in_plate(positions,
     return count
 
 
+def scene_geometry(positions,
+                   orange_names=("Orange001", "Orange002", "Orange003")):
+    """Authoritative geometric scene snapshot from a save_positions() dict.
+
+    Records, per orange, whether its COM is inside the (possibly tilted) plate and
+    its position, plus the in-plate count. Consistent with count_oranges_in_plate
+    by construction (same tilt-aware test; an upside-down plate counts nothing),
+    so the recorded scene always agrees with the episode's oranges_in_plate. This
+    is the clean signal for deciding subtask failures/timeouts: a place or lift
+    failed iff the target orange is not in the plate.
+    """
+    plate = positions.get("plate")
+    quat = positions.get("plate_quat")
+    upside = is_plate_upside_down(positions)
+    oranges = {}
+    n_in_plate = 0
+    for name in orange_names:
+        if name not in positions:
+            continue
+        in_plate = (not upside) and is_orange_position_in_plate(
+            plate, positions[name], plate_quat=quat
+        )
+        oranges[name] = {
+            "in_plate": bool(in_plate),
+            "position": _serializable_vec(positions[name], 5),
+        }
+        n_in_plate += int(in_plate)
+    return {
+        "plate_position": _serializable_vec(plate, 5) if plate is not None else None,
+        "plate_upside_down": bool(upside),
+        "n_in_plate": int(n_in_plate),
+        "oranges": oranges,
+    }
+
+
 # ============================================================
 # Evaluation Tracker
 # ============================================================
@@ -584,7 +619,9 @@ def count_oranges_in_plate(positions,
 class EpisodeStory:
     """Compact structured trace of one orchestrated evaluation episode."""
 
-    SCHEMA_VERSION = 1
+    # v2: per-attempt scene_start/scene_end geometry + target_in_plate_end, and a
+    # geometry-anchored final_scene (positions/in_plate consistent with the count).
+    SCHEMA_VERSION = 2
 
     def __init__(self, episode, model_id):
         self.episode = int(episode)
@@ -594,6 +631,7 @@ class EpisodeStory:
         self.timeline = []
         self.subtask_attempts = []
         self._active_attempt = None
+        self._scene_now = None        # latest geometric snapshot (scene_geometry dict)
         self._attempt_id = 0
 
     @staticmethod
@@ -614,10 +652,11 @@ class EpisodeStory:
 
     @classmethod
     def _scene(cls, plate_pos, orange_positions, labels=None,
-               placed_oranges=None, abandoned_oranges=None):
+               placed_oranges=None, abandoned_oranges=None, in_plate_map=None):
         labels = labels or {}
         placed_oranges = set(placed_oranges or ())
         abandoned_oranges = set(abandoned_oranges or ())
+        in_plate_map = in_plate_map or {}
         oranges = {}
         for name, pos in sorted(orange_positions.items()):
             if name in placed_oranges:
@@ -628,11 +667,14 @@ class EpisodeStory:
                 status = "unplaced"
             else:
                 status = "unknown"
-            oranges[name] = {
+            entry = {
                 "label": labels.get(name),
                 "position": cls._vec(pos),
                 "status": status,
             }
+            if name in in_plate_map:
+                entry["in_plate"] = bool(in_plate_map[name])
+            oranges[name] = entry
         return {
             "plate_position": cls._vec(plate_pos) if plate_pos is not None else None,
             "oranges": oranges,
@@ -642,6 +684,10 @@ class EpisodeStory:
         labels = classify_orange_positions(orange_positions)
         self.initial_scene = self._scene(plate_pos, orange_positions, labels)
         self.add_event(step, "episode_started", phase="SELECT_TARGET")
+
+    def note_scene(self, scene):
+        """Stash the latest geometric snapshot; attempts attach it at start/end."""
+        self._scene_now = scene
 
     def add_event(self, step, event_type, phase=None, requested_orange=None,
                   requested_label=None, actual_orange=None, outcome=None,
@@ -683,6 +729,9 @@ class EpisodeStory:
             "target_match": None,
             "result": None,
             "failure_reason": None,
+            "scene_start": self._scene_now,
+            "scene_end": None,
+            "target_in_plate_end": None,
         }
         self.add_event(
             step,
@@ -710,6 +759,14 @@ class EpisodeStory:
         attempt["duration_steps"] = int(step) - attempt["start_step"]
         attempt["result"] = result
         attempt["failure_reason"] = failure_reason
+        attempt["scene_end"] = self._scene_now
+        # Geometry-anchored outcome: was the attempt's orange actually in the plate
+        # at the end? Lets analysis decide success/failure/timeout from physics,
+        # independent of the gripper-retraction confirmation gate.
+        target = attempt["actual_orange"] or attempt["requested_orange"]
+        end_oranges = (self._scene_now or {}).get("oranges", {})
+        if target in end_oranges:
+            attempt["target_in_plate_end"] = bool(end_oranges[target]["in_plate"])
         self.subtask_attempts.append(attempt)
         self._active_attempt = None
 
@@ -719,7 +776,7 @@ class EpisodeStory:
 
     def build_record(self, step_count, oranges_in_plate, end_reason, is_success,
                      plate_pos, orange_positions, placed_oranges,
-                     abandoned_oranges):
+                     abandoned_oranges, in_plate_map=None):
         self.finish_active_as_episode_ended(step_count, end_reason)
         initial_labels = {}
         if self.initial_scene:
@@ -733,6 +790,7 @@ class EpisodeStory:
             labels=initial_labels,
             placed_oranges=placed_oranges,
             abandoned_oranges=abandoned_oranges,
+            in_plate_map=in_plate_map,
         )
         self.add_event(
             step_count,

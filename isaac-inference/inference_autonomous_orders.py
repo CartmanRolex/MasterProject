@@ -29,6 +29,7 @@ from eval_utils import (
     perturb_plate_debug,
     refresh_observation_after_reset,
     save_positions,
+    scene_geometry,
     seed_metadata_for_episode,
 )
 from dataset_recorder import SubtaskRecorder, SYNTHETIC_DATASETS_DIR, merge_staging_into
@@ -200,17 +201,19 @@ def spatial_reset_shoulder_lift_pose(start_joint, home_joint, progress):
 
 
 def finish_story_episode(story, step_count, oranges_in_plate, end_reason,
-                         is_success, plate_pos, orange_positions,
-                         sub_tracker, controller):
+                         is_success, final_positions, orange_names):
     if story is None:
         return None
-    # Build the recorded placed_oranges purely from the final geometric snapshot so
-    # it agrees with oranges_in_plate. Real-time placed_oranges credit is intentionally
-    # not seeded here — an orange that bounced out must not be recorded as placed.
-    placed_oranges = set()
-    for name, pos in orange_positions.items():
-        if sub_tracker._is_orange_in_plate(pos):
-            placed_oranges.add(name)
+    # Build the final scene from the SAME snapshot used for oranges_in_plate.
+    # final_positions is the pre-reset save_positions() dict; the live post-step
+    # positions are the auto-reset state on truncation and must not be used here.
+    # placed_oranges and per-orange in_plate come straight from that geometry, so
+    # the recorded scene always agrees with the count (and bounce-outs are excluded).
+    geo = scene_geometry(final_positions, orange_names)
+    placed_oranges = {n for n, o in geo["oranges"].items() if o["in_plate"]}
+    in_plate_map = {n: o["in_plate"] for n, o in geo["oranges"].items()}
+    plate_pos = final_positions.get("plate")
+    orange_positions = {n: final_positions[n] for n in orange_names if n in final_positions}
     return story.build_record(
         step_count=step_count,
         oranges_in_plate=oranges_in_plate,
@@ -220,6 +223,7 @@ def finish_story_episode(story, step_count, oranges_in_plate, end_reason,
         orange_positions=orange_positions,
         placed_oranges=placed_oranges,
         abandoned_oranges=set(),
+        in_plate_map=in_plate_map,
     )
 
 
@@ -701,12 +705,9 @@ try:
                     recorder.discard()
                 if not _fs_active:
                     oranges_in_plate = orchestrated_oranges_in_plate(last_positions, sub_tracker)
-                    plate_pos, orange_positions_for_story = fallback_scene(
-                        last_plate_pos, last_orange_positions, last_positions, controller.orange_names
-                    )
                     story_record = finish_story_episode(
                         episode_story, step_count, oranges_in_plate, "manual_stop", False,
-                        plate_pos, orange_positions_for_story, sub_tracker, controller
+                        last_positions, controller.orange_names
                     )
                     tracker.end_episode(run_idx, step_count, False, oranges_in_plate,
                                         n_local_retries=controller.n_local_retries,
@@ -728,12 +729,9 @@ try:
                     recorder.discard()
                 if not _fs_active:
                     oranges_in_plate = orchestrated_oranges_in_plate(last_positions, sub_tracker)
-                    plate_pos, orange_positions_for_story = fallback_scene(
-                        last_plate_pos, last_orange_positions, last_positions, controller.orange_names
-                    )
                     story_record = finish_story_episode(
                         episode_story, step_count, oranges_in_plate, "manual_reset", False,
-                        plate_pos, orange_positions_for_story, sub_tracker, controller
+                        last_positions, controller.orange_names
                     )
                     tracker.end_episode(run_idx, step_count, False, oranges_in_plate,
                                         n_local_retries=controller.n_local_retries,
@@ -914,6 +912,11 @@ try:
 
             # --- Step ---
             last_positions = save_positions(env)
+            # Stash the pre-step geometry so subtask attempts finalised this step
+            # carry an in-plate snapshot. last_positions is never the auto-reset
+            # state (it is captured before env.step), so it is safe at episode end.
+            if episode_story:
+                episode_story.note_scene(scene_geometry(last_positions, controller.orange_names))
             perturb_plate_debug(env, step_count)   # no-op unless DEBUG_PERTURB_PLATE
             t_step_start = time.perf_counter()
             obs, reward, terminated, truncated, info = env.step(step_action[0].unsqueeze(0))
@@ -1296,7 +1299,7 @@ try:
                         end_reason = "episode_finished"
                     story_record = finish_story_episode(
                         episode_story, step_count, oranges_in_plate, end_reason, story_success,
-                        plate_pos, orange_positions, sub_tracker, controller
+                        final_positions, controller.orange_names
                     )
                     tracker.end_episode(run_idx, step_count, is_terminated, oranges_in_plate,
                                         n_local_retries=controller.n_local_retries,

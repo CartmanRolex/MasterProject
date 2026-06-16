@@ -4,7 +4,7 @@ import sys
 import numpy as np
 import torch
 
-from eval_utils import SubtaskTracker, classify_orange_positions, is_plate_upside_down, plate_position_metrics
+from eval_utils import SubtaskTracker, classify_orange_positions, is_plate_upside_down, plate_position_metrics, scene_geometry
 
 
 def _env_flag(name, default=False):
@@ -37,7 +37,9 @@ class PhaseMonitor:
     """
 
     TRACE_SOURCE = "flat_observed_physics"
-    SCHEMA_VERSION = 2
+    # v3: per-attempt scene_start/scene_end geometry + target_in_plate_end, and
+    # per-orange in_plate on the final scene.
+    SCHEMA_VERSION = 3
 
     def __init__(self, model_id=None):
         self.model_id = model_id
@@ -79,6 +81,7 @@ class PhaseMonitor:
         self._active_attempt = None
         self._attempt_id = 0
         self._live_active = False
+        self._scene_now = None        # latest geometric snapshot (scene_geometry dict)
 
     def warm_up(self, env):
         _, _, _, _, _, plate_pos, orange_positions = self.tracker._get_env_data(env)
@@ -97,6 +100,10 @@ class PhaseMonitor:
         gripper_tip, jaw_tip, gripper_pos, gf, jf, plate_pos, orange_positions = t._get_env_data(env)
         self.last_plate_pos = plate_pos
         self.last_orange_positions = {name: pos.clone() for name, pos in orange_positions.items()}
+        # Geometric snapshot attached to any attempt opened/closed this step.
+        self._scene_now = scene_geometry(
+            {"plate": plate_pos, "plate_quat": t._plate_quat, **orange_positions}
+        )
 
         self._check_placed_bounce(episode, step_count, plate_pos, orange_positions)
         if self.current_phase == "SEARCHING":
@@ -122,6 +129,10 @@ class PhaseMonitor:
         is_success,
         final_positions=None,
     ):
+        # Anchor the episode-end attempt's scene_end to the true final geometry
+        # (the live update() snapshot on a truncating step is the auto-reset state).
+        if final_positions is not None:
+            self._scene_now = scene_geometry(final_positions)
         self._finish_active_for_episode_end(step_count, end_reason)
         final_scene = self._final_scene(final_positions)
         self._add_event(
@@ -518,6 +529,9 @@ class PhaseMonitor:
             "result": None,
             "failure_reason": None,
             "metrics": metrics or {},
+            "scene_start": self._scene_now,
+            "scene_end": None,
+            "target_in_plate_end": None,
         }
         self._add_event(
             step,
@@ -542,6 +556,11 @@ class PhaseMonitor:
         attempt["failure_reason"] = failure_reason
         if metrics:
             attempt["metrics"] = {**attempt.get("metrics", {}), **metrics}
+        attempt["scene_end"] = self._scene_now
+        target = attempt["actual_orange"] or attempt["inferred_target_orange"]
+        end_oranges = (self._scene_now or {}).get("oranges", {})
+        if target in end_oranges:
+            attempt["target_in_plate_end"] = bool(end_oranges[target]["in_plate"])
         self.subtask_attempts.append(attempt)
         self._active_attempt = None
 
@@ -747,6 +766,7 @@ class PhaseMonitor:
                 "label": self._label(name),
                 "position": self._vec(pos),
                 "status": "placed" if name in placed_oranges else "unplaced" if mark_unplaced else "unknown",
+                "in_plate": name in placed_oranges,
             }
         return {
             "plate_position": self._vec(plate_pos) if plate_pos is not None else None,
