@@ -1,34 +1,18 @@
-"""Place-success rate for the orchestrated (subtask) models, anchored to the
-geometric oranges_in_plate count.
+"""Place success rate for all four models, read directly from the geometric
+per-attempt fields recorded by the eval (schema EpisodeStory v2 / PhaseMonitor v3).
 
 Reads the git-tracked eval checkpoints under ``isaac-inference/results``.
 
-Why this is needed. A PLACE is only *confirmed* when the orange is in the plate
-AND the gripper has opened AND its tip has retracted >= PLACE_GRIPPER_Z_MIN above
-the plate (eval_utils ``_check_place``). That gripper-retraction gate curates
-clean hand-off poses; it means an orange resting in the plate with the gripper
-still low is never confirmed and, after its 500-step budget, is logged as a
-``timeout`` failure despite being placed. The raw success flag therefore
-undercounts placements.
+Each subtask attempt now carries ``target_in_plate_end`` -- whether the attempt's
+orange was geometrically in the plate at the attempt's end -- and ``scene_start``
+with ``n_in_plate`` (oranges already placed when the attempt began). So place
+success is a direct per-attempt read, uniform for monotask and subtask, with no
+anchoring to oranges_in_plate, no "not re-engaged" heuristic, and no event
+reconstruction. (This replaces the brittle post-processing that the old
+gripper-retraction confirmation flag forced; see isaac-inference/EVAL_LOGGING_REWRITE.md.)
 
-We anchor to the trustworthy geometric final count instead: exactly
-``oranges_in_plate`` placements truly succeeded, so
-
-    place success rate = sum(oranges_in_plate) / sum(genuine place attempts),
-
-where a genuine place attempt is any PLACE attempt that ran to its own terminal
-outcome -- a confirmed success, a drop, or a *subtask* timeout. Full-episode
-truncations (env_truncated / episode_ended / plate_flipped) are excluded.
-No per-attempt attribution or identity guessing is involved, so the "place that
-ran out only because the whole episode ended" edge case cannot inflate the rate.
-
-Genuine failures decompose exactly: every drop is a failed attempt, so
-    timeout failures = (attempts - placed) - drops,   placed-via-timeout = timeouts - timeout failures
-the last being the gripper-not-retracted artifact.
-
-This is meaningful only for the orchestrated runs, which log an authoritative
-PLACE subtask. The monotask placements are observer-inferred with no discrete
-place attempt, so a place-subtask rate is not well-defined there.
+A place attempt counts when ``target_in_plate_end`` is known and the attempt was
+not interrupted by a new attempt; success = the orange ended in the plate.
 
 Pure stdlib.  python compute_place_success.py
 """
@@ -36,41 +20,51 @@ Pure stdlib.  python compute_place_success.py
 from __future__ import annotations
 
 import json
+from collections import defaultdict
 from pathlib import Path
 
 RESULTS = Path(__file__).resolve().parents[2] / "isaac-inference" / "results"
 MODELS = [
-    ("Teleop",      "Gal-pick-orange-tailedCH20", "checkpoint.json"),
-    ("Teleop+Auto", "Gal-merged-tailed-auto",     "checkpoint.json"),
+    ("Teleop",      "monotask", "Gal_split_nolang",                       "flat_checkpoint.json"),
+    ("Teleop",      "subtask",  "Gal-pick-orange-tailedCH20",             "checkpoint.json"),
+    ("Teleop+Auto", "monotask", "Gal-merged-tailed-auto-no-lang-no-home", "flat_checkpoint.json"),
+    ("Teleop+Auto", "subtask",  "Gal-merged-tailed-auto",                 "checkpoint.json"),
 ]
-BOOK = {"episode_ended", "plate_flipped", "env_truncated", "interrupted_by_new_attempt"}
 
 
-def analyse(ds, subdir, fname):
+def pct(a, b):
+    return f"{100 * a / b:.1f}% ({a}/{b})" if b else "n/a"
+
+
+def analyse(ds, form, subdir, fname):
     data = json.load(open(RESULTS / subdir / fname))
-    placed = attempts = drops = timeouts = recorded_success = 0
+    overall = [0, 0]
+    by_state = defaultdict(lambda: [0, 0])
+    consistency_mismatch = 0
     for e in data["episodes"]:
-        placed += e.get("oranges_in_plate", 0)
+        # sanity: recorded final scene must agree with the geometric count
+        fin = sum(1 for o in e["final_scene"]["oranges"].values() if o.get("in_plate"))
+        if fin != e.get("oranges_in_plate"):
+            consistency_mismatch += 1
         for a in e["subtask_attempts"]:
             if a.get("subtask") != "PLACE":
                 continue
-            r, fr = a.get("result"), a.get("failure_reason")
-            if r == "failure" and fr in BOOK:
+            if a.get("failure_reason") == "interrupted_by_new_attempt":
                 continue
-            attempts += 1
-            if r == "success":
-                recorded_success += 1
-            elif fr == "timeout":
-                timeouts += 1
-            else:
-                drops += 1
-    fail = attempts - placed
-    timeout_fail = fail - drops
-    placed_via_timeout = timeouts - timeout_fail
-    print(f"{ds:11s}  place success = {100*placed/attempts:.1f}%  ({placed}/{attempts})")
-    print(f"{'':11s}  genuine failures: {drops} drops + {timeout_fail} subtask-timeouts = {fail}")
-    print(f"{'':11s}  of {timeouts} raw timeouts, {placed_via_timeout} were placed (gripper not retracted); "
-          f"check {recorded_success}+{placed_via_timeout}={recorded_success+placed_via_timeout} vs placed {placed}")
+            placed = a.get("target_in_plate_end")
+            if placed is None:
+                continue
+            ns = (a.get("scene_start") or {}).get("n_in_plate")
+            overall[1] += 1
+            overall[0] += bool(placed)
+            by_state[ns][1] += 1
+            by_state[ns][0] += bool(placed)
+    states = "  ".join(
+        f"{k} placed {pct(*by_state[k])}"
+        for k in sorted(by_state, key=lambda x: (x is None, x))
+    )
+    print(f"{ds:11s} {form:9s} place success {pct(*overall):>16s}   | {states}"
+          f"   [final_scene/count mismatch {consistency_mismatch}/100]")
 
 
 if __name__ == "__main__":
