@@ -5,19 +5,19 @@ Model ID:             MasterProject2026/Gal-merged-tailed-auto
 Result name:          Gal-merged-tailed-auto
 Seed set:             pick_orange_reference_100_v1 (812885552604b60060a608a6139d78d0e589635470dd435a22e1e6811df52e96)
 Success Rate:         13/100 (13.00%)
-Avg oranges in plate: 1.47/3
-Mean steps (success): 3392.7
+Avg oranges in plate: 1.42/3
+Mean steps (success): 3456.2
 3/3 oranges:          13/100 (13.0%)
-2/3 oranges:          37/100 (37.0%)
-1/3 oranges:          34/100 (34.0%)
+2/3 oranges:          32/100 (32.0%)
+1/3 oranges:          39/100 (39.0%)
 0/3 oranges:          16/100 (16.0%)
-Per-episode oranges:  [1, 2, 0, 2, 1, 2, 2, 1, 1, 2, 3, 1, 2, 2, 2, 1, 1, 0, 2, 1, 3, 3, 2, 2, 2, 1, 1, 1, 2, 1, 3, 1, 1, 0, 1, 0, 2, 2, 1, 2, 1, 3, 3, 2, 1, 0, 1, 3, 1, 2, 2, 1, 1, 2, 1, 1, 2, 2, 3, 0, 2, 3, 0, 2, 1, 0, 2, 3, 1, 0, 3, 2, 2, 0, 1, 1, 2, 0, 1, 2, 2, 2, 2, 2, 1, 0, 2, 0, 1, 1, 2, 2, 0, 2, 3, 3, 0, 1, 1, 0]
+Per-episode oranges:  [3, 2, 0, 1, 2, 2, 2, 2, 1, 1, 2, 0, 2, 1, 3, 0, 2, 2, 3, 1, 1, 3, 1, 2, 2, 2, 0, 3, 2, 0, 1, 2, 2, 1, 3, 1, 0, 1, 1, 2, 2, 3, 2, 0, 1, 1, 0, 1, 2, 2, 0, 1, 1, 3, 1, 0, 1, 0, 2, 0, 1, 3, 2, 1, 3, 0, 1, 2, 2, 0, 3, 1, 1, 2, 1, 0, 1, 1, 3, 2, 2, 1, 1, 1, 1, 2, 2, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 3, 0, 2]
 Per-subtask success rates (by oranges in plate at subtask start):
-  GRASP:  0 placed: 145/283 ( 51.2%)   1 placed:  75/226 ( 33.2%)   2 placed:  23/117 ( 19.7%)
-  LIFT:   0 placed: 121/144 ( 84.0%)   1 placed:  57/75  ( 76.0%)   2 placed:  16/23  ( 69.6%)
-  PLACE:  0 placed:  60/117 ( 51.3%)   1 placed:  46/61  ( 75.4%)   2 placed:  11/16  ( 68.8%)
+  GRASP:  0 placed: 128/260 ( 49.2%)   1 placed:  75/242 ( 31.0%)   2 placed:  19/105 ( 18.1%)
+  LIFT:   0 placed: 105/127 ( 82.7%)   1 placed:  55/72  ( 76.4%)   2 placed:  14/18  ( 77.8%)
+  PLACE:  0 placed:  54/103 ( 52.4%)   1 placed:  41/56  ( 73.2%)   2 placed:  10/15  ( 66.7%)
 Mechanism usage (local retry = same orange after slip; redirection = new orange after timeout):
-  Local retries:      217 total, fired in 84/100 episodes
-  Target redirections:292 total, fired in 88/100 episodes
+  Local retries:      197 total, fired in 84/100 episodes
+  Target redirections:302 total, fired in 87/100 episodes
   Oranges abandoned:  0 total (0.00 avg/episode)
 ========================================
