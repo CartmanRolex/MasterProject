@@ -36,35 +36,54 @@ def pct(a, b):
     return f"{100 * a / b:.1f}% ({a}/{b})" if b else "n/a"
 
 
+def target_of(a):
+    return a.get("actual_orange") or a.get("requested_orange") or a.get("inferred_target_orange")
+
+
 def analyse(ds, form, subdir, fname):
     data = json.load(open(RESULTS / subdir / fname))
     overall = [0, 0]
     by_state = defaultdict(lambda: [0, 0])
     consistency_mismatch = 0
+    recov = [0, 0]   # oranges whose first place failed -> eventually placed
+    reeng = [0, 0]   # failed place -> next place on same orange
     for e in data["episodes"]:
         # sanity: recorded final scene must agree with the geometric count
         fin = sum(1 for o in e["final_scene"]["oranges"].values() if o.get("in_plate"))
         if fin != e.get("oranges_in_plate"):
             consistency_mismatch += 1
-        for a in e["subtask_attempts"]:
-            if a.get("subtask") != "PLACE":
-                continue
-            if a.get("failure_reason") == "interrupted_by_new_attempt":
-                continue
-            placed = a.get("target_in_plate_end")
-            if placed is None:
-                continue
+        placed_final = {n for n, o in e["final_scene"]["oranges"].items() if o.get("in_plate")}
+        places = [
+            a for a in sorted(e["subtask_attempts"], key=lambda a: a.get("start_step", 0))
+            if a.get("subtask") == "PLACE"
+            and a.get("failure_reason") != "interrupted_by_new_attempt"
+            and a.get("target_in_plate_end") is not None
+        ]
+        for a in places:
+            placed = bool(a.get("target_in_plate_end"))
             ns = (a.get("scene_start") or {}).get("n_in_plate")
-            overall[1] += 1
-            overall[0] += bool(placed)
-            by_state[ns][1] += 1
-            by_state[ns][0] += bool(placed)
+            overall[1] += 1; overall[0] += placed
+            by_state[ns][1] += 1; by_state[ns][0] += placed
+        per = defaultdict(list)
+        for a in places:
+            per[target_of(a)].append(bool(a.get("target_in_plate_end")))
+        for o, seq in per.items():
+            if seq and seq[0] is False:
+                recov[1] += 1
+                recov[0] += int(any(seq) or o in placed_final)
+        for i, a in enumerate(places):
+            if a.get("target_in_plate_end"):
+                continue
+            if i + 1 < len(places):
+                reeng[1] += 1
+                reeng[0] += int(target_of(places[i + 1]) == target_of(a))
     states = "  ".join(
         f"{k} placed {pct(*by_state[k])}"
         for k in sorted(by_state, key=lambda x: (x is None, x))
     )
     print(f"{ds:11s} {form:9s} place success {pct(*overall):>16s}   | {states}"
           f"   [final_scene/count mismatch {consistency_mismatch}/100]")
+    print(f"{'':21s} place recovered {pct(*recov):>15s}   re-engaged same {pct(*reeng)}")
 
 
 if __name__ == "__main__":
