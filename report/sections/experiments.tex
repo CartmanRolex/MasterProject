@@ -18,11 +18,11 @@ The current evaluations use the same reference seed set, \texttt{pick\_orange\_r
 
 \paragraph{Policy backbone.} \textbf{[Placeholder: interpretation of the ACT vs.\ SmolVLA baseline comparison to be finalised.]}
 
-\paragraph{Subtasking improves over monotasking.} On the same training trajectories, the orchestrated subtask formulation outperforms the monotask one on both metrics. The effect is clearest on Teleop, where decomposition roughly doubles full-task success (13\% to 29\%) and lifts mean occupancy from 0.92 to 1.80, indicating that explicit subtask checkpoints convert otherwise-stalled episodes into progress. On Teleop+Auto the advantage narrows and splits between the two metrics: the subtask model retains a slight edge in mean occupancy (1.47 vs.\ 1.42) but a lower full-task success rate (13\% vs.\ 26\%). Decomposition therefore reliably helps a policy make partial progress, but on the merged data it does not translate that progress into complete-task success --- the controller secures more oranges on average yet less often finishes all three.
+\paragraph{Decomposition helps partial progress, not full-task completion.} On the same training trajectories, the orchestrated subtask formulation's benefit is concentrated in partial progress rather than in finishing all three oranges. On Teleop it raises mean occupancy sharply (1.11 to 1.77) while leaving full-task success essentially flat (18\% to 20\%): explicit subtask checkpoints convert empty and one-orange episodes into two-orange ones, but rarely into all three. On Teleop+Auto the monotask model is in fact the stronger of the pair on both metrics (mean 1.50 vs.\ 1.42, full-task 26\% vs.\ 13\%). Decomposition therefore reliably secures more oranges on average on Teleop, but does not, on these runs, raise the rate of completing the whole task.
 
-\paragraph{Subtasking rarely fails completely.} The gap is most striking on the weakest outcome --- ending an episode with no orange placed at all. The orchestrated subtask models almost always place at least one orange (89\% of episodes on Teleop, 84\% on Teleop+Auto), whereas the monotask models leave a large fraction of episodes empty (only 50\% reach one orange on Teleop, 69\% on Teleop+Auto). A plausible explanation lies in the orchestrator's target redirection: a monotask policy that fixates on a single hard-to-grasp orange can burn the entire episode without ever placing one, while the controller detects a repeated GRASP timeout, abandons that orange, and redirects to another. The decomposed formulation thus rarely produces a total failure, even when it does not complete the full task.
+\paragraph{Subtasking rarely fails completely.} The clearest advantage is on the weakest outcome --- ending an episode with no orange placed at all. The orchestrated subtask models almost always place at least one orange (97\% of episodes on Teleop, 84\% on Teleop+Auto), whereas the monotask models leave far more episodes empty (only 57\% reach one orange on Teleop, 73\% on Teleop+Auto). A plausible explanation lies in the orchestrator's target redirection: a monotask policy that fixates on a single hard-to-grasp orange can burn the entire episode without ever placing one, while the controller detects a repeated GRASP timeout, abandons that orange, and redirects to another. The decomposed formulation thus rarely produces a total failure, even when it does not complete the full task.
 
-\paragraph{Aggregating autonomous data did not help.} Adding the automatically generated episodes to Teleop did not strengthen the policy. Under the orchestrated subtask formulation it in fact regressed performance on both metrics relative to Teleop alone (full-task success 29\% to 13\%, mean occupancy 1.80 to 1.47). Augmenting the dataset with in-distribution successful subtasks was thus not sufficient to improve full-task behaviour; the subtask-level analysis below isolates which behaviours degraded.
+\paragraph{Aggregating autonomous data did not help.} Adding the automatically generated episodes to Teleop did not strengthen the policy. Under the orchestrated subtask formulation it in fact regressed performance on both metrics relative to Teleop alone (full-task success 20\% to 13\%, mean occupancy 1.77 to 1.42). Augmenting the dataset with in-distribution successful subtasks was thus not sufficient to improve full-task behaviour; the subtask-level analysis below isolates which behaviours degraded.
 
 \subsection{Lift Failures and Recovery}
 \label{sec:lift_recovery}
@@ -46,44 +46,45 @@ One caveat frames the comparison: the monotask traces are observer-inferred from
         \toprule
         Training set & Formulation & Lift success & Drop recovered & Re-engaged same orange \\
         \midrule
-        Teleop      & Monotask & 61.2\% (145/237) & 26.0\% (19/73) & 50.0\% (32/64) \\
-        Teleop      & Subtask  & 84.4\% (216/256) & 72.7\% (24/33) & 83.9\% (26/31) \\
+        Teleop      & Monotask & 60.7\% (142/234) & 27.3\% (21/77) & 39.7\% (25/63) \\
+        Teleop      & Subtask  & 92.5\% (209/226) & 50.0\% (7/14)  & 76.9\% (10/13) \\
         \midrule
-        Teleop+Auto & Monotask & 83.5\% (167/200) & 14.3\% (4/28)  & 25.0\% (4/16)  \\
-        Teleop+Auto & Subtask  & 85.5\% (194/227) & 38.5\% (10/26) & 63.2\% (12/19) \\
+        Teleop+Auto & Monotask & 83.2\% (183/220) & 33.3\% (9/27)  & 50.0\% (11/22) \\
+        Teleop+Auto & Subtask  & 88.8\% (174/196) & 20.0\% (4/20)  & 50.0\% (5/10)  \\
         \bottomrule
     \end{tabular}
 \end{table}
 
-\paragraph{Lift success is comparable; the response to a drop is not.} Raw lift success is similar across formulations --- only the Teleop monotask model is markedly weaker --- so the decisive difference lies in what happens \emph{after} a drop. The subtask policies re-engage the dropped orange far more often than the monotask ones, and consequently recover a much larger share of dropped oranges; the monotask policies instead drift to a different orange and rarely reclaim the dropped one, abandoning the large majority of them on Teleop+Auto. \textbf{Decomposition does not make the lift itself more reliable --- it makes a failed lift recoverable.}
+\paragraph{The subtask policies lift more reliably.} Lift success is markedly higher under the subtask formulation (89--92\% vs.\ 61--83\% for monotask), most starkly on Teleop where the monotask model loses nearly two of every five held oranges. \textbf{The per-subtask checkpoints make the lift itself more reliable}, not merely recoverable.
 
-\paragraph{This is the local-retry mechanism made visible.} The gap is exactly what the orchestrator's local retry is built to produce: on a slip it returns to GRASP for the \emph{same} orange, a step the end-to-end monotask policy has no means to take. And when recovery does happen it is near-immediate --- a single retry suffices on average --- so \textbf{the gap is driven by \emph{whether} the dropped orange is re-attempted at all, not by how persistently it is retried.}
+\paragraph{Recovery after a drop is suggestive but small-sample here.} Because subtask drops are now rare, the post-drop columns of \Cref{tab:lift_recovery} rest on few events. On Teleop the subtask policy still re-engages the dropped orange far more often than the monotask one (77\% vs.\ 40\%), the signature of the orchestrator's \emph{local retry} returning to GRASP for the same orange --- a step the end-to-end monotask policy cannot take. On Teleop+Auto, with only a handful of subtask drops, re-engagement and recovery show no clear advantage. We therefore read drop-recovery and re-engagement as indicative rather than conclusive.
 
 \subsection{Placing Failures}
 \label{sec:place}
 
-Placing the lifted orange into the plate is the final subtask, and the orchestrated runs are the only ones that score it explicitly --- the monotask placements are observer-inferred, with no discrete place attempt to credit. A \textbf{place} can fail by a \textbf{drop} (the orange leaves the gripper outside the plate) or a \textbf{subtask timeout} (the place does not complete within its step budget). One subtlety inflates the latter: the orchestrator only \emph{confirms} a place once the orange is in the plate \emph{and} the gripper has opened and retracted clear of it --- a criterion added to curate clean hand-off poses. An orange resting in the plate with the gripper still low is therefore logged as a timeout, despite being placed.
-
-We avoid this by anchoring to the trustworthy geometric outcome: exactly as many places truly succeeded as oranges that end in the plate. The \textbf{place success rate} (\Cref{tab:place_success}) is the number of oranges in the plate over the genuine place attempts --- confirmed successes, drops, and subtask timeouts, with full-episode truncations excluded. By construction the success count equals the final oranges-in-plate, so a place that merely ran out of episode time cannot be miscounted; every drop and every genuinely-incomplete place is a failure, while placements the gripper criterion had rejected are credited.
+Placing the lifted orange into the plate is the final subtask. A \textbf{place} succeeds when the orange comes to rest in the plate, read directly from the recorded end-of-attempt geometry: the eval logs, for every attempt, whether the target orange is in the plate, independent of the gripper pose. The \textbf{place success rate} (\Cref{tab:place_success}) is the fraction of place attempts whose orange ends in the plate, split by \textbf{scene state} (oranges already placed when the place began). Because the success test is purely geometric, it applies uniformly to both formulations even though the monotask place attempts are observer-inferred.
 
 \begin{table}[H]
     \centering
     \small
-    \caption{Place success for the orchestrated subtask models, anchored to the geometric final count: oranges in the plate over genuine place attempts (confirmed successes, drops, and subtask timeouts; full-episode truncations excluded). The last two columns decompose the genuine failures. Recovered placements are raw ``timeouts'' where the orange was in fact in the plate but the gripper had not yet retracted --- the confirmation artefact that otherwise deflated the rate.}
+    \caption{Place success rate by training set and formulation: the fraction of place attempts whose target orange is in the plate at the attempt's end (a per-attempt geometric read; full-episode truncations excluded). The right block splits by the number of oranges already in the plate when the place began. The 2-placed (third orange) cells rest on few attempts.}
     \label{tab:place_success}
-    \begin{tabular}{lccccc}
+    \begin{tabular}{llcccc}
         \toprule
-        & & \multicolumn{2}{c}{Genuine failures} & \\
-        \cmidrule(lr){3-4}
-        Training set & Place success & Drops & Subtask timeouts & Recovered placements \\
+        & & & \multicolumn{3}{c}{By oranges already placed} \\
+        \cmidrule(lr){4-6}
+        Training set & Formulation & Place success & 0 placed & 1 placed & 2 placed \\
         \midrule
-        Teleop      & 83.3\% (180/216) & 33 & 3  & 30 \\
-        Teleop+Auto & 75.8\% (147/194) & 27 & 20 & 30 \\
+        Teleop      & Monotask & 75.4\% (107/142) & 58.0\% (40/69) & 90.4\% (47/52)& 95.2\% (20/21)\\
+        Teleop      & Subtask  & 89.0\% (186/209) & 88.4\% (99/112)& 90.1\% (64/71)& 88.5\% (23/26)\\
+        \midrule
+        Teleop+Auto & Monotask & 82.5\% (151/183) & 79.8\% (71/89) & 88.5\% (54/61)& 78.8\% (26/33)\\
+        Teleop+Auto & Subtask  & 81.6\% (142/174) & 83.0\% (83/100)& 78.0\% (46/59)& 86.7\% (13/15)\\
         \bottomrule
     \end{tabular}
 \end{table}
 
-\paragraph{Placing succeeds about three to four times in five, and the raw rate was an artefact.} The recorded confirmation flag had put placing far lower (around \SI{60}{\percent}--\SI{69}{\percent}); that deficit was almost entirely \textbf{placed oranges logged as timeouts because the gripper had not retracted} --- 30 such recoveries in each model --- not extra dropping. Once corrected, \textbf{drops are the main genuine failure mode}, at a comparable rate to the lift and monotask drop rates seen above. Teleop+Auto is the weaker of the two and fails differently: beyond drops it accrues a substantial tail of \textbf{genuine subtask timeouts} (20), places that never settle within budget, consistent with its higher timeout tendency elsewhere.
+\paragraph{The subtask policies place reliably; the Teleop monotask model struggles to start.} Once an orange has been lifted, the orchestrated subtask policies put it in the plate about four times in five (89\% Teleop, 82\% Teleop+Auto), roughly flat across scene state. The monotask models are more uneven: the \textbf{Teleop monotask succeeds on only 58\% of \emph{first} placements} but rises to 90--95\% once the plate is no longer empty --- the difficulty is getting the first orange in, not a late-episode collapse, mirroring the many empty episodes it leaves (\Cref{fig:orange_outcome_distribution}). On Teleop+Auto the two formulations place at a similar rate. \textbf{Placing is not where the subtask advantage comes from} --- once lifting has succeeded, both formulations finish the place comparably; the formulations diverge earlier, at getting an orange grasped and lifted at all.
 
 \subsection{Target Obedience in the Subtask Policies}
 \label{sec:obedience}
@@ -122,6 +123,6 @@ Only the orchestrated runs name their target by spatial label (``Grasp \emph{<po
     \label{fig:grasp_confusion}
 \end{figure}
 
-\paragraph{Misgrabs follow a systematic inward bias.} The errors are far from random. In every panel of \Cref{fig:grasp_confusion} a single direction dominates: when a request is missed, the gripper closes on the orange immediately \textbf{to the left of, or inward from}, the intended one --- \emph{right} is taken as \emph{middle}, \emph{middle} as \emph{left}, and \emph{bottom right} as its close-pair \emph{top right}. The extreme referents \emph{left} and \emph{top right} are consequently obeyed almost perfectly, while \emph{right} is the worst-obeyed label in both models and both scene states. We confirmed this reflects real behaviour, not a logging or labelling artefact: the grasped orange is identified from contact forces, the requested orange is verifiably the true rightmost, and the orange actually taken is a physically distinct one a few centimetres inward --- a genuine short reach in tightly packed scenes, not a mislabelling.
+\paragraph{Misgrabs follow a systematic inward bias.} The errors are far from random. In every panel of \Cref{fig:grasp_confusion} a single direction dominates: when a request is missed, the gripper closes on the orange immediately \textbf{to the left of, or inward from}, the intended one --- \emph{right} is taken as \emph{middle}, \emph{middle} as \emph{left}, and \emph{bottom right} as its close-pair \emph{top right}. The extreme referents \emph{left} and \emph{top right} are consequently obeyed far more reliably, while \emph{right} is the worst-obeyed label in both models and both scene states. We confirmed this reflects real behaviour, not a logging or labelling artefact: the grasped orange is identified from contact forces, the requested orange is verifiably the true rightmost, and the orange actually taken is a physically distinct one a few centimetres inward --- a genuine short reach in tightly packed scenes, not a mislabelling.
 
 \paragraph{A grounding gap, not a coverage gap.} This obedience ordering runs \emph{opposite} to training prevalence: the most frequent label, \emph{right}, is the worst obeyed, and the sparse \emph{top right} among the best. \textbf{More examples of a referent do not buy better obedience} --- exactly what the Auto data shows, having added exposure without lifting it. The bottleneck is in \emph{grounding} the instruction to the current scene: the VLA's positional conditioning is a spatially biased channel rather than a clean target selector. This is the context-dependence that the scripted spatial reset is built to work around.
