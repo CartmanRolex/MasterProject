@@ -10,8 +10,8 @@ Custom patches and modules that extend the upstream [LightwheelAI/leisaac](https
 | `ik_hold_action.py` | Custom IK action: caches joint targets and reapplies them on zero-delta commands, preventing gravity sag when holding a grasped object. |
 | `so101_gamepad_v2.py` | Gamepad controller v2 (superseded — kept for reproducibility of older recordings). |
 | `so101_gamepad_v3.py` | Gamepad controller v3 — current version; adds roll-lock toggle (press X). |
-| `so101_quest3.py` | Meta Quest 3 hand-tracking teleop device. Reuses Gregorio's WebXR server (aiohttp page streamed to the Quest's Meta Browser) and emits a 7D root-frame delta `[dpos(3), drotvec(3), d_gripper]` to a DLS-IK-over-5-joints action; thumb–index pinch closes the gripper. Imports its WebXR page / frame matrix / state / delta math from `quest3_webxr.py`. Lives at `devices/so101_quest3.py` (not under `gamepad/`). |
-| `quest3_webxr.py` | Shared, Isaac-free WebXR layer for Quest 3 teleop: the WebXR page (`_HTML_TEMPLATE`), the `_R_XR_TO_ISAAC` frame matrix, `_TeleopState`, the pinch indices, and the `xr_delta_to_world` per-step delta math. Imported by **both** `so101_quest3.py` (in the leisaac tree) and `quest3_hand_monitor.py`, so any calibration tuned in one applies to the other. Lives at `devices/quest3_webxr.py`. |
+| `so101_quest3.py` | Meta Quest 3 hand-tracking teleop device. Reuses Gregorio's WebXR server (aiohttp page streamed to the Quest's Meta Browser) and emits a 7D root-frame delta `[dpos(3), drotvec(3), d_gripper]` to a DLS-IK-over-5-joints action; thumb–index pinch closes the gripper. Imports its WebXR page / state / delta math from `quest3_webxr.py`, but defines its **own** axis map `_R_XR_TO_ISAAC_SO101` (identity: XR x=right→idx0, y=up→idx1, z=back→idx2, per the gamepad convention) which it passes to `xr_delta_to_world` as `R`, so the device's hand→arm directions are tuned independently of the monitor. Lives at `devices/so101_quest3.py` (not under `gamepad/`). |
+| `quest3_webxr.py` | Shared, Isaac-free WebXR layer for Quest 3 teleop: the WebXR page (`_HTML_TEMPLATE`), the default `_R_XR_TO_ISAAC` frame matrix, `_TeleopState`, the pinch indices, and the `xr_delta_to_world` per-step delta math. `xr_delta_to_world` takes an optional `R` axis map (default `_R_XR_TO_ISAAC`); the monitor uses the default while `so101_quest3.py` passes its own `_R_XR_TO_ISAAC_SO101`, so the device and monitor axis maps are currently independent (to be reconciled when the monitor is revisited). Imported by **both** `so101_quest3.py` (in the leisaac tree) and `quest3_hand_monitor.py`. Lives at `devices/quest3_webxr.py`. |
 | `quest3_hand_monitor.py` | Standalone Quest 3 calibration tool (no Isaac, no GPU). Runs the same WebXR server and serves a self-contained browser dashboard (`/monitor`) that live-plots the right-hand skeleton plus the exact command the device would emit (dpos/drot, pinch distance, gripper state). Used to calibrate headset placement and the XR→Isaac mapping without launching the sim. MasterProject-only — not deployed into the leisaac tree. |
 
 ## What the patch contains
@@ -76,7 +76,12 @@ the blue button to start hand tracking, then use the desktop keyboard B/R/N to
 start control / reset-fail / reset-success exactly as with the gamepad. Pinch
 thumb+index to close the gripper. Requires `ngrok`, `aiohttp`, and `scipy`. The
 hand→arm mapping (`pos_scale`, `rot_scale`, `pinch_threshold_m`, per-step clamps,
-and the `_R_XR_TO_ISAAC` axis signs) is tuned live in `so101_quest3.py`.
+and the `_R_XR_TO_ISAAC_SO101` axis map) is tuned in `so101_quest3.py`. The axis
+map follows the `so101_gamepad_v3` index convention — position idx0=right,
+idx1=up, idx2=back (forward=−idx2). If a motion axis comes out mirrored/swapped
+on the robot, flip the corresponding row/sign of `_R_XR_TO_ISAAC_SO101`; if it
+looks right in the monitor but wrong on the robot, the suspect is the
+world→root step (`_world_to_root`) / base orientation, not the matrix.
 
 ## Quest 3 calibration monitor
 

@@ -31,11 +31,12 @@ Start/reset use leisaac's standard desktop keyboard: B starts control, R resets
 (fail), N resets (success). The in-headset blue button only starts the WebXR
 hand-tracking session.
 
-Tuning (do this live, ideally with ``quest3_hand_monitor.py`` to avoid launching
-the sim): ``pos_scale``, ``rot_scale``, ``gripper_sensitivity``,
-``pinch_threshold_m``, and the per-step clamps. If a motion axis is mirrored,
-flip the corresponding row of ``_R_XR_TO_ISAAC`` (in ``quest3_webxr.py``) or the
-sign of the relevant scale.
+Tuning: ``pos_scale``, ``rot_scale``, ``gripper_sensitivity``,
+``pinch_threshold_m``, and the per-step clamps. If a motion axis is mirrored or
+swapped, edit the device axis map ``_R_XR_TO_ISAAC_SO101`` (defined in this
+module and passed to ``xr_delta_to_world`` as ``R``) or flip the sign of the
+relevant scale. That matrix is the device's own copy so the calibration monitor
+(which still uses ``quest3_webxr._R_XR_TO_ISAAC``) is unaffected for now.
 """
 
 import asyncio
@@ -55,6 +56,21 @@ from .quest3_webxr import (
     _TeleopState,
     pinch_distance,
     xr_delta_to_world,
+)
+
+
+# Per-step XR->IK axis map used by the *device* (passed to ``xr_delta_to_world``
+# as ``R``). The XR wrist axes (x=right, y=up, z=back) line up directly with the
+# SO-101 relative-IK position-delta indices in the so101_gamepad_v3 convention —
+# idx0=right, idx1=up, idx2=back (forward = -idx2) — so this is the identity.
+# Tuned here (NOT in quest3_webxr._R_XR_TO_ISAAC) so the calibration monitor is
+# unaffected for now; the two will be reconciled when the monitor is revisited.
+# Flip a row / sign if a motion axis comes out mirrored on the real robot.
+_R_XR_TO_ISAAC_SO101: np.ndarray = np.array(
+    [[1.0, 0.0, 0.0],
+     [0.0, 1.0, 0.0],
+     [0.0, 0.0, 1.0]],
+    dtype=np.float64,
 )
 
 
@@ -153,7 +169,9 @@ class SO101Quest3(Device):
             self._prev_wrist_rot = Rotation.from_quat(wrist_quat)
             return out
 
-        # Per-step EE delta in the Isaac world frame (shared with the calibration tool).
+        # Per-step EE delta in the Isaac world frame. Uses the device's own axis
+        # map (_R_XR_TO_ISAAC_SO101) so the hand→arm directions can be tuned
+        # independently of the calibration monitor.
         dpos_world, drot_world, rot_now = xr_delta_to_world(
             self._prev_wrist_pos,
             self._prev_wrist_rot,
@@ -163,6 +181,7 @@ class SO101Quest3(Device):
             self.rot_scale,
             self.max_pos_step_m,
             self.max_rot_step_rad,
+            R=_R_XR_TO_ISAAC_SO101,
         )
 
         # World -> robot base frame (the frame the relative DLS-IK term consumes).

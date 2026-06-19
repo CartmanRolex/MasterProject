@@ -82,6 +82,7 @@ def xr_delta_to_world(
     rot_scale: float,
     max_pos_step_m: float,
     max_rot_step_rad: float,
+    R: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray, Rotation]:
     """Per-step EE delta in the Isaac **world** frame, from two wrist poses.
 
@@ -89,15 +90,22 @@ def xr_delta_to_world(
     final world->robot-root rotation, which is sim-only). Returns
     ``(dpos_world, drotvec_world, rot_now)``; pass ``rot_now`` back as
     ``prev_wrist_rot`` on the next call.
+
+    ``R`` is the XR->Isaac axis map; defaults to the module ``_R_XR_TO_ISAAC``.
+    Callers (e.g. the device) may pass their own matrix to tune the axis mapping
+    independently — see ``SO101Quest3._R_XR_TO_ISAAC_SO101``.
     """
+    if R is None:
+        R = _R_XR_TO_ISAAC
+
     # Position delta (world/Isaac frame), clamped for safety.
-    dpos_world = _R_XR_TO_ISAAC @ (wrist_pos - prev_wrist_pos) * pos_scale
+    dpos_world = R @ (wrist_pos - prev_wrist_pos) * pos_scale
     dpos_world = np.clip(dpos_world, -max_pos_step_m, max_pos_step_m)
 
     # Rotation delta as axis-angle (world/Isaac frame), clamped for safety.
     rot_now = Rotation.from_quat(wrist_quat)
     rotvec_xr = (rot_now * prev_wrist_rot.inv()).as_rotvec()
-    drot_world = _R_XR_TO_ISAAC @ rotvec_xr * rot_scale
+    drot_world = R @ rotvec_xr * rot_scale
     ang = float(np.linalg.norm(drot_world))
     if ang > max_rot_step_rad:
         drot_world = drot_world / ang * max_rot_step_rad
