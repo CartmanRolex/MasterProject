@@ -133,14 +133,29 @@ On the leisaac env the deps are already present:
 
 ### What the dashboard shows / how it transfers
 
-It shows two orthographic views of the right-hand skeleton (top X–Z, front X–Y)
-plus the exact command the device would emit: `dpos`/`drot` (Isaac world frame, per
-step), pinch distance vs threshold, and an OPEN/CLOSED gripper indicator. The
-command is computed with the same `xr_delta_to_world` / `pinch_distance` as the
-device, so when you flip a row of `_R_XR_TO_ISAAC` or change a scale/threshold in
-`quest3_webxr.py` and restart, the live device picks up the same values. CLI flags
-(`--pos-scale`, `--rot-scale`, `--pinch-threshold`, `--max-pos-step`,
-`--max-rot-step`, `--port`, `--send-hz`) default to the device's values.
+Two **fixed-scale robot-frame views** (TOP = forward×lateral, SIDE = forward×up)
+plot a **virtual end-effector**: the yellow dot is the running integral of the
+mapped per-step `dpos`, a green arrow shows the current step's `dpos`, and an
+`x`/`y`/`z` triad shows the wrist's orientation mapped through `_R_XR_TO_ISAAC`
+into the robot frame. A third panel keeps one auto-fit hand-skeleton view (the
+hand view deliberately re-centers every frame, so it hides translation — that is
+why the EE views exist). The side panel lists `dpos`/`drot`, the integrated `ee`,
+pinch vs threshold, and an OPEN/CLOSED gripper. A **Reset EE origin** button
+re-zeros the integrator (also sent automatically when tracking re-anchors).
+
+The axes are labelled in the **gamepad convention** so they match the working
+`so101_gamepad_v3` teleop: position index **0 = up**, **1 = lateral**,
+**2 = back** (forward = −idx2); rotation = [roll, pitch, yaw]. Move your hand and
+read which robot axis actually responds — that exposes a wrong/mirrored/swapped
+axis, which you then fix by editing the rows/signs of `_R_XR_TO_ISAAC` in
+`quest3_webxr.py` (shared, so `so101_quest3.py` inherits the fix on restart). If
+the EE view looks correct but the real robot moves wrong, the bug is downstream
+in `so101_quest3.py`'s `_world_to_root` / base orientation, not the matrix.
+
+The command is computed with the same `xr_delta_to_world` / `pinch_distance` as
+the device. CLI flags (`--pos-scale`, `--rot-scale`, `--pinch-threshold`,
+`--max-pos-step`, `--max-rot-step`, `--ee-span` [metres across the EE views],
+`--port`, `--send-hz`) default to the device's values.
 
 ## Regenerating the patch (Desktop side, when leisaac is edited)
 
