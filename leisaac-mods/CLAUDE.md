@@ -84,33 +84,63 @@ and the `_R_XR_TO_ISAAC` axis signs) is tuned live in `so101_quest3.py`.
 headset placement and the hand→arm mapping **without launching the sim** — useful
 for Option B, where the headset sits on a stand tracking your hands while you view
 the robot with your own eyes. It runs the same WebXR server the device uses and
-serves a live browser dashboard.
+serves a self-contained browser dashboard. It is cross-platform (Linux/Windows).
+
+It needs only `aiohttp`, `numpy`, `scipy` — no Isaac, no GPU — so the recommended
+way is to **run it on the same PC as the Quest** (e.g. your Windows laptop). Then
+the dashboard is local (`localhost`) and the only thing that crosses the network
+is the Quest's hand stream. The leisaac desktop/server is not involved at all.
+
+### Recommended: run on your own PC, expose with ngrok (no USB)
+
+WebXR `immersive-ar` requires an HTTPS secure context, and the Quest is on a
+different network path than the PC, so the Quest reaches the local server through
+an ngrok HTTPS tunnel. The dashboard does **not** go through ngrok — you open it
+directly on the same PC at `localhost`.
 
 ```bash
-cd ~/Documents/MasterProject/leisaac-mods
-python quest3_hand_monitor.py            # serves on 0.0.0.0:8080
+# On the PC physically with you (Windows: use PowerShell / a terminal):
+# 1. get the two files (clone the repo, or `git pull` if already cloned)
+git clone git@github.com:CartmanRolex/MasterProject.git
+cd MasterProject/leisaac-mods
+# 2. install the three deps into any Python 3.10+ (a venv is fine)
+pip install aiohttp numpy scipy
+# 3. start the monitor (binds 0.0.0.0:8080 on THIS PC)
+python quest3_hand_monitor.py
+# 4. in a second terminal, expose port 8080 over HTTPS
+ngrok http 8080            # one-time setup: `ngrok config add-authtoken <token>`
 ```
 
-Connect the Quest exactly like the device — WebXR needs an HTTPS secure context:
+Then:
+- **On the Quest:** open the `https://….ngrok-free.app` URL ngrok prints, in the
+  Meta Browser, and press the blue button to start hand tracking.
+- **On your PC:** open `http://localhost:8080/monitor` in any browser.
 
-```bash
-adb reverse tcp:8080 tcp:8080            # USB, lowest latency: open http://localhost:8080 in the Quest browser
-# or, wireless:
-ngrok http 8080                          # open the https://….ngrok-free.app URL in the Quest browser
-```
+So the Quest reaches your PC via `Quest → ngrok cloud → your-PC:8080/ws`, while the
+dashboard is just `your-PC:8080/monitor` opened locally. ngrok is only the Quest's
+way in; nothing else is tunneled. (A USB alternative — `adb reverse tcp:8080
+tcp:8080` then `http://localhost:8080` in the Quest browser — avoids the ngrok
+cloud hop for slightly lower latency, but needs a cable and developer mode.)
 
-Then open the dashboard on this computer: **http://localhost:8080/monitor**. It
-shows two orthographic views of the right-hand skeleton (top X–Z, front X–Y) plus
-the exact command the device would emit: `dpos`/`drot` (Isaac world frame, per
+### Alternative: run on the leisaac desktop over SSH
+
+If you instead run it on the desktop, the Quest reaches it via `ngrok http 8080`
+(run on the desktop) and you view the dashboard through an SSH tunnel:
+`ssh -L 8080:localhost:8080 <user>@<desktop>`, then `http://localhost:8080/monitor`
+locally. The SSH `-L` tunnel carries the dashboard + its WebSocket fine (all TCP).
+On the leisaac env the deps are already present:
+`conda run -n leisaac_envhub python quest3_hand_monitor.py`.
+
+### What the dashboard shows / how it transfers
+
+It shows two orthographic views of the right-hand skeleton (top X–Z, front X–Y)
+plus the exact command the device would emit: `dpos`/`drot` (Isaac world frame, per
 step), pinch distance vs threshold, and an OPEN/CLOSED gripper indicator. The
 command is computed with the same `xr_delta_to_world` / `pinch_distance` as the
 device, so when you flip a row of `_R_XR_TO_ISAAC` or change a scale/threshold in
 `quest3_webxr.py` and restart, the live device picks up the same values. CLI flags
 (`--pos-scale`, `--rot-scale`, `--pinch-threshold`, `--max-pos-step`,
 `--max-rot-step`, `--port`, `--send-hz`) default to the device's values.
-
-Requires `aiohttp`, `numpy`, `scipy` (already in the leisaac env; run with
-`conda run -n leisaac_envhub python quest3_hand_monitor.py`).
 
 ## Regenerating the patch (Desktop side, when leisaac is edited)
 
