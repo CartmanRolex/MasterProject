@@ -84,7 +84,6 @@ from .quest3_webxr import (
     _R_XR_TO_ISAAC,  # noqa: F401  (re-exported for callers/tools that import it from here)
     _TeleopState,
     pinch_distance,
-    xr_delta_to_world,
 )
 
 
@@ -353,55 +352,41 @@ class SO101Quest3(Device):
             self._shoulder_pan_target = self._read_shoulder_pan()
             return out
 
-        # Per-step hand position delta, mapped to the [forward, left, up] control
-        # axes via the device's own axis map (_R_XR_TO_ISAAC_SO101). anchor_rot is
-        # None here: forward/up are applied in the GRIPPER body frame below, which
-        # already makes the translation follow the gripper's orientation (the gripper
-        # tracks the hand) — also re-expressing in the hand body frame would
-        # double-rotate. Only the position delta and the absolute hand orientation
-        # (rot_now) are used; the per-step rotation delta is ignored (absolute below).
-        dpos_world, _drot_world, rot_now = xr_delta_to_world(
-            self._prev_wrist_pos,
-            self._prev_wrist_rot,
-            wrist_pos,
-            wrist_quat,
-            self.pos_scale,
-            self.rot_scale,
-            self.max_pos_step_m,
-            self.max_rot_step_rad,
-            R=_R_XR_TO_ISAAC_SO101,
-            anchor_rot=None,
-        )
+        # Per-step hand motion decomposed in the HAND's OWN body frame, from the live
+        # wrist quaternion — the same axes as the monitor's FWD/RIGHT/UP triad. The
+        # command is "how far the hand moved along its own forward/right/up axes", NOT
+        # a component of the wrist position in fixed room axes; so moving the hand
+        # forward always means "forward where the hand points". Hand (XR) body axes:
+        # +X = right, +Y = up, +Z = back (forward = -Z); rot_now.inv() rotates the
+        # room-frame position delta into those hand coordinates [right, up, back].
+        rot_now = Rotation.from_quat(wrist_quat)
+        delta_room = wrist_pos - self._prev_wrist_pos
+        hand_delta = rot_now.inv().apply(delta_room) * self.pos_scale      # [right, up, back]
+        hand_delta = np.clip(hand_delta, -self.max_pos_step_m, self.max_pos_step_m)
+        right_cmd = float(hand_delta[0])     # along hand right -> shoulder_pan
+        up_cmd = float(hand_delta[1])        # along hand up    -> IK (gripper frame)
+        fwd_cmd = -float(hand_delta[2])      # along hand fwd (=-back) -> IK (gripper frame)
 
         # Absolute (anchored) rotation, root frame — see _anchored_rotation_error.
         drot_root = self._anchored_rotation_error(rot_now)
 
-        # Scalar position commands in the robot base frame: [forward, left, up].
-        dpos_root = self._world_to_root(dpos_world)
-
-        # Left/right (root-Y) drives shoulder_pan directly, NOT the IK
-        # (so101_gamepad_v3 convention): integrate into a bounded internal target and
-        # emit the relative joint command (target - current).
+        # Left/right drives shoulder_pan directly, NOT the IK (so101_gamepad_v3
+        # convention): integrate into a bounded internal target and emit the relative
+        # joint command (target - current). Flip the sign if it pans the wrong way.
         shoulder_pan_now = self._read_shoulder_pan()
-        self._shoulder_pan_target += self.shoulder_pan_sensitivity * float(dpos_root[1])
+        self._shoulder_pan_target += self.shoulder_pan_sensitivity * right_cmd
         self._shoulder_pan_target = float(
             np.clip(self._shoulder_pan_target, self._shoulder_pan_min, self._shoulder_pan_max)
         )
 
         # Forward/back + up/down are commanded in the GRIPPER body frame and then
         # rotated into the root frame the IK consumes — exactly what so101_gamepad_v3
-        # does via _convert_delta_from_frame. This is the principled fix for the
-        # reachability problem: with shoulder_pan removed from the IK the gripper can
-        # only translate within the vertical plane at the current pan azimuth, so a
-        # fixed root +X forward command leaves that plane and stalls once the arm is
-        # panned; the gripper frame moves with the arm, so forward/up stay reachable
-        # and translation follows where the gripper points. Gripper-frame axis
-        # convention (matches gamepad_v3's delta mapping): forward = -z, up = +x,
-        # left/right = y (handled by shoulder_pan, so 0 here).
-        fwd = -float(dpos_root[0])   # forward command (negated: came out mirrored)
-        up = float(dpos_root[2])     # up command
+        # does via _convert_delta_from_frame. The gripper frame moves with the arm, so
+        # these stay reachable as the arm pans and translation follows where the
+        # gripper points. Gripper-frame axis convention (matches gamepad_v3's delta
+        # mapping): forward = -z, up = +x, left/right = y (-> shoulder_pan, 0 here).
         Q_grip_root = self._read_root_rot().inv() * self._read_ee_world_rot()
-        v_root = Q_grip_root.apply(np.array([up, 0.0, -fwd]))   # gripper [x=up, y=0, z=-fwd]
+        v_root = Q_grip_root.apply(np.array([up_cmd, 0.0, -fwd_cmd]))   # gripper [x=up, y=0, z=-fwd]
         out[0] = float(v_root[0])
         out[1] = float(v_root[1])
         out[2] = float(v_root[2])
