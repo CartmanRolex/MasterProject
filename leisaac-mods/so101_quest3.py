@@ -396,10 +396,22 @@ class SO101Quest3(Device):
             np.clip(self._shoulder_pan_target, self._shoulder_pan_min, self._shoulder_pan_max)
         )
 
-        out[0] = -dpos_root[0]  # forward/back -> IK (negated: came out mirrored)
-        out[1] = 0.0            # lateral removed from IK (driven by shoulder_pan below)
-        out[2] = dpos_root[2]   # up/down -> IK
-        out[3:6] = drot_root    # wrist rotation -> IK
+        # Forward/back must be commanded along the arm's CURRENT plane, not the
+        # fixed root +X. shoulder_pan is removed from the IK, so the 4 IK joints can
+        # only translate the gripper within the vertical plane at the current
+        # shoulder_pan azimuth. Root +X leaves that plane as soon as the arm is
+        # panned, so a root-frame forward command becomes unreachable and forward/back
+        # stalls — while up/down (root +Z, in every vertical plane) keeps working.
+        # Rotate the forward command into the plane by shoulder_pan so it stays
+        # reachable (this is what gamepad_v3 gets for free by commanding in the gripper
+        # body frame). Up/down (Z) is invariant under this rotation. If forward curves
+        # the wrong way when the arm is panned, negate `theta`.
+        fwd = -float(dpos_root[0])  # forward/back command (negated: came out mirrored)
+        theta = float(shoulder_pan_now)
+        out[0] = np.cos(theta) * fwd   # forward -> IK, projected into the arm plane
+        out[1] = np.sin(theta) * fwd   # in-plane Y component of forward (reachable)
+        out[2] = dpos_root[2]          # up/down -> IK (plane-invariant)
+        out[3:6] = drot_root           # wrist rotation -> IK
         out[6] = self._shoulder_pan_target - shoulder_pan_now  # relative shoulder_pan command
 
         self._prev_wrist_pos = wrist_pos.copy()
