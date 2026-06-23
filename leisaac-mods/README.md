@@ -25,7 +25,10 @@ the gripper.
 Useful flags: `--quest_port <int>` (default 8080), `--pinch_threshold <m>`
 (default 0.035), `--quest_rot_track_gain <0..1>` (default 0.4 — lower lets the
 gripper orientation give way so the arm keeps translating; 1.0 tracks orientation
-hard at the cost of forward/back travel).
+hard at the cost of forward/back travel), `--quest_fwd_up_gain <float>` (default
+1.0 — extra speed multiplier for forward/back + up/down translation only; raise
+it if those feel slow per metre of hand motion. Left/right pan speed is untouched
+by this flag.
 
 ## 2. Run the hand-joint visualizer (locally, on Windows, no Isaac/GPU)
 

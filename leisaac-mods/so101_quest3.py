@@ -134,6 +134,7 @@ class SO101Quest3(Device):
         max_pos_step_m: float = 0.02,
         max_rot_step_rad: float = 0.10,
         rot_track_gain: float = 0.4,
+        fwd_up_gain: float = 1.0,
         gripper_sensitivity: float = 0.15,
         shoulder_pan_sensitivity: float = 4.0,
     ) -> None:
@@ -147,6 +148,12 @@ class SO101Quest3(Device):
         self.safety_timeout_s = safety_timeout_s
         self.max_pos_step_m = max_pos_step_m
         self.max_rot_step_rad = max_rot_step_rad
+        # Extra multiplier on the IK-bound translation axes ONLY (forward/back, up/down
+        # — gripper-frame fwd_cmd/up_cmd), applied after pos_scale/clamp. Left/right
+        # (shoulder_pan) is untouched, tuned separately by shoulder_pan_sensitivity.
+        # Raise this to make the arm travel faster forward/back and up/down per metre
+        # of hand motion, without changing pan speed or hand-motion->command clamping.
+        self.fwd_up_gain = fwd_up_gain
         # Softness of orientation tracking, in (0, 1]. The DLS IK weights position
         # and rotation error equally and the same arm joints serve both, so on this
         # 4-joint arm a hard orientation command starves translation. Scaling the
@@ -364,8 +371,10 @@ class SO101Quest3(Device):
         hand_delta = rot_now.inv().apply(delta_room) * self.pos_scale      # [right, up, back]
         hand_delta = np.clip(hand_delta, -self.max_pos_step_m, self.max_pos_step_m)
         right_cmd = float(hand_delta[0])     # along hand right -> shoulder_pan
-        up_cmd = float(hand_delta[1])        # along hand up    -> IK (gripper frame)
-        fwd_cmd = -float(hand_delta[2])      # along hand fwd (=-back) -> IK (gripper frame)
+        # fwd_up_gain scales ONLY these two (IK-bound) axes, so forward/back and
+        # up/down travel faster per metre of hand motion without touching pan speed.
+        up_cmd = float(hand_delta[1]) * self.fwd_up_gain        # along hand up    -> IK (gripper frame)
+        fwd_cmd = -float(hand_delta[2]) * self.fwd_up_gain      # along hand fwd (=-back) -> IK (gripper frame)
 
         # Absolute (anchored) rotation, root frame — see _anchored_rotation_error.
         drot_root = self._anchored_rotation_error(rot_now)
