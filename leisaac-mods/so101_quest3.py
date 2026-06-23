@@ -252,11 +252,15 @@ class SO101Quest3(Device):
         # the forward/back axis was driving an EE rotation about the left/right
         # axis. Swap the world X (forward) and Y (left) rotation components so a
         # hand roll about fwd/back maps to an EE roll about fwd/back. In addition,
-        # the left/right (world-Y) rotation comes out inverted on this headset, so
-        # negate that component. Tuning: if a rotation runs the wrong way, flip the
-        # sign of the relevant component below; if a different pair is swapped,
-        # change the indices.
-        drot_world = np.array([drot_world[1], -drot_world[0], drot_world[2]], dtype=np.float64)
+        # the rotation about the **left/right axis** (EE pitch) comes out inverted
+        # on this headset, so negate that component — here the term that lands on
+        # the left/right axis is the swapped-forward one (index 0 of the input).
+        # Tuning: if a rotation runs the wrong way, flip the sign of the relevant
+        # component below; if a *different* axis is the one inverted (e.g. the
+        # forward/back roll instead), move the minus sign to the other swapped
+        # term — `[drot_world[1], -drot_world[0], drot_world[2]]` — and if a
+        # different pair is swapped, change the indices.
+        drot_world = np.array([-drot_world[1], drot_world[0], drot_world[2]], dtype=np.float64)
 
         # World -> robot base frame (the frame the relative DLS-IK term consumes).
         dpos_root = self._world_to_root(dpos_world)
