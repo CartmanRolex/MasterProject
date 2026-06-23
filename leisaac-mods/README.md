@@ -40,11 +40,14 @@ ngrok http 8080
 On the Quest: open the ngrok URL, blue button to start tracking.
 On the same PC: open `http://localhost:8080/monitor` (local, no ngrok).
 
-The dashboard shows the hand's current position (up / right / back, m) and
-rotation (deg) from an origin anchored on connect — "Reset origin" re-anchors.
+The dashboard shows one wrist-centered 3D view (drag to orbit) of the hand
+skeleton plus a FWD / RIGHT / UP triad on the wrist, and reports position
+(fwd / right / up, m), rotation since origin (deg) and the raw wrist quaternion
+from an origin anchored on connect — "Reset origin" re-anchors. If a triad arrow
+does not match the physical hand direction, the axis mapping is wrong.
 
 Useful flags: `--port`, `--send-hz`, `--pos-scale`, `--rot-scale`,
-`--pinch-threshold`, `--ee-span` (see `--help`).
+`--pinch-threshold` (see `--help`).
 
 ## Where to edit if an axis is wrong
 

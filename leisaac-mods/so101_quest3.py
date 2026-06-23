@@ -153,7 +153,7 @@ class SO101Quest3(Device):
 
         # body the IK targets (``body_name="gripper"``) — read each step for the
         # current gripper orientation used by the absolute-rotation error term.
-        self._gripper_body_idx = int(self.robot_asset.find_bodies("gripper")[0][0].item())
+        self._gripper_body_idx = int(self.robot_asset.find_bodies("gripper")[0][0])
 
         # XR-wrist-rotation -> world-rotation axis map as a scipy Rotation (det = +1,
         # a proper rotation). Used to re-express the hand's rotation-since-anchor

@@ -3,12 +3,17 @@
 
 Runs the *same* WebXR server the live ``SO101Quest3`` device uses (it imports the
 page, frame matrix and state from ``quest3_webxr.py``), but instead of driving a
-robot it reports the hand's **current position and rotation** — mapped into the
-robot display frame (up / right / back) and measured from an origin anchored on
-connect — together with the raw hand skeleton, to a self-contained browser
-dashboard. Open the dashboard beside your WebRTC window, place the headset in
-different spots, and watch how tracking and the XR->robot axis mapping respond,
-without paying the cost of launching Isaac Sim each time.
+robot it serves a self-contained browser **3D calibration dashboard** for the
+hand's orientation/coordinate frame — the part of the Quest 3 mapping that is
+hardest to get right. One wrist-centered 3D view (mouse-drag to orbit) plots the
+hand skeleton plus the wrist's body-frame triad labelled **FWD / RIGHT / UP** (per
+the device's room-axis convention: body +X=RIGHT, +Y=UP, +Z=BACK => FWD=-Z), with a
+room-frame gizmo for comparison. The side panel reports position and
+rotation-since-anchor about **FWD / RIGHT / UP** plus the raw wrist quaternion
+(absolute and since-origin). Reset origin (or reconnect) re-anchors so you start
+from a defined pose. Use it to verify the axis assignment visually — if a triad
+arrow does not line up with the physical hand direction, the device's
+``_R_rot_map`` needs fixing — without launching the sim.
 
 The axis mapping (``_R_XR_TO_ISAAC`` in ``quest3_webxr.py``) and pinch threshold
 are the monitor's; the live device has its own ``_R_XR_TO_ISAAC_SO101`` and is
@@ -74,33 +79,32 @@ _DASHBOARD_HTML = """\
            border: 1px solid #3a3a5a; border-radius: 7px; padding: 6px 12px; cursor: pointer; }
   button:hover { background: #34345a; }
   #wrap { display: flex; gap: 12px; flex: 1; min-height: 0; }
-  .views { display: flex; gap: 12px; flex: 2; }
   .panel { background: #16162a; border-radius: 10px; padding: 8px; display: flex;
-           flex-direction: column; gap: 6px; flex: 1; min-width: 0; }
+           flex-direction: column; gap: 6px; flex: 2; min-width: 0; }
   .panel h2 { font-size: 11px; opacity: 0.6; font-weight: 600; }
   canvas { background: #0a0a14; border-radius: 6px; width: 100%; height: 100%;
-           display: block; flex: 1; min-height: 0; }
+           display: block; flex: 1; min-height: 0; cursor: grab; }
+  canvas:active { cursor: grabbing; }
   #side { flex: 1; display: flex; flex-direction: column; gap: 9px; min-width: 250px; overflow-y: auto; }
   .stat { background: #16162a; border-radius: 10px; padding: 9px 12px; }
   .stat .lbl { font-size: 11px; opacity: 0.55; text-transform: uppercase; letter-spacing: 0.5px; }
   .row { display: flex; justify-content: space-between; font-size: 13px; margin-top: 4px; }
   .row b { color: #9fa8da; }
-  #grip { font-size: 24px; font-weight: 800; text-align: center; padding: 12px;
+  #grip { font-size: 22px; font-weight: 800; text-align: center; padding: 10px;
           border-radius: 10px; transition: background 0.05s; }
   .open   { background: #1b3a1b; color: #7ee787; }
   .closed { background: #4a1414; color: #ff8b8b; }
   .note { font-size: 11px; opacity: 0.5; line-height: 1.5; }
-  .ax0 { color: #ff8a8a; } .ax1 { color: #7ee787; } .ax2 { color: #6bb8ff; }
+  .fwd { color: #ff8a8a; } .right { color: #7ee787; } .up { color: #6bb8ff; }
 </style>
 </head>
 <body>
   <h1>Quest3 Hand Monitor <span id="conn">connecting…</span>
       <button id="reset">Reset origin</button></h1>
   <div id="wrap">
-    <div class="views">
-      <div class="panel"><h2>ROBOT FRAME — TOP · forward × right</h2><canvas id="cTop"></canvas></div>
-      <div class="panel"><h2>ROBOT FRAME — SIDE · forward × up</h2><canvas id="cSide"></canvas></div>
-      <div class="panel"><h2>RIGHT HAND (front) — pinch reference</h2><canvas id="cHand"></canvas></div>
+    <div class="panel">
+      <h2>RIGHT HAND 3D · skeleton + wrist frame (FWD/RIGHT/UP) · drag to orbit</h2>
+      <canvas id="c3d"></canvas>
     </div>
     <div id="side">
       <div id="grip" class="open">GRIPPER</div>
@@ -111,114 +115,133 @@ _DASHBOARD_HTML = """\
       </div>
       <div class="stat">
         <div class="lbl">position — from origin (m)</div>
-        <div class="row"><span>up (+up / −down)</span><b id="px">–</b></div>
-        <div class="row"><span>right (+right / −left)</span><b id="py">–</b></div>
-        <div class="row"><span>back (+back / −fwd)</span><b id="pz">–</b></div>
+        <div class="row"><span class="fwd">fwd (+fwd / −back)</span><b id="pf">–</b></div>
+        <div class="row"><span class="right">right (+right / −left)</span><b id="pr">–</b></div>
+        <div class="row"><span class="up">up (+up / −down)</span><b id="pu">–</b></div>
       </div>
       <div class="stat">
         <div class="lbl">rotation — from origin (deg)</div>
-        <div class="row"><span>about up</span><b id="rx">–</b></div>
-        <div class="row"><span>about right</span><b id="ry">–</b></div>
-        <div class="row"><span>about back</span><b id="rz">–</b></div>
+        <div class="row"><span class="fwd">about fwd</span><b id="rf">–</b></div>
+        <div class="row"><span class="right">about right</span><b id="rr">–</b></div>
+        <div class="row"><span class="up">about up</span><b id="ru">–</b></div>
+      </div>
+      <div class="stat">
+        <div class="lbl">wrist quaternion (w, x, y, z)</div>
+        <div class="row"><span>absolute</span><b id="qnow">–</b></div>
+        <div class="row"><span>since origin</span><b id="qdel">–</b></div>
       </div>
       <div class="stat">
         <div class="lbl">stream</div>
         <div class="row"><span>fps</span><b id="fps">–</b></div>
-        <div class="row"><span>wrist pos (xr)</span><b id="wp">–</b></div>
+        <div class="row"><span>wrist pos (xr, m)</span><b id="wp">–</b></div>
       </div>
       <div class="stat note">
-        Robot-frame views: <b>up</b>, <b>right (positive = to the right)</b>,
-        <b>back (forward = −back)</b>. Position and rotation are relative to the
-        origin (set on connect / by <b>Reset origin</b>). Yellow dot = current
-        position; triad = wrist axes mapped to the robot frame
-        (<span class="ax0">x</span> <span class="ax1">y</span>
-        <span class="ax2">z</span>).
+        3D view is centered on the wrist (hand stays visible while you rotate it).
+        Arrows = the wrist body axes labeled per the device's room-axis convention
+        (<span class="fwd">FWD</span>=body −Z,
+        <span class="right">RIGHT</span>=body +X,
+        <span class="up">UP</span>=body +Y). If an arrow does not line up with the
+        physical hand direction, that axis assignment is wrong — fix it in the
+        device's <code>_R_rot_map</code>. Corner gizmo shows the room frame
+        (R/U/F) under the same camera for comparison. Position &amp; rotation are
+        relative to the origin (set on connect / by <b>Reset origin</b>).
       </div>
     </div>
   </div>
 <script>
 const BONES = __BONES__;
-const VIEW_M = __VIEW_M__;          // metres across the fixed-scale robot views
-const TRIAD_LEN = 46, TRAIL_MAX = 240;
+const TRAIL_MAX = 120;
 const $ = id => document.getElementById(id);
 const conn = $('conn');
-let trail = [];
+let trail = [];          // recent wrist positions (room frame) for the motion path
 let last = {};
 
 function fitCanvas(c) {
   const r = c.getBoundingClientRect();
   c.width = Math.max(1, r.width | 0); c.height = Math.max(1, r.height | 0);
 }
-const cTop = $('cTop'), cSide = $('cSide'), cHand = $('cHand');
-const gTop = cTop.getContext('2d'), gSide = cSide.getContext('2d'), gHand = cHand.getContext('2d');
-function fitAll() { fitCanvas(cTop); fitCanvas(cSide); fitCanvas(cHand); }
+const cv = $('c3d'), g = cv.getContext('2d');
+function fitAll() { fitCanvas(cv); }
 window.addEventListener('resize', fitAll); fitAll();
 
-// Robot-frame vector v = [up, right, back]; forward = -back.
-const projTop  = v => [-v[2], v[1]];   // horizontal = forward, vertical = right
-const projSide = v => [-v[2], v[0]];   // horizontal = forward, vertical = up
-const col = (M, k) => [M[0][k], M[1][k], M[2][k]];   // column k of a 3x3
+// ---- hand-rolled 3D: orbit camera (az around up, el around right) + orthographic ----
+let az = -0.7, el = 0.45;          // initial camera angle (radians)
+let dragging = false, lx = 0, ly = 0;
+cv.addEventListener('mousedown', e => { dragging = true; lx = e.clientX; ly = e.clientY; });
+window.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  az += (e.clientX - lx) * 0.01;
+  el = Math.max(-1.5, Math.min(1.5, el - (e.clientY - ly) * 0.01));
+  lx = e.clientX; ly = e.clientY; draw3D();
+});
+window.addEventListener('mouseup', () => dragging = false);
 
-// Fixed-scale robot-frame view: position trail + current-position dot + wrist triad.
-function drawRobotView(ctx, cv, proj, topLbl, botLbl) {
-  const w = cv.width, h = cv.height, cx = w / 2, cy = h / 2;
-  const pxm = Math.min(w, h) / VIEW_M;
-  const sx = hv => cx + hv[0] * pxm, sy = hv => cy - hv[1] * pxm;
-  ctx.clearRect(0, 0, w, h);
-  // axes cross + labels
-  ctx.strokeStyle = '#23233c'; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(w, cy);
-  ctx.moveTo(cx, 0); ctx.lineTo(cx, h); ctx.stroke();
-  ctx.fillStyle = '#666'; ctx.font = '10px ui-monospace, monospace';
-  ctx.fillText('FWD +', w - 44, cy - 6);
-  ctx.fillText('BACK', 5, cy - 6);
-  ctx.fillText(topLbl, cx + 6, 12);
-  ctx.fillText(botLbl, cx + 6, h - 5);
-  // EE trail
-  if (trail.length > 1) {
-    ctx.strokeStyle = '#3949ab'; ctx.lineWidth = 1.5; ctx.beginPath();
-    trail.forEach((p, i) => { const q = proj(p); const x = sx(q), y = sy(q); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
-    ctx.stroke();
-  }
-  const e = last.pos ? proj(last.pos) : [0, 0];
-  const ex = sx(e), ey = sy(e);
-  // wrist orientation triad mapped to robot frame
-  if (last.ee_basis) {
-    const cols = ['#ff8a8a', '#7ee787', '#6bb8ff'], names = ['x', 'y', 'z'];
-    for (let k = 0; k < 3; k++) {
-      const pc = proj(col(last.ee_basis, k));
-      const tx = ex + pc[0] * TRIAD_LEN, ty = ey - pc[1] * TRIAD_LEN;
-      ctx.strokeStyle = cols[k]; ctx.lineWidth = 2.5;
-      ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(tx, ty); ctx.stroke();
-      ctx.fillStyle = cols[k]; ctx.fillText(names[k], tx + 2, ty - 2);
-    }
-  }
-  // current-position dot on top
-  ctx.fillStyle = '#ffd54f'; ctx.beginPath(); ctx.arc(ex, ey, 5, 0, 7); ctx.fill();
+function rotateCam(p) {           // room point -> camera space
+  let x = p[0], y = p[1], z = p[2];
+  const ca = Math.cos(az), sa = Math.sin(az);
+  let x1 = ca * x + sa * z, z1 = -sa * x + ca * z;   // yaw about up
+  const ce = Math.cos(el), se = Math.sin(el);
+  let y2 = ce * y - se * z1, z2 = se * y + ce * z1;  // pitch about right
+  return [x1, y2, z2];
 }
 
-// Auto-fit hand skeleton (translation-free, by design) for pinch reference.
-function drawHand(ctx, cv, joints, pick) {
-  ctx.clearRect(0, 0, cv.width, cv.height);
-  if (!joints || joints.length !== 25) return;
-  const pts = joints.map(pick);
-  let minH = 1e9, maxH = -1e9, minV = 1e9, maxV = -1e9;
-  for (const [h, v] of pts) { minH = Math.min(minH, h); maxH = Math.max(maxH, h);
-                              minV = Math.min(minV, v); maxV = Math.max(maxV, v); }
-  const pad = 24, w = cv.width - 2 * pad, h = cv.height - 2 * pad;
-  const span = Math.max(maxH - minH, maxV - minV, 0.05);
-  const cH = (minH + maxH) / 2, cV = (minV + maxV) / 2;
-  const sc = Math.min(w, h) / span;
-  const X = hv => pad + w / 2 + (hv[0] - cH) * sc;
-  const Y = hv => pad + h / 2 - (hv[1] - cV) * sc;
-  ctx.strokeStyle = '#5c6bc0'; ctx.lineWidth = 2;
+function draw3D() {
+  const w = cv.width, h = cv.height, cx = w / 2, cy = h / 2;
+  g.clearRect(0, 0, w, h);
+  const joints = last.joints, wp = last.wrist_pos;
+  if (!joints || joints.length !== 25 || !wp) return;
+  // skeleton relative to the wrist (view stays centered on the hand)
+  const rel = joints.map(p => [p[0] - wp[0], p[1] - wp[1], p[2] - wp[2]]);
+  let mn = [1e9, 1e9, 1e9], mx = [-1e9, -1e9, -1e9];
+  for (const p of rel) for (let i = 0; i < 3; i++) { mn[i] = Math.min(mn[i], p[i]); mx[i] = Math.max(mx[i], p[i]); }
+  const span = Math.max(mx[0]-mn[0], mx[1]-mn[1], mx[2]-mn[2], 0.05);
+  const sc = Math.min(w, h) * 0.40 / span;
+  const triadLen = span * 0.7;
+  const proj = p => { const r = rotateCam(p); return [cx + r[0] * sc, cy - r[1] * sc, r[2]]; };
+
+  // recent wrist motion path (relative to current wrist)
+  if (trail.length > 1) {
+    g.strokeStyle = '#3949ab'; g.lineWidth = 1.5; g.beginPath();
+    for (let i = 0; i < trail.length; i++) {
+      const q = proj([trail[i][0]-wp[0], trail[i][1]-wp[1], trail[i][2]-wp[2]]);
+      i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]);
+    }
+    g.stroke();
+  }
+  // bones
+  g.strokeStyle = '#5c6bc0'; g.lineWidth = 2;
   for (const [a, b] of BONES) {
-    ctx.beginPath(); ctx.moveTo(X(pts[a]), Y(pts[a])); ctx.lineTo(X(pts[b]), Y(pts[b])); ctx.stroke();
+    const pa = proj(rel[a]), pb = proj(rel[b]);
+    g.beginPath(); g.moveTo(pa[0], pa[1]); g.lineTo(pb[0], pb[1]); g.stroke();
   }
+  // joints
   for (let i = 0; i < 25; i++) {
-    ctx.fillStyle = (i === 4 || i === 9) ? '#ffd54f' : (i === 0 ? '#fff' : '#9fa8da');
-    ctx.beginPath(); ctx.arc(X(pts[i]), Y(pts[i]), (i === 0 ? 5 : 3), 0, 7); ctx.fill();
+    const q = proj(rel[i]);
+    g.fillStyle = (i === 4 || i === 9) ? '#ffd54f' : (i === 0 ? '#fff' : '#9fa8da');
+    g.beginPath(); g.arc(q[0], q[1], i === 0 ? 4 : 2.5, 0, 7); g.fill();
   }
+  // wrist body-frame triad (FWD/RIGHT/UP) at center
+  if (last.triad) {
+    const arrow = (dir, color, lbl) => {
+      const tip = proj([dir[0]*triadLen, dir[1]*triadLen, dir[2]*triadLen]);
+      g.strokeStyle = color; g.lineWidth = 2.5;
+      g.beginPath(); g.moveTo(cx, cy); g.lineTo(tip[0], tip[1]); g.stroke();
+      g.fillStyle = color; g.font = '11px ui-monospace, monospace';
+      g.fillText(lbl, tip[0] + 3, tip[1] - 3);
+    };
+    arrow(last.triad.fwd,   '#ff8a8a', 'FWD');
+    arrow(last.triad.right, '#7ee787', 'RIGHT');
+    arrow(last.triad.up,    '#6bb8ff', 'UP');
+  }
+  // room-frame gizmo in the corner (R/U/F under the same camera)
+  const ox = 44, oy = h - 44, gs = 26;
+  const giz = (dir, color, lbl) => {
+    const r = rotateCam(dir); const tx = ox + r[0]*gs, ty = oy - r[1]*gs;
+    g.strokeStyle = color; g.lineWidth = 2;
+    g.beginPath(); g.moveTo(ox, oy); g.lineTo(tx, ty); g.stroke();
+    g.fillStyle = color; g.font = '9px ui-monospace, monospace'; g.fillText(lbl, tx + 2, ty - 2);
+  };
+  giz([1,0,0], '#7ee787', 'R'); giz([0,1,0], '#6bb8ff', 'U'); giz([0,0,-1], '#ff8a8a', 'F');
 }
 
 const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -229,18 +252,19 @@ function connect() {
   ws.onclose = () => { conn.textContent = 'disconnected — retrying…'; setTimeout(connect, 1000); };
   ws.onmessage = ev => {
     const d = JSON.parse(ev.data); last = d;
-    if (d.pos) { trail.push(d.pos); if (trail.length > TRAIL_MAX) trail.shift(); }
-    drawRobotView(gTop,  cTop,  projTop,  'RIGHT +', 'LEFT −');
-    drawRobotView(gSide, cSide, projSide, 'UP +', 'DOWN −');
-    drawHand(gHand, cHand, d.joints, p => [p[0], p[1]]);   // X, Y
+    if (d.wrist_pos) { trail.push(d.wrist_pos); if (trail.length > TRAIL_MAX) trail.shift(); }
+    draw3D();
     const f = (v, n=4) => (v >= 0 ? ' ' : '') + v.toFixed(n);
+    const f3 = v => (v >= 0 ? ' ' : '') + v.toFixed(3);
     $('pd').textContent = f(d.pinch_d, 4) + ' m';
     $('pt').textContent = f(d.pinch_threshold, 4) + ' m';
-    $('px').textContent = f(d.pos[0], 3); $('py').textContent = f(d.pos[1], 3); $('pz').textContent = f(d.pos[2], 3);
-    $('rx').textContent = f(d.rot[0], 1); $('ry').textContent = f(d.rot[1], 1); $('rz').textContent = f(d.rot[2], 1);
+    $('pf').textContent = f3(d.pos[0]); $('pr').textContent = f3(d.pos[1]); $('pu').textContent = f3(d.pos[2]);
+    $('rf').textContent = f(d.rot[0], 1); $('rr').textContent = f(d.rot[1], 1); $('ru').textContent = f(d.rot[2], 1);
+    $('qnow').textContent = d.quat_now.map(v => f(v,3)).join(' ');
+    $('qdel').textContent = d.quat_delta.map(v => f(v,3)).join(' ');
     $('fps').textContent = d.fps;
     $('wp').textContent = d.wrist_pos.map(v => v.toFixed(2)).join(', ');
-    const g = $('grip'); g.textContent = d.gripper.toUpperCase(); g.className = d.gripper;
+    const grip = $('grip'); grip.textContent = d.gripper.toUpperCase(); grip.className = d.gripper;
   };
 }
 $('reset').onclick = () => { trail = []; if (ws && ws.readyState === 1) ws.send(JSON.stringify({ cmd: 'reset_origin' })); };
@@ -261,7 +285,6 @@ class Monitor:
         self.dashboard_html = (
             _DASHBOARD_HTML
             .replace("__BONES__", json.dumps(_BONES))
-            .replace("__VIEW_M__", json.dumps(args.ee_span))
         )
         self.monitors: weakref.WeakSet = weakref.WeakSet()
         # Origin anchor (set on the first frame / when "Reset origin" is pressed).
@@ -274,31 +297,46 @@ class Monitor:
         self._fps_count = 0
         self._fps_t0 = 0.0
 
-    # ---- current pose, mapped into the robot display frame ----
+    # ---- current pose, mapped into the FWD/RIGHT/UP frame ----
     def compute(self, wrist_pos, wrist_quat, joints) -> dict:
         rot_now = Rotation.from_quat(wrist_quat)
         if self._origin_pos is None:
             self._origin_pos = wrist_pos.copy()
             self._origin_rot = rot_now
-        # Current position relative to the origin, mapped into the robot frame
-        # (idx0 = up, idx1 = right, idx2 = back). No clamping / integration — this
-        # is the absolute displacement of the hand from the anchor.
-        pos = _R_XR_TO_ISAAC @ (wrist_pos - self._origin_pos) * self.args.pos_scale
-        # Current rotation relative to the origin, as an axis-angle vector mapped
-        # the same way (components are rotation about the up / right / back axes).
+        # Position relative to the origin, mapped into [up, right, back] then
+        # relabelled to [fwd, right, up] (forward = -back). Absolute displacement of
+        # the hand from the anchor — no clamping / integration.
+        m = _R_XR_TO_ISAAC @ (wrist_pos - self._origin_pos) * self.args.pos_scale   # [up,right,back]
+        pos = np.array([-m[2], m[1], m[0]])                                          # [fwd,right,up]
+        # Rotation since the origin, mapped the same way and relabelled to
+        # [about fwd, about right, about up] (deg).
         rotvec_xr = (rot_now * self._origin_rot.inv()).as_rotvec()
-        rot = _R_XR_TO_ISAAC @ rotvec_xr * self.args.rot_scale
+        r = _R_XR_TO_ISAAC @ rotvec_xr * self.args.rot_scale                          # [up,right,back]
+        rot = np.rad2deg(np.array([-r[2], r[1], r[0]]))                               # [fwd,right,up]
+        # Wrist body-frame triad in the ROOM frame, labelled with the device's
+        # room-axis convention (body +X = RIGHT, +Y = UP, +Z = BACK => FWD = -Z).
+        # Columns of rot_now.as_matrix() are the wrist's local X/Y/Z in room coords.
+        # This is the convention the dashboard verifies: if an arrow does not line up
+        # with the physical hand, the device's axis assignment is wrong.
+        R = rot_now.as_matrix()
+        triad = {
+            "right": R[:, 0].tolist(),
+            "up":    R[:, 1].tolist(),
+            "fwd":   (-R[:, 2]).tolist(),
+        }
+        # Quaternions as (w, x, y, z). scipy stores xyzw.
+        qn = rot_now.as_quat(); qd = (rot_now * self._origin_rot.inv()).as_quat()
+        quat_now = [qn[3], qn[0], qn[1], qn[2]]
+        quat_delta = [qd[3], qd[0], qd[1], qd[2]]
         pd = pinch_distance(joints)
-        # Absolute wrist orientation mapped through the SAME matrix, so the
-        # dashboard triad shows the wrist's local X/Y/Z as the robot would see
-        # them. Columns of ee_basis are those three axes (robot frame).
-        ee_basis = _R_XR_TO_ISAAC @ rot_now.as_matrix()
         return {
             "joints": joints.tolist(),
             "wrist_pos": wrist_pos.tolist(),
             "pos": pos.tolist(),
-            "rot": np.rad2deg(rot).tolist(),
-            "ee_basis": ee_basis.tolist(),
+            "rot": rot.tolist(),
+            "triad": triad,
+            "quat_now": quat_now,
+            "quat_delta": quat_delta,
             "pinch_d": pd,
             "pinch_threshold": self.args.pinch_threshold,
             "gripper": "closed" if pd < self.args.pinch_threshold else "open",
@@ -406,8 +444,6 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--pos-scale", type=float, default=1.0)
     p.add_argument("--rot-scale", type=float, default=1.0)
     p.add_argument("--pinch-threshold", type=float, default=0.035, help="metres")
-    p.add_argument("--ee-span", type=float, default=0.4,
-                   help="metres shown across the robot-frame position views (fixed scale)")
     return p.parse_args()
 
 
