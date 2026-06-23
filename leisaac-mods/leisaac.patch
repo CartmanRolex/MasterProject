@@ -520,7 +520,7 @@ index aba21df..0000000
 -if __name__ == "__main__":
 -    main()
 diff --git a/scripts/environments/teleoperation/teleop_se3_agent.py b/scripts/environments/teleoperation/teleop_se3_agent.py
-index a467482..3484fe0 100644
+index a467482..75b1d27 100644
 --- a/scripts/environments/teleoperation/teleop_se3_agent.py
 +++ b/scripts/environments/teleoperation/teleop_se3_agent.py
 @@ -25,6 +25,9 @@ parser.add_argument(
@@ -533,7 +533,7 @@ index a467482..3484fe0 100644
          "so101leader",
          "bi-so101leader",
          "lekiwi-keyboard",
-@@ -33,17 +36,12 @@ parser.add_argument(
+@@ -33,17 +36,16 @@ parser.add_argument(
      ],
      help="Device for interacting with environment",
  )
@@ -550,11 +550,15 @@ index a467482..3484fe0 100644
 -        "ZMQ endpoint for remote so101leader (e.g. tcp://192.168.1.10:5556). Uses so101_joint_state_server.py on the"
 -        " remote machine."
 -    ),
++    "--quest_rot_track_gain", type=float, default=0.4,
++    help="Quest3 orientation-tracking softness in (0,1]: lower lets orientation give way to translation; 1.0 tracks orientation hard.",
++)
++parser.add_argument(
 +    "--port", type=str, default="/dev/ttyACM0", help="Port for the teleop device:so101leader, default is /dev/ttyACM0"
  )
  parser.add_argument(
      "--left_arm_port",
-@@ -95,7 +93,7 @@ import time
+@@ -95,7 +97,7 @@ import time
  import gymnasium as gym
  import torch
  from isaaclab.envs import DirectRLEnv, ManagerBasedRLEnv
@@ -563,7 +567,7 @@ index a467482..3484fe0 100644
  from isaaclab_tasks.utils import parse_env_cfg
  from leisaac.enhance.managers import EnhanceDatasetExportMode, StreamingRecorderManager
  from leisaac.utils.env_utils import dynamic_reset_gripper_effort_limit_sim
-@@ -224,6 +222,18 @@ def main():  # noqa: C901
+@@ -224,6 +226,18 @@ def main():  # noqa: C901
  
      # create environment
      env: ManagerBasedRLEnv | DirectRLEnv = gym.make(task_name, cfg=env_cfg).unwrapped
@@ -582,7 +586,7 @@ index a467482..3484fe0 100644
      # replace the original recorder manager with the streaming recorder manager or lerobot recorder manager
      if args_cli.record:
          del env.recorder_manager
-@@ -254,15 +264,24 @@ def main():  # noqa: C901
+@@ -254,15 +268,25 @@ def main():  # noqa: C901
          from leisaac.devices import SO101Gamepad
  
          teleop_interface = SO101Gamepad(env, sensitivity=args_cli.sensitivity)
@@ -598,23 +602,24 @@ index a467482..3484fe0 100644
 +        teleop_interface = SO101GamepadV2(env, sensitivity=args_cli.sensitivity)
 +    elif args_cli.teleop_device == "gamepad_v3":
 +        from leisaac.devices import SO101GamepadV3
-+
+ 
+-            teleop_interface = SO101Leader(env, port=args_cli.port, recalibrate=args_cli.recalibrate)
 +        teleop_interface = SO101GamepadV3(env, sensitivity=args_cli.sensitivity)
 +    elif args_cli.teleop_device == "quest3":
 +        from leisaac.devices import SO101Quest3
 +
 +        teleop_interface = SO101Quest3(
-+            env, sensitivity=args_cli.sensitivity, port=args_cli.quest_port, pinch_threshold_m=args_cli.pinch_threshold
++            env, sensitivity=args_cli.sensitivity, port=args_cli.quest_port, pinch_threshold_m=args_cli.pinch_threshold,
++            rot_track_gain=args_cli.quest_rot_track_gain,
 +        )
 +    elif args_cli.teleop_device == "so101leader":
 +        from leisaac.devices import SO101Leader
- 
--            teleop_interface = SO101Leader(env, port=args_cli.port, recalibrate=args_cli.recalibrate)
++
 +        teleop_interface = SO101Leader(env, port=args_cli.port, recalibrate=args_cli.recalibrate)
      elif args_cli.teleop_device == "bi-so101leader":
          from leisaac.devices import BiSO101Leader
  
-@@ -283,8 +302,9 @@ def main():  # noqa: C901
+@@ -283,8 +307,9 @@ def main():  # noqa: C901
          teleop_interface = LeKiwiGamepad(env, sensitivity=args_cli.sensitivity)
      else:
          raise ValueError(
@@ -626,7 +631,7 @@ index a467482..3484fe0 100644
          )
  
      # add teleoperation key for env reset
-@@ -312,6 +332,7 @@ def main():  # noqa: C901
+@@ -312,6 +337,7 @@ def main():  # noqa: C901
          env.initialize()
      env.reset()
      teleop_interface.reset()
@@ -634,7 +639,7 @@ index a467482..3484fe0 100644
  
      resume_recorded_demo_count = 0
      if args_cli.record and args_cli.resume:
-@@ -345,6 +366,8 @@ def main():  # noqa: C901
+@@ -345,6 +371,8 @@ def main():  # noqa: C901
                          manual_terminate(env, True)
                  if should_reset_recording_instance:
                      env.reset()
@@ -643,7 +648,7 @@ index a467482..3484fe0 100644
                      should_reset_recording_instance = False
                      if start_record_state:
                          if args_cli.record:
-@@ -380,6 +403,14 @@ def main():  # noqa: C901
+@@ -380,6 +408,14 @@ def main():  # noqa: C901
                              print("Start Recording!!!")
                          start_record_state = True
                      env.step(actions)

@@ -97,7 +97,7 @@ from .quest3_webxr import (
 # maps XR wrist axes [right, up, back] -> the gamepad_v3 display axes
 # [up, right, back]; relabelling those into Isaac world (forward = -back,
 # left = -right, up = up) yields this matrix. So with XR wrist axes [right, up, back]:
-#     world +X (forward) <- -wrist[2]   (hand back  -> -X)
+#     world +X (forward) <-  wrist[2]   (forward/back came out mirrored: row 0 flipped)
 #     world +Y (left)    <- -wrist[0]   (hand right -> -Y)
 #     world +Z (up)      <-  wrist[1]   (hand up    -> +Z)
 # The robot then moves up / right / back exactly as the monitor and
@@ -105,7 +105,7 @@ from .quest3_webxr import (
 # calibration monitor (its own ``_R_XR_TO_ISAAC``) is unaffected. Flip a row's
 # sign if a motion axis comes out mirrored on the real robot.
 _R_XR_TO_ISAAC_SO101: np.ndarray = np.array(
-    [[0.0, 0.0, -1.0],
+    [[0.0, 0.0, 1.0],
      [-1.0, 0.0, 0.0],
      [0.0, 1.0, 0.0]],
     dtype=np.float64,
@@ -130,6 +130,7 @@ class SO101Quest3(Device):
         safety_timeout_s: float = 0.5,
         max_pos_step_m: float = 0.02,
         max_rot_step_rad: float = 0.10,
+        rot_track_gain: float = 0.4,
         gripper_sensitivity: float = 0.15,
         shoulder_pan_sensitivity: float = 4.0,
     ) -> None:
@@ -143,6 +144,13 @@ class SO101Quest3(Device):
         self.safety_timeout_s = safety_timeout_s
         self.max_pos_step_m = max_pos_step_m
         self.max_rot_step_rad = max_rot_step_rad
+        # Softness of orientation tracking, in (0, 1]. The DLS IK weights position
+        # and rotation error equally and the same arm joints serve both, so on this
+        # 4-joint arm a hard orientation command starves translation. Scaling the
+        # rotation error down de-weights it: lower = orientation gives way to
+        # translation (it still converges once you stop translating); 1.0 = track
+        # orientation as hard as possible (original behaviour, translation suffers).
+        self.rot_track_gain = rot_track_gain
 
         super().__init__(env, "quest3")
 
@@ -295,6 +303,11 @@ class SO101Quest3(Device):
         drot_root = (Q_target_root * Q_ee_root.inv()).as_rotvec()
         # Up is not constrained: zero its error so the IK never drives it.
         drot_root[2] = 0.0
+        # Soften orientation tracking so it yields to translation: scaling the error
+        # down de-weights the rotation rows in the DLS least-squares, so the shared
+        # arm joints spend more of their motion on position. Orientation still
+        # converges once you stop translating (P-controller, gain < 1).
+        drot_root = drot_root * self.rot_track_gain
         # Rate-limit the chase (the IK takes one step per frame toward the target).
         ang = float(np.linalg.norm(drot_root))
         if ang > self.max_rot_step_rad:
