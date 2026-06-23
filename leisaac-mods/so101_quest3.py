@@ -61,7 +61,7 @@ into a dedicated one.
 Axis fixes happen in ``_anchored_rotation_error`` (root-frame axes
 ``[forward, right, up]``): the hand's forward<->right rotation is **swapped on the
 commanded target** (feedforward, so the closed loop stays stable — permuting the
-error instead diverges), and **up (yaw) is not controlled** — its error component
+error instead diverges), and **up is not controlled** — its error component
 is zeroed so the IK is commanded the gripper's current up orientation every step
 and never tries to correct it.
 """
@@ -272,7 +272,7 @@ class SO101Quest3(Device):
             was turning the gripper about right. Permuting the closed-loop *error*
             instead makes the IK chase a swapped direction and one mode diverges;
             doing it on the command keeps the error honest and the loop stable.
-          * **up (yaw) is not controlled** — its error component is zeroed, so the IK
+          * **up is not controlled** — its error component is zeroed, so the IK
             is effectively commanded the gripper's *current* up orientation every
             step and never tries to correct it. Dropping a DOF this way is stable
             (unlike swapping); we are not asking the solver to reach anything.
@@ -283,16 +283,17 @@ class SO101Quest3(Device):
         dQ_hand = rot_now * self._anchor_wrist_rot.inv()
         w_world = (self._R_rot_map * dQ_hand * self._R_rot_map.inv()).as_rotvec()
         w_root = Q_root.inv().apply(w_world)
-        # Feedforward forward<->right swap (right is also sign-inverted: rotation
-        # about the right axis came out reversed); up is left out of the command (it
-        # is not controlled — see the error zeroing below).
-        w_cmd = np.array([w_root[1], -w_root[0], 0.0])
+        # Feedforward forward<->right swap. The component that drives rotation about
+        # the RIGHT axis (index 0 after the swap) is sign-inverted — that rotation
+        # came out reversed in teleop. Up is left out of the command (it is not
+        # controlled — see the error zeroing below).
+        w_cmd = np.array([-w_root[1], w_root[0], 0.0])
         # Target = anchor EE rotated by the commanded hand rotation (all root frame).
         Q_ee_anchor_root = Q_root.inv() * self._anchor_ee_world_rot
         Q_target_root = Rotation.from_rotvec(w_cmd) * Q_ee_anchor_root
         Q_ee_root = Q_root.inv() * self._read_ee_world_rot()
         drot_root = (Q_target_root * Q_ee_root.inv()).as_rotvec()
-        # Up (yaw) is not constrained: zero its error so the IK never drives it.
+        # Up is not constrained: zero its error so the IK never drives it.
         drot_root[2] = 0.0
         # Rate-limit the chase (the IK takes one step per frame toward the target).
         ang = float(np.linalg.norm(drot_root))
