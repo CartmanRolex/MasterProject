@@ -57,6 +57,12 @@ rotation (the error is the real orientation error, 1:1); ``max_rot_step_rad`` is
 rate cap. If a rotation axis comes out swapped/wrong, ``_R_rot_map`` is the single
 tuning knob — it defaults to the same matrix as the position path but may be split
 into a dedicated one.
+
+The final root-frame error rotvec is post-processed in ``_anchored_rotation_error``
+(components ``[about forward, about right, about up]``): the forward and right
+components are **swapped** (hand-forward rotation was turning the gripper about
+right), and the **up-axis component is dropped** — yaw about up is intentionally
+not constrained to the IK.
 """
 
 import asyncio
@@ -268,6 +274,14 @@ class SO101Quest3(Device):
         Q_target_root = Q_root.inv() * Q_target_world
         Q_ee_root = Q_root.inv() * self._read_ee_world_rot()
         drot_root = (Q_target_root * Q_ee_root.inv()).as_rotvec()
+        # Root-frame rotvec components are [about forward (x), about right (y),
+        # about up (z)] — same axis convention as the position delta. Two fixes,
+        # both in this (root) frame so they map 1:1 to how the arm actually turns:
+        #   * swap forward<->right: rotating the hand about its forward axis was
+        #     turning the gripper about right (and vice versa).
+        #   * drop the up-axis rotation: yaw about up is not constrained to the IK
+        #     (we don't want it tracked), so zero that component.
+        drot_root = np.array([drot_root[1], drot_root[0], 0.0])
         # Rate-limit the chase (the IK takes one step per frame toward the target).
         ang = float(np.linalg.norm(drot_root))
         if ang > self.max_rot_step_rad:

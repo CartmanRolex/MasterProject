@@ -1,9 +1,214 @@
+diff --git a/.gitignore b/.gitignore
+index ed4d05f..1445c58 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -69,7 +69,6 @@ source/leisaac/leisaac/devices/lerobot/.cache/so101_leader.json
+ source/leisaac/leisaac/devices/lerobot/.cache/left_so101_leader.json
+ source/leisaac/leisaac/devices/lerobot/.cache/right_so101_leader.json
+ source/leisaac/leisaac/devices/lerobot/.cache/lekiwi_leader.json
+-scripts/environments/teleoperation/.cache/
+ 
+ # scene assets
+ assets/scenes/*
+diff --git a/CITATION.cff b/CITATION.cff
+index 7e256fe..766a1d7 100644
+--- a/CITATION.cff
++++ b/CITATION.cff
+@@ -1,7 +1,7 @@
+ cff-version: 1.2.0
+ message: "If you use leisaac, please cite it as follows."
+ title: LeIsaac
+-version: 0.4.0
++version: 0.3.0
+ repository-code: https://github.com/LightwheelAI/leisaac
+ type: software
+ authors:
+@@ -9,4 +9,4 @@ authors:
+   - name: LeIsaac Project Developers
+ url: https://lightwheelai.github.io/leisaac/
+ license: Apache-2.0
+-date-released: 2026-04-14
++date-released: 2025-12-19
+diff --git a/README.md b/README.md
+index 4815ef4..7dff3f9 100644
+--- a/README.md
++++ b/README.md
+@@ -13,18 +13,6 @@ This repository provides teleoperation functionality in [IsaacLab](https://isaac
+ >
+ > Join us, contribute, and help shape the future of AI and robotics. For questions or collaboration, contact [Zeyu](mailto:zeyu.hu@lightwheel.ai) or [Yinghao](mailto:yinghao.shuai@lightwheel.ai).
+ 
+-## News 🗞️
+-- [26/04/14] Remote teleoperation is now available in LeIsaac! Try it out [here](https://lightwheelai.github.io/leisaac/docs/getting_started/teleoperation#remote-teleoperation).
+-- [26/03/10] With the new `datagen` module, LeIsaac can generate motion trajectories programmatically. See [State Machine Data Generation](https://lightwheelai.github.io/leisaac/docs/features/state_machine).
+-- [26/01/16] Added inference support for GR00T N1.6; details are in [Available Policy Inference](https://lightwheelai.github.io/leisaac/resources/available_policy#finetuned-gr00t-n16).
+-- [26/01/13] Try our tutorial [LeIsaac x Cosmos](https://lightwheelai.github.io/leisaac/docs/tutorials/cosmos_tutorial) to get a video2action data generation pipeline.
+-- [26/01/12] Extra feature of [lerobot recorder integration](https://lightwheelai.github.io/leisaac/docs/features/lerobot_recorder) released! You can now record data directly in LeRobot Dataset format during teleoperation.
+-- [25/12/19] Try our tutorial [LeIsaac x Marble](https://lightwheelai.github.io/leisaac/docs/tutorials/marble_tutorial) to build and evaluate diverse embodied tasks across large-scale generalized environments.
+-- [25/12/19] We now support lekiwi-based teleoperation and provide a Loft scene for the community. See the example task [here](https://lightwheelai.github.io/leisaac/resources/available_env).
+-- [25/11/27] We now support more teleoperation devices, including the enhanced keyboard and gamepad. Refer to [the device guide](https://lightwheelai.github.io/leisaac/resources/available_devices) for usage details.
+-- [25/11/26] LeIsaac is now the official imitation-learning (IL) simulation playground integrated into LeRobot’s EnvHub. It provides fast, scalable Isaac-based environments designed for imitation learning, control, and policy evaluation. It is featured in LeRobot: [LeIsaac × LeRobot EnvHub](https://huggingface.co/docs/lerobot/en/envhub_leisaac)
+-
+-
+ ## Getting Started 📚
+ 
+ Please refer to our [documentation](https://lightwheelai.github.io/leisaac/) to learn how to use this repository. Follow these links to learn more about:
+@@ -34,6 +22,10 @@ Please refer to our [documentation](https://lightwheelai.github.io/leisaac/) to
+ - [Policy Inference](https://lightwheelai.github.io/leisaac/docs/getting_started/policy_support)
+ - [Available Robots](https://lightwheelai.github.io/leisaac/resources/available_robots), [Environments](https://lightwheelai.github.io/leisaac/resources/available_env) and [Policy](https://lightwheelai.github.io/leisaac/resources/available_policy)
+ 
++> [!TIP]
++>
++> For more features and updates, please refer to the [News](https://lightwheelai.github.io/leisaac/#news) section on our website!
++
+ ## Contributing 🤝
+ 
+ Please see [CONTRIBUTING.md](CONTRIBUTING.md) for how to report issues and submit pull requests.
+@@ -49,8 +41,8 @@ license = {Apache-2.0},
+ month = dec,
+ title = {{LeIsaac}},
+ url = {https://github.com/LightwheelAI/leisaac},
+-version = {0.4.0},
+-year = {2026}
++version = {0.3.0},
++year = {2025}
+ }
+ ```
+ 
 diff --git a/assets/robots/.gitkeep b/assets/robots/.gitkeep
 deleted file mode 100644
 index e69de29..0000000
 diff --git a/assets/scenes/.gitkeep b/assets/scenes/.gitkeep
 deleted file mode 100644
 index e69de29..0000000
+diff --git a/docs/docs/docs/getting_started/teleoperation.md b/docs/docs/docs/getting_started/teleoperation.md
+index 4e044d0..24da169 100644
+--- a/docs/docs/docs/getting_started/teleoperation.md
++++ b/docs/docs/docs/getting_started/teleoperation.md
+@@ -27,8 +27,6 @@ python scripts/environments/teleoperation/teleop_se3_agent.py \
+ 
+ -  `--port`: Specify the port of teleoperation device, e.g., `/dev/ttyACM0`. Only used when teleop_device is `so101leader` and `lekiwi-leader`.
+ 
+-- `--remote_endpoint`: ZMQ endpoint for remote so101leader (e.g., `tcp://192.168.1.10:5556`). When set, connects to a `so101_joint_state_server.py` running on the machine with the leader arm. See [Remote Teleoperation](#remote-teleoperation) below.
+-
+ - `--left_arm_port`: Specify the port of left arm, e.g., `/dev/ttyACM0`. Only used when teleop_device is `bi-so101leader`.
+ 
+ - `--right_arm_port`: Specify the port of right arm, e.g., `/dev/ttyACM1`. Only used when teleop_device is `bi-so101leader`.
+@@ -61,99 +59,6 @@ python scripts/environments/teleoperation/teleop_se3_agent.py \
+ We support multiple devices for teleoperation. See [here](/resources/available_devices) for more devices and usage instructions.
+ ::::
+ 
+-## Remote Teleoperation
+-
+-When the leader arm is connected to a different machine than the one running Isaac Sim
+-(e.g., Isaac Sim on a cloud GPU instance, leader arm on your laptop), you can use
+-**remote teleoperation** via ZMQ.
+-
+-### How it works
+-
+-The leader arm machine runs a lightweight publisher that reads motor positions and
+-streams them over the network. The Isaac Sim machine subscribes and uses the joint
+-states for teleoperation — no USB forwarding needed.
+-
+-```
+-Laptop (leader arm)                      Cloud GPU (Isaac Sim)
+-┌──────────────────────────┐  ZMQ PUB/SUB  ┌──────────────────────┐
+-│ so101_joint_state_server │──────────────►│ SO101LeaderRemote    │
+-│ reads motors             │   tcp:5556    │ teleop_se3_agent.py  │
+-│ at 50 Hz                 │               │ --remote_endpoint    │
+-└──────────────────────────┘               └──────────────────────┘
+-```
+-
+-### Prerequisites
+-
+-- Network connectivity between the two machines (direct or via SSH tunnel)
+-- `pyzmq` installed on the Isaac Sim machine: `pip install "source/leisaac[remote]"` or `pip install pyzmq`
+-
+-### Local Machine Setup
+-
+-On the machine where the leader arm is connected, install leisaac with remote support:
+-
+-```bash
+-pip install "source/leisaac[remote]"
+-```
+-
+-::::info
+-On the remote machine (the Isaac Sim machine), you need to install the full simulation stack, including PyTorch, Isaac Sim, and IsaacLab. On your local machine, you can skip these heavyweight dependencies—just run the command above; local installation of PyTorch/Isaac Sim/IsaacLab is not required.
+-::::
+-
+-### Usage
+-
+-**Terminal 1 — Local machine (leader arm):**
+-
+-```bash
+-python scripts/environments/teleoperation/so101_joint_state_server.py \
+-    --port /dev/ttyACM0 --id leader_arm --rate 50
+-```
+-
+-If no calibration file exists, the script will run an interactive calibration process automatically. To force recalibration, add `--recalibrate`.
+-
+-**Terminal 2 — Remote machine (Isaac Sim):**
+-
+-```bash
+-python scripts/environments/teleoperation/teleop_se3_agent.py \
+-    --task=LeIsaac-SO101-PickOrange-v0 \
+-    --teleop_device=so101leader \
+-    --remote_endpoint=tcp://<local-machine-ip>:5556 \
+-    --num_envs=1 --device=cuda --enable_cameras
+-```
+-
+-### SSH Reverse Port Forwarding
+-
+-If the cloud instance cannot reach your laptop directly (e.g., behind NAT or firewall),
+-use SSH reverse port forwarding to expose the publisher's port on the remote machine:
+-
+-```bash
+-# On your laptop — forward local port 5556 to the remote machine's localhost:5556
+-ssh -R 5556:localhost:5556 ubuntu@<cloud-instance-ip>
+-```
+-
+-Then on the remote machine, connect to `localhost` instead of your laptop's IP:
+-
+-```bash
+-python scripts/environments/teleoperation/teleop_se3_agent.py \
+-    --task=LeIsaac-SO101-PickOrange-v0 \
+-    --teleop_device=so101leader \
+-    --remote_endpoint=tcp://localhost:5556 \
+-    --num_envs=1 --device=cuda --enable_cameras
+-```
+-
+-### Parameters
+-
+-- `--remote_endpoint`: ZMQ endpoint to subscribe to (e.g., `tcp://192.168.1.10:5556`
+-  or `tcp://localhost:5556` with SSH tunnel). When set, uses `SO101LeaderRemote` instead
+-  of the local `SO101Leader`.
+-
+-- `--id` (publisher): Calibration ID (default: `leader_arm`). Calibration is stored in
+-  `scripts/environments/teleoperation/.cache/{id}.json`.
+-
+-- `--rate` (publisher): Motor read rate in Hz (default: 50). 30–50 Hz is sufficient
+-  for LeIsaac teleoperation.
+-
+-- `--recalibrate` (publisher): Force recalibration even if a calibration file exists.
+-
+ ## Operating Instructions
+ 
+ If the calibration file does not exist at the specified cache path, or if you launch with `--recalibrate`, you will be prompted to calibrate the SO101Leader.  Please refer to the [documentation](https://huggingface.co/docs/lerobot/so101#calibration-video) for calibration steps.
+diff --git a/docs/docs/docs/introduction.md b/docs/docs/docs/introduction.md
+index c8b8c82..19149e2 100644
+--- a/docs/docs/docs/introduction.md
++++ b/docs/docs/docs/introduction.md
+@@ -17,3 +17,11 @@ LeIsaac provides teleoperation functionality in [IsaacLab](https://isaac-sim.git
+ - 🦾 State machine scripted policies enable fully automated data collection without human teleoperation.
+ - 🔄 Ready-to-use scripts convert HDF5 data into the LeRobot dataset format.
+ - 🧠 Simulation data is used to fine-tune [GR00T N1.5](https://github.com/NVIDIA/Isaac-GR00T) and deploy the policy on real hardware. And more policies will be supported.
++
++## News
++- [26/01/13] Try our tutorial [LeIsaac x Cosmos](/docs/tutorials/cosmos_tutorial) to get a video2action data generation pipeline.
++- [26/01/12] Extra feature of [lerobot recorder integration](/docs/features/lerobot_recorder) released! You can now record data directly in LeRobot Dataset format during teleoperation.
++- [25/12/19] Try our tutorial [LeIsaac x Marble](/docs/tutorials/marble_tutorial) to build and evaluate diverse embodied tasks across large-scale generalized environments.
++- [25/12/19] We now support lekiwi-based teleoperation and provide a Loft scene for the community. See the example task [here](/resources/available_env).
++- [25/11/27] We now support more teleoperation devices, including the enhanced keyboard and gamepad. Refer to [the device guide](/resources/available_devices) for usage details.
++- [25/11/26] LeIsaac is now the official imitation-learning (IL) simulation playground integrated into LeRobot’s EnvHub. It provides fast, scalable Isaac-based environments designed for imitation learning, control, and policy evaluation. It is featured in LeRobot: [LeIsaac × LeRobot EnvHub](https://huggingface.co/docs/lerobot/en/envhub_leisaac)
 diff --git a/scripts/convert/isaaclab2lerobotv3.py b/scripts/convert/isaaclab2lerobotv3.py
 index 41fbce7..ccae93a 100644
 --- a/scripts/convert/isaaclab2lerobotv3.py
@@ -139,8 +344,183 @@ index 41fbce7..ccae93a 100644
  
      if args_cli.push_to_hub:
          dataset.push_to_hub()
+diff --git a/scripts/environments/teleoperation/so101_joint_state_server.py b/scripts/environments/teleoperation/so101_joint_state_server.py
+deleted file mode 100644
+index aba21df..0000000
+--- a/scripts/environments/teleoperation/so101_joint_state_server.py
++++ /dev/null
+@@ -1,169 +0,0 @@
+-# /// script
+-# requires-python = ">=3.10"
+-# dependencies = ["leisaac[remote]"]
+-# ///
+-"""Publish normalized SO101 leader arm joint states over ZMQ PUB.
+-
+-Run this on the machine where the leader arm is physically connected.
+-A remote LeIsaac instance subscribes to receive joint states for teleoperation.
+-
+-Usage:
+-    python so101_joint_state_server.py --port /dev/ttyACM0 --id leader_arm --rate 50
+-    python so101_joint_state_server.py --port /dev/ttyACM0 --id leader_arm --recalibrate
+-"""
+-
+-import argparse
+-import json
+-import os
+-import struct
+-import time
+-
+-import zmq
+-
+-try:
+-    from leisaac.devices.lerobot.common.motors import (
+-        FeetechMotorsBus,
+-        Motor,
+-        MotorCalibration,
+-        MotorNormMode,
+-    )
+-except ImportError as e:
+-    raise ImportError("leisaac is required. Install with: pip install leisaac[remote]") from e
+-
+-MOTORS = {
+-    "shoulder_pan": Motor(1, "sts3215", MotorNormMode.RANGE_M100_100),
+-    "shoulder_lift": Motor(2, "sts3215", MotorNormMode.RANGE_M100_100),
+-    "elbow_flex": Motor(3, "sts3215", MotorNormMode.RANGE_M100_100),
+-    "wrist_flex": Motor(4, "sts3215", MotorNormMode.RANGE_M100_100),
+-    "wrist_roll": Motor(5, "sts3215", MotorNormMode.RANGE_M100_100),
+-    "gripper": Motor(6, "sts3215", MotorNormMode.RANGE_0_100),
+-}
+-MOTOR_NAMES = list(MOTORS.keys())
+-CACHE_DIR = os.path.join(os.path.dirname(__file__), ".cache")
+-
+-
+-def get_calibration_path(arm_id: str) -> str:
+-    return os.path.join(CACHE_DIR, f"{arm_id}.json")
+-
+-
+-def load_calibration(path: str) -> dict[str, MotorCalibration]:
+-    with open(path) as f:
+-        data = json.load(f)
+-    return {
+-        name: MotorCalibration(
+-            id=int(d["id"]),
+-            drive_mode=int(d["drive_mode"]),
+-            homing_offset=int(d["homing_offset"]),
+-            range_min=int(d["range_min"]),
+-            range_max=int(d["range_max"]),
+-        )
+-        for name, d in data.items()
+-    }
+-
+-
+-def save_calibration(path: str, calibration: dict[str, MotorCalibration]):
+-    os.makedirs(os.path.dirname(path), exist_ok=True)
+-    data = {
+-        k: {
+-            "id": v.id,
+-            "drive_mode": v.drive_mode,
+-            "homing_offset": v.homing_offset,
+-            "range_min": v.range_min,
+-            "range_max": v.range_max,
+-        }
+-        for k, v in calibration.items()
+-    }
+-    with open(path, "w") as f:
+-        json.dump(data, f, indent=4)
+-
+-
+-def calibrate(port: str, arm_id: str) -> dict[str, MotorCalibration]:
+-    """Run interactive calibration using leisaac's calibration logic."""
+-    print(f"\nRunning calibration for {arm_id} on {port}")
+-
+-    bus = FeetechMotorsBus(port=port, motors=MOTORS)
+-    bus.connect()
+-    bus.disable_torque()
+-
+-    input("Move the leader arm to the MIDDLE of its range of motion and press ENTER...")
+-    homing_offsets = bus.set_half_turn_homings()
+-
+-    print("Move all joints through their FULL range of motion.")
+-    print("Press ENTER when done...")
+-    range_mins, range_maxes = bus.record_ranges_of_motion()
+-
+-    calibration = {
+-        name: MotorCalibration(
+-            id=MOTORS[name].id,
+-            drive_mode=0,
+-            homing_offset=homing_offsets[name],
+-            range_min=range_mins[name],
+-            range_max=range_maxes[name],
+-        )
+-        for name in MOTOR_NAMES
+-    }
+-
+-    path = get_calibration_path(arm_id)
+-    save_calibration(path, calibration)
+-    print(f"Calibration saved to {path}")
+-
+-    bus.disconnect()
+-    return calibration
+-
+-
+-def main():
+-    parser = argparse.ArgumentParser(description="SO101 leader arm joint state publisher")
+-    parser.add_argument("--port", default="/dev/ttyACM0")
+-    parser.add_argument("--id", default="leader_arm", help="Calibration ID")
+-    parser.add_argument("--bind", default="tcp://0.0.0.0:5556")
+-    parser.add_argument("--rate", type=int, default=50, help="Publish rate in Hz")
+-    parser.add_argument("--recalibrate", action="store_true", help="Force recalibration")
+-    args = parser.parse_args()
+-
+-    calib_path = get_calibration_path(args.id)
+-
+-    if args.recalibrate or not os.path.exists(calib_path):
+-        calibration = calibrate(args.port, args.id)
+-    else:
+-        calibration = load_calibration(calib_path)
+-        print(f"Loaded calibration from {calib_path}")
+-
+-    bus = FeetechMotorsBus(port=args.port, motors=MOTORS, calibration=calibration)
+-    bus.connect()
+-    bus.disable_torque()
+-
+-    ctx = zmq.Context()
+-    pub = ctx.socket(zmq.PUB)
+-    pub.setsockopt(zmq.CONFLATE, 1)
+-    pub.bind(args.bind)
+-    print(f"Publishing on {args.bind} at {args.rate} Hz")
+-    time.sleep(0.5)
+-
+-    interval = 1.0 / args.rate
+-    count = 0
+-    next_t = time.monotonic()
+-
+-    try:
+-        while True:
+-            positions = bus.sync_read("Present_Position")
+-            values = [positions[name] for name in MOTOR_NAMES]
+-            pub.send(struct.pack("<6f", *values), zmq.NOBLOCK)
+-
+-            count += 1
+-            if count % (args.rate * 10) == 0:
+-                print(f"{count} msgs sent")
+-
+-            next_t += interval
+-            sleep_t = next_t - time.monotonic()
+-            if sleep_t > 0:
+-                time.sleep(sleep_t)
+-    except KeyboardInterrupt:
+-        print(f"\nDone: {count} msgs")
+-    finally:
+-        bus.disconnect()
+-        pub.close()
+-        ctx.term()
+-
+-
+-if __name__ == "__main__":
+-    main()
 diff --git a/scripts/environments/teleoperation/teleop_se3_agent.py b/scripts/environments/teleoperation/teleop_se3_agent.py
-index 573738f..3484fe0 100644
+index a467482..3484fe0 100644
 --- a/scripts/environments/teleoperation/teleop_se3_agent.py
 +++ b/scripts/environments/teleoperation/teleop_se3_agent.py
 @@ -25,6 +25,9 @@ parser.add_argument(
@@ -153,18 +533,28 @@ index 573738f..3484fe0 100644
          "so101leader",
          "bi-so101leader",
          "lekiwi-keyboard",
-@@ -33,6 +36,10 @@ parser.add_argument(
+@@ -33,17 +36,12 @@ parser.add_argument(
      ],
      help="Device for interacting with environment",
  )
 +parser.add_argument("--quest_port", type=int, default=8080, help="Quest3 WebXR server port (expose via 'ngrok http <port>').")
-+parser.add_argument(
-+    "--pinch_threshold", type=float, default=0.035, help="Quest3 thumb-index pinch distance (m) below which the gripper closes."
-+)
  parser.add_argument(
-     "--port", type=str, default="/dev/ttyACM0", help="Port for the teleop device:so101leader, default is /dev/ttyACM0"
+-    "--port", type=str, default="/dev/ttyACM0", help="Port for the teleop device:so101leader, default is /dev/ttyACM0"
++    "--pinch_threshold", type=float, default=0.035, help="Quest3 thumb-index pinch distance (m) below which the gripper closes."
  )
-@@ -86,7 +93,7 @@ import time
+ parser.add_argument(
+-    "--remote_endpoint",
+-    type=str,
+-    default=None,
+-    help=(
+-        "ZMQ endpoint for remote so101leader (e.g. tcp://192.168.1.10:5556). Uses so101_joint_state_server.py on the"
+-        " remote machine."
+-    ),
++    "--port", type=str, default="/dev/ttyACM0", help="Port for the teleop device:so101leader, default is /dev/ttyACM0"
+ )
+ parser.add_argument(
+     "--left_arm_port",
+@@ -95,7 +93,7 @@ import time
  import gymnasium as gym
  import torch
  from isaaclab.envs import DirectRLEnv, ManagerBasedRLEnv
@@ -173,7 +563,7 @@ index 573738f..3484fe0 100644
  from isaaclab_tasks.utils import parse_env_cfg
  from leisaac.enhance.managers import EnhanceDatasetExportMode, StreamingRecorderManager
  from leisaac.utils.env_utils import dynamic_reset_gripper_effort_limit_sim
-@@ -215,6 +222,18 @@ def main():  # noqa: C901
+@@ -224,6 +222,18 @@ def main():  # noqa: C901
  
      # create environment
      env: ManagerBasedRLEnv | DirectRLEnv = gym.make(task_name, cfg=env_cfg).unwrapped
@@ -192,13 +582,19 @@ index 573738f..3484fe0 100644
      # replace the original recorder manager with the streaming recorder manager or lerobot recorder manager
      if args_cli.record:
          del env.recorder_manager
-@@ -245,6 +264,20 @@ def main():  # noqa: C901
+@@ -254,15 +264,24 @@ def main():  # noqa: C901
          from leisaac.devices import SO101Gamepad
  
          teleop_interface = SO101Gamepad(env, sensitivity=args_cli.sensitivity)
+-    elif args_cli.teleop_device == "so101leader":
+-        if args_cli.remote_endpoint:
+-            from leisaac.devices import SO101LeaderRemote
 +    elif args_cli.teleop_device == "gamepad_v2":
 +        from leisaac.devices import SO101GamepadV2
-+
+ 
+-            teleop_interface = SO101LeaderRemote(env, endpoint=args_cli.remote_endpoint)
+-        else:
+-            from leisaac.devices import SO101Leader
 +        teleop_interface = SO101GamepadV2(env, sensitivity=args_cli.sensitivity)
 +    elif args_cli.teleop_device == "gamepad_v3":
 +        from leisaac.devices import SO101GamepadV3
@@ -210,10 +606,15 @@ index 573738f..3484fe0 100644
 +        teleop_interface = SO101Quest3(
 +            env, sensitivity=args_cli.sensitivity, port=args_cli.quest_port, pinch_threshold_m=args_cli.pinch_threshold
 +        )
-     elif args_cli.teleop_device == "so101leader":
-         from leisaac.devices import SO101Leader
++    elif args_cli.teleop_device == "so101leader":
++        from leisaac.devices import SO101Leader
  
-@@ -269,8 +302,9 @@ def main():  # noqa: C901
+-            teleop_interface = SO101Leader(env, port=args_cli.port, recalibrate=args_cli.recalibrate)
++        teleop_interface = SO101Leader(env, port=args_cli.port, recalibrate=args_cli.recalibrate)
+     elif args_cli.teleop_device == "bi-so101leader":
+         from leisaac.devices import BiSO101Leader
+ 
+@@ -283,8 +302,9 @@ def main():  # noqa: C901
          teleop_interface = LeKiwiGamepad(env, sensitivity=args_cli.sensitivity)
      else:
          raise ValueError(
@@ -225,7 +626,7 @@ index 573738f..3484fe0 100644
          )
  
      # add teleoperation key for env reset
-@@ -298,6 +332,7 @@ def main():  # noqa: C901
+@@ -312,6 +332,7 @@ def main():  # noqa: C901
          env.initialize()
      env.reset()
      teleop_interface.reset()
@@ -233,7 +634,7 @@ index 573738f..3484fe0 100644
  
      resume_recorded_demo_count = 0
      if args_cli.record and args_cli.resume:
-@@ -331,6 +366,8 @@ def main():  # noqa: C901
+@@ -345,6 +366,8 @@ def main():  # noqa: C901
                          manual_terminate(env, True)
                  if should_reset_recording_instance:
                      env.reset()
@@ -242,7 +643,7 @@ index 573738f..3484fe0 100644
                      should_reset_recording_instance = False
                      if start_record_state:
                          if args_cli.record:
-@@ -366,6 +403,14 @@ def main():  # noqa: C901
+@@ -380,6 +403,14 @@ def main():  # noqa: C901
                              print("Start Recording!!!")
                          start_record_state = True
                      env.step(actions)
@@ -257,6 +658,22 @@ index 573738f..3484fe0 100644
                  if rate_limiter:
                      rate_limiter.sleep(env)
              if interrupted:
+diff --git a/source/leisaac/leisaac/__init__.py b/source/leisaac/leisaac/__init__.py
+index 8d885e6..f050f25 100644
+--- a/source/leisaac/leisaac/__init__.py
++++ b/source/leisaac/leisaac/__init__.py
+@@ -8,9 +8,5 @@ Python module serving as a project/extension template.
+ """
+ 
+ # Register Gym environments.
+-try:
+-    from .tasks import *
+-    from .utils import monkey_patch
+-except ImportError as e:
+-    print(f"[leisaac] ERROR: Failed to import: {e!r}")
+-    print("[leisaac] If you are using remote teleoperation, you can ignore the above error.")
++from .tasks import *
++from .utils import monkey_patch
 diff --git a/source/leisaac/leisaac/assets/robots/lerobot.py b/source/leisaac/leisaac/assets/robots/lerobot.py
 index 1d80101..e06cd1b 100644
 --- a/source/leisaac/leisaac/assets/robots/lerobot.py
@@ -270,16 +687,59 @@ index 1d80101..e06cd1b 100644
              disable_gravity=False,
          ),
 diff --git a/source/leisaac/leisaac/devices/__init__.py b/source/leisaac/leisaac/devices/__init__.py
-index d6f1a75..20ea223 100644
+index abcf999..20ea223 100644
 --- a/source/leisaac/leisaac/devices/__init__.py
 +++ b/source/leisaac/leisaac/devices/__init__.py
-@@ -1,5 +1,6 @@
- from .device_base import DeviceBase
--from .gamepad import SO101Gamepad
+@@ -1,44 +1,6 @@
+-from importlib import import_module
+-from typing import TYPE_CHECKING
+-
+-if TYPE_CHECKING:
+-    from .device_base import DeviceBase
+-    from .gamepad import SO101Gamepad
+-    from .keyboard import SO101Keyboard
+-    from .lekiwi import LeKiwiGamepad, LeKiwiKeyboard, LeKiwiLeader
+-    from .lerobot import BiSO101Leader, SO101Leader, SO101LeaderRemote
+-
+-__all__ = [
+-    "DeviceBase",
+-    "SO101Gamepad",
+-    "SO101Keyboard",
+-    "LeKiwiGamepad",
+-    "LeKiwiKeyboard",
+-    "LeKiwiLeader",
+-    "BiSO101Leader",
+-    "SO101Leader",
+-    "SO101LeaderRemote",
+-]
+-
+-_LAZY_IMPORTS = {
+-    "DeviceBase": (".device_base", "DeviceBase"),
+-    "SO101Gamepad": (".gamepad", "SO101Gamepad"),
+-    "SO101Keyboard": (".keyboard", "SO101Keyboard"),
+-    "LeKiwiGamepad": (".lekiwi", "LeKiwiGamepad"),
+-    "LeKiwiKeyboard": (".lekiwi", "LeKiwiKeyboard"),
+-    "LeKiwiLeader": (".lekiwi", "LeKiwiLeader"),
+-    "BiSO101Leader": (".lerobot", "BiSO101Leader"),
+-    "SO101Leader": (".lerobot", "SO101Leader"),
+-    "SO101LeaderRemote": (".lerobot", "SO101LeaderRemote"),
+-}
+-
+-
+-def __getattr__(name):
+-    if name not in _LAZY_IMPORTS:
+-        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+-
+-    module_name, attr_name = _LAZY_IMPORTS[name]
+-    module = import_module(module_name, __name__)
+-    value = getattr(module, attr_name)
+-    globals()[name] = value
+-    return value
++from .device_base import DeviceBase
 +from .gamepad import SO101Gamepad, SO101GamepadV2, SO101GamepadV3
- from .keyboard import SO101Keyboard
- from .lekiwi import LeKiwiGamepad, LeKiwiKeyboard, LeKiwiLeader
- from .lerobot import BiSO101Leader, SO101Leader
++from .keyboard import SO101Keyboard
++from .lekiwi import LeKiwiGamepad, LeKiwiKeyboard, LeKiwiLeader
++from .lerobot import BiSO101Leader, SO101Leader
 +from .so101_quest3 import SO101Quest3
 diff --git a/source/leisaac/leisaac/devices/action_process.py b/source/leisaac/leisaac/devices/action_process.py
 index 6abcc5d..c536a7c 100644
@@ -361,6 +821,182 @@ index 166ac1c..5ac155b 100644
  from .so101_gamepad import SO101Gamepad
 +from .so101_gamepad_v2 import SO101GamepadV2
 +from .so101_gamepad_v3 import SO101GamepadV3
+diff --git a/source/leisaac/leisaac/devices/lerobot/__init__.py b/source/leisaac/leisaac/devices/lerobot/__init__.py
+index df60164..a314d18 100644
+--- a/source/leisaac/leisaac/devices/lerobot/__init__.py
++++ b/source/leisaac/leisaac/devices/lerobot/__init__.py
+@@ -1,28 +1,4 @@
+ """LeRobot SO101 Leader device for SE(3) control."""
+ 
+-from importlib import import_module
+-from typing import TYPE_CHECKING
+-
+-if TYPE_CHECKING:
+-    from .bi_so101_leader import BiSO101Leader
+-    from .so101_leader import SO101Leader
+-    from .so101_leader_remote import SO101LeaderRemote
+-
+-__all__ = ["BiSO101Leader", "SO101Leader", "SO101LeaderRemote"]
+-
+-_LAZY_IMPORTS = {
+-    "BiSO101Leader": (".bi_so101_leader", "BiSO101Leader"),
+-    "SO101Leader": (".so101_leader", "SO101Leader"),
+-    "SO101LeaderRemote": (".so101_leader_remote", "SO101LeaderRemote"),
+-}
+-
+-
+-def __getattr__(name):
+-    if name not in _LAZY_IMPORTS:
+-        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+-
+-    module_name, attr_name = _LAZY_IMPORTS[name]
+-    module = import_module(module_name, __name__)
+-    value = getattr(module, attr_name)
+-    globals()[name] = value
+-    return value
++from .bi_so101_leader import BiSO101Leader
++from .so101_leader import SO101Leader
+diff --git a/source/leisaac/leisaac/devices/lerobot/common/motors/motors_bus.py b/source/leisaac/leisaac/devices/lerobot/common/motors/motors_bus.py
+index c95ce80..9dad2d0 100644
+--- a/source/leisaac/leisaac/devices/lerobot/common/motors/motors_bus.py
++++ b/source/leisaac/leisaac/devices/lerobot/common/motors/motors_bus.py
+@@ -28,6 +28,7 @@ from typing import Protocol, TypeAlias
+ 
+ import serial
+ from deepdiff import DeepDiff
++from tqdm import tqdm
+ 
+ from ..errors import DeviceAlreadyConnectedError, DeviceNotConnectedError
+ from ..utils import enter_pressed, move_cursor_up
+@@ -527,6 +528,31 @@ class MotorsBus(abc.ABC):
+         self.port_handler.closePort()
+         logger.debug(f"{self.__class__.__name__} disconnected.")
+ 
++    @classmethod
++    def scan_port(cls, port: str, *args, **kwargs) -> dict[int, list[int]]:
++        """Probe *port* at every supported baud-rate and list responding IDs.
++
++        Args:
++            port (str): Serial/USB port to scan (e.g. ``"/dev/ttyUSB0"``).
++            *args, **kwargs: Forwarded to the subclass constructor.
++
++        Returns:
++            dict[int, list[int]]: Mapping *baud-rate → list of motor IDs*
++            for every baud-rate that produced at least one response.
++        """
++        bus = cls(port, {}, *args, **kwargs)
++        bus._connect(handshake=False)
++        baudrate_ids = {}
++        for baudrate in tqdm(bus.available_baudrates, desc="Scanning port"):
++            bus.set_baudrate(baudrate)
++            ids_models = bus.broadcast_ping()
++            if ids_models:
++                tqdm.write(f"Motors found for {baudrate=}: {pformat(ids_models, indent=4)}")
++                baudrate_ids[baudrate] = list(ids_models)
++
++        bus.port_handler.closePort()
++        return baudrate_ids
++
+     def setup_motor(self, motor: str, initial_baudrate: int | None = None, initial_id: int | None = None) -> None:
+         """Assign the correct ID and baud-rate to a single motor.
+ 
+diff --git a/source/leisaac/leisaac/devices/lerobot/so101_leader_remote.py b/source/leisaac/leisaac/devices/lerobot/so101_leader_remote.py
+deleted file mode 100644
+index 7d1f5ef..0000000
+--- a/source/leisaac/leisaac/devices/lerobot/so101_leader_remote.py
++++ /dev/null
+@@ -1,91 +0,0 @@
+-"""SO101 Leader device that receives joint states from a remote ZMQ publisher.
+-
+-Use with ``joint_state_server.py`` running on the machine where the leader arm
+-is physically connected.  This device is a drop-in replacement for
+-:class:`SO101Leader` — it uses the same device type (``so101_leader``) so no
+-changes to action processing or environment configuration are needed.
+-"""
+-
+-import struct
+-import threading
+-
+-from leisaac.assets.robots.lerobot import SO101_FOLLOWER_MOTOR_LIMITS
+-
+-from ..device_base import Device
+-
+-MOTOR_NAMES = ["shoulder_pan", "shoulder_lift", "elbow_flex", "wrist_flex", "wrist_roll", "gripper"]
+-
+-
+-class SO101LeaderRemote(Device):
+-    """A SO101 Leader device that reads joint states over ZMQ instead of a local serial bus."""
+-
+-    def __init__(self, env, endpoint: str = "tcp://localhost:5556"):
+-        self._endpoint = endpoint
+-        self._motor_limits = SO101_FOLLOWER_MOTOR_LIMITS
+-        self._connected = False
+-        self._ctx = None
+-        self._sub = None
+-        self._lock = threading.Lock()
+-        self._cached = dict.fromkeys(MOTOR_NAMES, 0.0)
+-        self._recv_thread = None
+-        super().__init__(env, "so101_leader")
+-        self.connect()
+-
+-    def _recv_loop(self):
+-        while self._connected:
+-            try:
+-                msg = self._sub.recv(flags=0)  # blocks here, no lock held
+-                state = dict(zip(MOTOR_NAMES, struct.unpack("<6f", msg)))
+-                with self._lock:
+-                    self._cached = state
+-            except Exception:
+-                break
+-
+-    def _add_device_control_description(self):
+-        self._display_controls_table.add_row(["so101-leader-remote", f"ZMQ endpoint: {self._endpoint}"])
+-
+-    def get_device_state(self):
+-        with self._lock:
+-            return dict(self._cached)
+-
+-    def input2action(self):
+-        ac_dict = super().input2action()
+-        ac_dict["motor_limits"] = self._motor_limits
+-        return ac_dict
+-
+-    @property
+-    def motor_limits(self) -> dict[str, tuple[float, float]]:
+-        return self._motor_limits
+-
+-    @property
+-    def is_connected(self) -> bool:
+-        return self._connected
+-
+-    def disconnect(self):
+-        self._connected = False
+-        if self._recv_thread:
+-            self._recv_thread.join(timeout=2)
+-        if self._sub:
+-            self._sub.close()
+-        if self._ctx:
+-            self._ctx.term()
+-        print("SO101-Leader-Remote disconnected.")
+-
+-    def connect(self):
+-        import zmq
+-
+-        self._ctx = zmq.Context()
+-        self._sub = self._ctx.socket(zmq.SUB)
+-        self._sub.setsockopt(zmq.CONFLATE, 1)
+-        self._sub.setsockopt(zmq.SUBSCRIBE, b"")
+-        self._sub.connect(self._endpoint)
+-        self._connected = True
+-        self._recv_thread = threading.Thread(target=self._recv_loop, daemon=True)
+-        self._recv_thread.start()
+-        print(f"SO101-Leader-Remote connected to {self._endpoint}")
+-
+-    def configure(self) -> None:
+-        pass  # configuration happens on the publisher side
+-
+-    def calibrate(self):
+-        raise RuntimeError("Calibrate on the machine where the leader arm is connected (lerobot-calibrate).")
 diff --git a/source/leisaac/leisaac/enhance/envs/mdp/events.py b/source/leisaac/leisaac/enhance/envs/mdp/events.py
 index 2853083..de3abf0 100644
 --- a/source/leisaac/leisaac/enhance/envs/mdp/events.py
@@ -394,6 +1030,26 @@ index 2853083..de3abf0 100644
  
      range_list = [pose_range.get(key, (0.0, 0.0)) for key in ["x", "y", "z", "roll", "pitch", "yaw"]]
      ranges = torch.tensor(range_list, device=asset.device)
+diff --git a/source/leisaac/leisaac/policy/service_policy_clients.py b/source/leisaac/leisaac/policy/service_policy_clients.py
+index 88e1cc2..7c59e4b 100644
+--- a/source/leisaac/leisaac/policy/service_policy_clients.py
++++ b/source/leisaac/leisaac/policy/service_policy_clients.py
+@@ -21,7 +21,6 @@ class Gr00tServicePolicyClient(ZMQServicePolicy):
+     """
+     Service policy client for GR00T N1.5: https://github.com/NVIDIA/Isaac-GR00T
+     Target Commit: https://github.com/NVIDIA/Isaac-GR00T/commit/4af2b622892f7dcb5aae5a3fb70bcb02dc217b96
+-    Reference: https://github.com/EverNorif/Isaac-GR00T/tree/leisaac_gr00t_n1.5
+     """
+ 
+     def __init__(
+@@ -89,7 +88,6 @@ class Gr00t16ServicePolicyClient(ZMQServicePolicy):
+     """
+     Service policy client for GR00T N1.6: https://github.com/NVIDIA/Isaac-GR00T
+     Target commit: https://github.com/NVIDIA/Isaac-GR00T/commit/e8e625f4f21898c506a1d8f7d20a289c97a52acf
+-    Reference: https://github.com/EverNorif/Isaac-GR00T/tree/leisaac_gr00t_n1.6
+     """
+ 
+     def __init__(
 diff --git a/source/leisaac/leisaac/tasks/template/single_arm_env_cfg.py b/source/leisaac/leisaac/tasks/template/single_arm_env_cfg.py
 index d337a20..eb2ab5e 100644
 --- a/source/leisaac/leisaac/tasks/template/single_arm_env_cfg.py
@@ -520,3 +1176,24 @@ index 047dad3..e86027e 100644
      features["observation.state"] = asdict(
          StateFeatureItem(dtype="float32", shape=(len(default_feature_joint_names),), names=default_feature_joint_names)
      )
+diff --git a/source/leisaac/pyproject.toml b/source/leisaac/pyproject.toml
+index 2b489c1..7ad31ea 100644
+--- a/source/leisaac/pyproject.toml
++++ b/source/leisaac/pyproject.toml
+@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
+ 
+ [project]
+ name = "leisaac"
+-version = "0.4.0"
++version = "0.3.0"
+ description = "leisaac: Lerobot & IsaacLab Integration"
+ readme = "README.md"
+ license = {text = "Apache-2.0"}
+@@ -40,7 +40,6 @@ zip-safe = false
+ [project.optional-dependencies]
+ isaaclab = ["isaaclab[isaacsim,all]==2.3.0"]
+ gr00t = ["pyzmq>=27.0.0", "pydantic==2.10.6", "msgpack>=1.0.5"]
+-remote = ["pyzmq>=27.0.0"]
+ lerobot-async = ["grpcio==1.74.0", "protobuf==6.32.0"] # original isaaclab install protobuf version is 3.20.3
+ lerobot = ["lerobot==0.4.2"]
+ openpi = ["dm-tree>=0.1.8", "msgpack>=1.0.5", "numpy>=1.22.4,<2.0.0", "pillow>=9.0.0", "tree>=0.2.4", "websockets>=11.0"]
