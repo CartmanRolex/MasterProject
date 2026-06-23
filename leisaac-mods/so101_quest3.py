@@ -58,11 +58,12 @@ rate cap. If a rotation axis comes out swapped/wrong, ``_R_rot_map`` is the sing
 tuning knob — it defaults to the same matrix as the position path but may be split
 into a dedicated one.
 
-The final root-frame error rotvec is post-processed in ``_anchored_rotation_error``
-(components ``[about forward, about right, about up]``): the forward and right
-components are **swapped** (hand-forward rotation was turning the gripper about
-right), and the **up-axis component is dropped** — yaw about up is intentionally
-not constrained to the IK.
+Axis fixes happen in ``_anchored_rotation_error`` (root-frame axes
+``[forward, right, up]``): the hand's forward<->right rotation is **swapped on the
+commanded target** (feedforward, so the closed loop stays stable — permuting the
+error instead diverges), and **up (yaw) is not controlled** — its error component
+is zeroed so the IK is commanded the gripper's current up orientation every step
+and never tries to correct it.
 """
 
 import asyncio
@@ -258,30 +259,40 @@ class SO101Quest3(Device):
         every frame — absolute tracking, drift-free, with no delta accumulation.
 
         The target is the gripper's anchor orientation composed with the hand's
-        rotation-since-anchor (re-expressed in the world frame via ``_R_rot_map``),
-        so the gripper mirrors the hand's rotation from its start pose. At the anchor
-        the hand has not rotated => target == current EE => error 0 (no start jump).
-        ``_R_rot_map`` is the only place to fix a wrong/swapped rotation axis; any
-        constant hand<->gripper orientation offset is absorbed at the anchor.
+        rotation-since-anchor, so the gripper mirrors the hand's rotation from its
+        start pose. The anchor's gripper orientation (``_anchor_ee_world_rot``) is
+        captured as the *current* EE orientation on the same first frame as
+        ``_anchor_wrist_rot``, so the hand rotation reference is synchronized with
+        the robot at frame 1: the hand has not rotated yet => target == current EE
+        => error 0 (no start jump). Any constant hand<->gripper offset is absorbed.
+
+        Axis handling (root-frame axes ``[forward, right, up]``):
+          * **forward<->right swap** is applied to the COMMANDED hand rotation
+            (feedforward), not to the error: rotating the hand about its forward axis
+            was turning the gripper about right. Permuting the closed-loop *error*
+            instead makes the IK chase a swapped direction and one mode diverges;
+            doing it on the command keeps the error honest and the loop stable.
+          * **up (yaw) is not controlled** — its error component is zeroed, so the IK
+            is effectively commanded the gripper's *current* up orientation every
+            step and never tries to correct it. Dropping a DOF this way is stable
+            (unlike swapping); we are not asking the solver to reach anything.
         """
-        # Hand rotation since the anchor, re-expressed in the world frame.
-        dQ_hand = rot_now * self._anchor_wrist_rot.inv()
-        dQ_world = self._R_rot_map * dQ_hand * self._R_rot_map.inv()
-        # Apply it as a world-frame rotation to the gripper's anchor orientation.
-        Q_target_world = dQ_world * self._anchor_ee_world_rot
-        # World -> root (the frame the relative-IK term consumes).
         Q_root = self._read_root_rot()
-        Q_target_root = Q_root.inv() * Q_target_world
+        # Hand rotation since the anchor, mapped through _R_rot_map into the world
+        # frame, then expressed in the robot root axes [about fwd, right, up].
+        dQ_hand = rot_now * self._anchor_wrist_rot.inv()
+        w_world = (self._R_rot_map * dQ_hand * self._R_rot_map.inv()).as_rotvec()
+        w_root = Q_root.inv().apply(w_world)
+        # Feedforward forward<->right swap; up is left out of the command (it is not
+        # controlled — see the error zeroing below).
+        w_cmd = np.array([w_root[1], w_root[0], 0.0])
+        # Target = anchor EE rotated by the commanded hand rotation (all root frame).
+        Q_ee_anchor_root = Q_root.inv() * self._anchor_ee_world_rot
+        Q_target_root = Rotation.from_rotvec(w_cmd) * Q_ee_anchor_root
         Q_ee_root = Q_root.inv() * self._read_ee_world_rot()
         drot_root = (Q_target_root * Q_ee_root.inv()).as_rotvec()
-        # Root-frame rotvec components are [about forward (x), about right (y),
-        # about up (z)] — same axis convention as the position delta. Two fixes,
-        # both in this (root) frame so they map 1:1 to how the arm actually turns:
-        #   * swap forward<->right: rotating the hand about its forward axis was
-        #     turning the gripper about right (and vice versa).
-        #   * drop the up-axis rotation: yaw about up is not constrained to the IK
-        #     (we don't want it tracked), so zero that component.
-        drot_root = np.array([drot_root[1], drot_root[0], 0.0])
+        # Up (yaw) is not constrained: zero its error so the IK never drives it.
+        drot_root[2] = 0.0
         # Rate-limit the chase (the IK takes one step per frame toward the target).
         ang = float(np.linalg.norm(drot_root))
         if ang > self.max_rot_step_rad:
