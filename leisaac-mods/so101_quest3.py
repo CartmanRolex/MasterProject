@@ -33,16 +33,30 @@ Start/reset use leisaac's standard desktop keyboard: B starts control, R resets
 (fail), N resets (success). The in-headset blue button only starts the WebXR
 hand-tracking session.
 
-Tuning: ``pos_scale``, ``rot_scale``, ``gripper_sensitivity``,
-``pinch_threshold_m``, and the per-step clamps. The hand->arm axis directions are
-set by ``_R_XR_TO_ISAAC_SO101`` (defined in this module and passed to
-``xr_delta_to_world`` as ``R``): it maps the XR wrist delta into the Isaac
-**world** frame so that ``_world_to_root`` can hand the relative DLS-IK term a
-true root-frame delta, and the robot moves up / right / back exactly as the
-calibration monitor and ``so101_gamepad_v3`` name those axes. If a motion axis
-comes out mirrored or swapped on the robot, flip the corresponding row's sign of
-that matrix (or the sign of the relevant scale). It is the device's own copy, so
-the calibration monitor (which uses ``quest3_webxr._R_XR_TO_ISAAC``) is unaffected.
+Tuning: ``pos_scale``, ``gripper_sensitivity``, ``pinch_threshold_m``, and the
+per-step clamps. The hand->arm axis directions are set by ``_R_XR_TO_ISAAC_SO101``
+(defined in this module and passed to ``xr_delta_to_world`` as ``R``): it maps the
+XR wrist delta into the Isaac **world** frame so that ``_world_to_root`` can hand the
+relative DLS-IK term a true root-frame delta, and the robot moves up / right / back
+exactly as the calibration monitor and ``so101_gamepad_v3`` name those axes. If a
+motion axis comes out mirrored or swapped on the robot, flip the corresponding row's
+sign of that matrix. It is the device's own copy, so the calibration monitor (which
+uses ``quest3_webxr._R_XR_TO_ISAAC``) is unaffected.
+
+Rotation is **absolute and anchored** (not a per-step delta): each step the device
+feeds the relative-IK term the root-frame error rotvec from the current gripper
+orientation to a target = the gripper's anchor orientation composed with the hand's
+rotation-since-anchor (mapped via ``_R_rot_map``). The IK's relative mode applies
+that as a world/root-frame left-multiplication, so the gripper chases the hand's
+absolute orientation every step — drift-free, no delta accumulation, and no
+sign/swap hacks. The anchor (hand + gripper orientation) is captured on start /
+reset / tracking-loss and held until the next reset, so the gripper mirrors the
+hand's rotation from its start pose with no start jump (any constant hand<->gripper
+orientation offset auto-cancels at the anchor). ``rot_scale`` does not apply to
+rotation (the error is the real orientation error, 1:1); ``max_rot_step_rad`` is the
+rate cap. If a rotation axis comes out swapped/wrong, ``_R_rot_map`` is the single
+tuning knob — it defaults to the same matrix as the position path but may be split
+into a dedicated one.
 """
 
 import asyncio
@@ -137,6 +151,19 @@ class SO101Quest3(Device):
         self._shoulder_pan_max = float(np.deg2rad(shoulder_pan_limits_deg[1]))
         self._shoulder_pan_target = self._read_shoulder_pan()
 
+        # body the IK targets (``body_name="gripper"``) — read each step for the
+        # current gripper orientation used by the absolute-rotation error term.
+        self._gripper_body_idx = int(self.robot_asset.find_bodies("gripper")[0][0].item())
+
+        # XR-wrist-rotation -> world-rotation axis map as a scipy Rotation (det = +1,
+        # a proper rotation). Used to re-express the hand's rotation-since-anchor
+        # into the world frame (conjugation = the quaternion form of R @ rotvec) for
+        # the absolute-rotation target. Defaults to the same matrix as the position
+        # path; if a rotation axis comes out swapped/wrong on hardware, tune this
+        # (or split it into a dedicated matrix) — the anchored offset absorbs any
+        # *constant* offset, so only the axis assignment matters here.
+        self._R_rot_map = Rotation.from_matrix(_R_XR_TO_ISAAC_SO101)
+
         # previous wrist pose, captured on first valid frame (and after every reset)
         self._prev_wrist_pos: np.ndarray | None = None
         self._prev_wrist_rot: Rotation | None = None
@@ -147,6 +174,12 @@ class SO101Quest3(Device):
         # ("additive"): the room-frame position delta is re-expressed in the hand
         # body frame via dQ = rot_now * anchor_wrist_rot.inv() before mapping.
         self._anchor_wrist_rot: Rotation | None = None
+        # Anchor gripper (EE) orientation in the Isaac world frame, captured at the
+        # same moment as _anchor_wrist_rot. The absolute-rotation IK target is
+        # Q_anchor_ee_world composed with the hand's rotation-since-anchor, so the
+        # gripper mirrors the hand's rotation from its start pose (no start jump,
+        # constant hand<->gripper orientation offsets auto-cancel at the anchor).
+        self._anchor_ee_world_rot: Rotation | None = None
         self._close_gripper = False
 
         # WebXR streaming server (reused from gregorio via quest3_webxr)
@@ -170,9 +203,11 @@ class SO101Quest3(Device):
         # re-anchor on next valid frame so teleop resumes from the current pose
         self._prev_wrist_pos = None
         self._prev_wrist_rot = None
-        # also drop the translation-frame anchor so the hand's current pose
-        # redefines "forward/right/up" after a reset
+        # also drop the translation-frame + rotation anchors so the hand's current
+        # pose redefines "forward/right/up" (position) and the gripper's current
+        # orientation becomes the rotation zero point, after a reset
         self._anchor_wrist_rot = None
+        self._anchor_ee_world_rot = None
         self._close_gripper = False
         # re-seed the bounded shoulder_pan target from the (reset) joint state
         self._shoulder_pan_target = self._read_shoulder_pan()
@@ -196,6 +231,49 @@ class SO101Quest3(Device):
         vec_root = math_utils.quat_apply(math_utils.quat_conjugate(root_quat[:1]), vec)
         return vec_root.squeeze(0).cpu().numpy()
 
+    def _read_root_rot(self) -> Rotation:
+        """Current robot base/root orientation in the Isaac world frame (scipy)."""
+        rw = self.robot_asset.data.root_quat_w[0]  # (4,) wxyz
+        return Rotation.from_quat(rw[[1, 2, 3, 0]].cpu().numpy())  # -> xyzw
+
+    def _read_ee_world_rot(self) -> Rotation:
+        """Current gripper (EE) orientation in the Isaac world frame (scipy)."""
+        bw = self.robot_asset.data.body_quat_w[0, self._gripper_body_idx]  # (4,) wxyz
+        return Rotation.from_quat(bw[[1, 2, 3, 0]].cpu().numpy())  # -> xyzw
+
+    def _anchored_rotation_error(self, rot_now: Rotation) -> np.ndarray:
+        """Root-frame rotvec the relative-IK term should apply this step to make the
+        gripper chase the hand's absolute orientation (anchored, rate-limited).
+
+        The IK's relative mode applies the command as ``ee_quat_des = dQ @ ee_quat``
+        (a world/root-frame left-multiplication), so feeding the **error rotvec**
+        ``rotvec(Q_target_root @ Q_ee_root.inv())`` makes ``ee_quat_des = Q_target``
+        (one ``max_rot_step_rad``-limited step toward it) and the IK chases the target
+        every frame — absolute tracking, drift-free, with no delta accumulation.
+
+        The target is the gripper's anchor orientation composed with the hand's
+        rotation-since-anchor (re-expressed in the world frame via ``_R_rot_map``),
+        so the gripper mirrors the hand's rotation from its start pose. At the anchor
+        the hand has not rotated => target == current EE => error 0 (no start jump).
+        ``_R_rot_map`` is the only place to fix a wrong/swapped rotation axis; any
+        constant hand<->gripper orientation offset is absorbed at the anchor.
+        """
+        # Hand rotation since the anchor, re-expressed in the world frame.
+        dQ_hand = rot_now * self._anchor_wrist_rot.inv()
+        dQ_world = self._R_rot_map * dQ_hand * self._R_rot_map.inv()
+        # Apply it as a world-frame rotation to the gripper's anchor orientation.
+        Q_target_world = dQ_world * self._anchor_ee_world_rot
+        # World -> root (the frame the relative-IK term consumes).
+        Q_root = self._read_root_rot()
+        Q_target_root = Q_root.inv() * Q_target_world
+        Q_ee_root = Q_root.inv() * self._read_ee_world_rot()
+        drot_root = (Q_target_root * Q_ee_root.inv()).as_rotvec()
+        # Rate-limit the chase (the IK takes one step per frame toward the target).
+        ang = float(np.linalg.norm(drot_root))
+        if ang > self.max_rot_step_rad:
+            drot_root = drot_root / ang * self.max_rot_step_rad
+        return drot_root
+
     def get_device_state(self) -> np.ndarray:
         """Return the 8D delta: [dx, 0, dz, drvx, drvy, drvz, d_shoulder_pan, d_gripper].
 
@@ -211,6 +289,7 @@ class SO101Quest3(Device):
             self._prev_wrist_pos = None
             self._prev_wrist_rot = None
             self._anchor_wrist_rot = None
+            self._anchor_ee_world_rot = None
             return out
 
         # Pinch -> gripper. Drives a relative joint command each step (sim clamps to limits).
@@ -221,11 +300,12 @@ class SO101Quest3(Device):
         if self._prev_wrist_pos is None:
             self._prev_wrist_pos = wrist_pos.copy()
             self._prev_wrist_rot = Rotation.from_quat(wrist_quat)
-            # (re)capture the translation-frame anchor: this block only runs after
-            # init/reset/staleness, all of which null _anchor_wrist_rot, so the
-            # anchor is genuinely held between resets (and across tracking loss
-            # it is re-established here).
+            # (re)capture the translation-frame + rotation anchors: this block only
+            # runs after init/reset/staleness, all of which null them, so the anchors
+            # are genuinely held between resets (and across tracking loss they are
+            # re-established here).
             self._anchor_wrist_rot = Rotation.from_quat(wrist_quat)
+            self._anchor_ee_world_rot = self._read_ee_world_rot()
             self._shoulder_pan_target = self._read_shoulder_pan()
             return out
 
@@ -233,8 +313,11 @@ class SO101Quest3(Device):
         # map (_R_XR_TO_ISAAC_SO101) so the hand→arm directions can be tuned
         # independently of the calibration monitor. ``anchor_rot`` re-expresses the
         # translation in the hand's current body frame so it follows the wrist
-        # orientation (held since the last reset).
-        dpos_world, drot_world, rot_now = xr_delta_to_world(
+        # orientation (held since the last reset). Only the position delta
+        # (``dpos_world``) and the absolute hand orientation (``rot_now``) are
+        # consumed here; the per-step rotation delta ``drot_world`` is ignored —
+        # rotation is now absolute (see _anchored_rotation_error below).
+        dpos_world, _drot_world, rot_now = xr_delta_to_world(
             self._prev_wrist_pos,
             self._prev_wrist_rot,
             wrist_pos,
@@ -247,24 +330,17 @@ class SO101Quest3(Device):
             anchor_rot=self._anchor_wrist_rot,
         )
 
-        # Rotation axis correction. On this headset the wrist *orientation* axes
-        # come in swapped relative to the *translation* axes, so a hand roll about
-        # the forward/back axis was driving an EE rotation about the left/right
-        # axis. Swap the world X (forward) and Y (left) rotation components so a
-        # hand roll about fwd/back maps to an EE roll about fwd/back. In addition,
-        # the rotation about the **left/right axis** (EE pitch) comes out inverted
-        # on this headset, so negate that component — here the term that lands on
-        # the left/right axis is the swapped-forward one (index 0 of the input).
-        # Tuning: if a rotation runs the wrong way, flip the sign of the relevant
-        # component below; if a *different* axis is the one inverted (e.g. the
-        # forward/back roll instead), move the minus sign to the other swapped
-        # term — `[drot_world[1], -drot_world[0], drot_world[2]]` — and if a
-        # different pair is swapped, change the indices.
-        drot_world = np.array([-drot_world[1], drot_world[0], drot_world[2]], dtype=np.float64)
+        # Absolute (anchored) rotation: feed the relative-IK term the root-frame
+        # error rotvec from the current gripper orientation to the target (= the
+        # hand's rotation-since-anchor, mapped via _R_rot_map, composed onto the
+        # gripper's anchor orientation). The IK's relative mode applies this as a
+        # world/root-frame left-multiplication, so the gripper chases the absolute
+        # target each step — drift-free, no per-step delta accumulation, no
+        # sign/swap hacks. See _anchored_rotation_error for the tuning knob.
+        drot_root = self._anchored_rotation_error(rot_now)
 
         # World -> robot base frame (the frame the relative DLS-IK term consumes).
         dpos_root = self._world_to_root(dpos_world)
-        drot_root = self._world_to_root(drot_world)
 
         # Lateral (root-Y) is handled by shoulder_pan directly, NOT the IK
         # (so101_gamepad_v3 convention). Integrate it into a bounded internal
