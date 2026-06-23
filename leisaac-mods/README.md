@@ -40,9 +40,11 @@ ngrok http 8080
 On the Quest: open the ngrok URL, blue button to start tracking.
 On the same PC: open `http://localhost:8080/monitor` (local, no ngrok).
 
+The dashboard shows the hand's current position (up / right / back, m) and
+rotation (deg) from an origin anchored on connect — "Reset origin" re-anchors.
+
 Useful flags: `--port`, `--send-hz`, `--pos-scale`, `--rot-scale`,
-`--pinch-threshold`, `--max-pos-step`, `--max-rot-step`, `--ee-span`
-(all default to the device's values — see `--help`).
+`--pinch-threshold`, `--ee-span` (see `--help`).
 
 ## Where to edit if an axis is wrong
 

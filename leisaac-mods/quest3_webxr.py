@@ -26,13 +26,21 @@ import numpy as np
 from scipy.spatial.transform import Rotation
 
 
-# WebXR (Y-up, -Z fwd) -> Isaac (Z-up, +X fwd); user stands behind the robot.
-# Copied verbatim from gregorio/quest3_device.py. Flip a row here (or a scale
-# sign) if a motion axis comes out mirrored after repositioning the headset.
+# XR wrist axes -> robot display frame, used by the calibration monitor only
+# (the live device passes its own ``_R_XR_TO_ISAAC_SO101``). The XR wrist position
+# components are [right, up, back]; the robot display frame is the gamepad_v3
+# convention [idx0 = up, idx1 = right (positive = to the right), idx2 = back
+# (forward = -idx2)]. So this swaps right<->up and keeps back:
+#     idx0 (up)    <- wrist[1]
+#     idx1 (right) <- wrist[0]
+#     idx2 (back)  <- wrist[2]
+# (det = -1: this is a reflection, fine for the monitor's position/orientation
+# display.) Flip a row's sign if an axis comes out mirrored after repositioning
+# the headset.
 _R_XR_TO_ISAAC: np.ndarray = np.array(
-    [[0, 0, -1],
-     [-1, 0, 0],
-     [0, 1, 0]],
+    [[0, 1, 0],
+     [1, 0, 0],
+     [0, 0, 1]],
     dtype=np.float64,
 )
 

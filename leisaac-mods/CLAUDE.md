@@ -12,8 +12,8 @@ Custom patches and modules that extend the upstream [LightwheelAI/leisaac](https
 | `so101_gamepad_v2.py` | Gamepad controller v2 (superseded — kept for reproducibility of older recordings). |
 | `so101_gamepad_v3.py` | Gamepad controller v3 — current version; adds roll-lock toggle (press X). |
 | `so101_quest3.py` | Meta Quest 3 hand-tracking teleop device. Reuses Gregorio's WebXR server (aiohttp page streamed to the Quest's Meta Browser) and emits a 7D root-frame delta `[dpos(3), drotvec(3), d_gripper]` to a DLS-IK-over-5-joints action; thumb–index pinch closes the gripper. Imports its WebXR page / state / delta math from `quest3_webxr.py`, but defines its **own** axis map `_R_XR_TO_ISAAC_SO101` (identity: XR x=right→idx0, y=up→idx1, z=back→idx2, per the gamepad convention) which it passes to `xr_delta_to_world` as `R`, so the device's hand→arm directions are tuned independently of the monitor. Lives at `devices/so101_quest3.py` (not under `gamepad/`). |
-| `quest3_webxr.py` | Shared, Isaac-free WebXR layer for Quest 3 teleop: the WebXR page (`_HTML_TEMPLATE`), the default `_R_XR_TO_ISAAC` frame matrix, `_TeleopState`, the pinch indices, and the `xr_delta_to_world` per-step delta math. `xr_delta_to_world` takes an optional `R` axis map (default `_R_XR_TO_ISAAC`); the monitor uses the default while `so101_quest3.py` passes its own `_R_XR_TO_ISAAC_SO101`, so the device and monitor axis maps are currently independent (to be reconciled when the monitor is revisited). Imported by **both** `so101_quest3.py` (in the leisaac tree) and `quest3_hand_monitor.py`. Lives at `devices/quest3_webxr.py`. |
-| `quest3_hand_monitor.py` | Standalone Quest 3 calibration tool (no Isaac, no GPU). Runs the same WebXR server and serves a self-contained browser dashboard (`/monitor`) that live-plots the right-hand skeleton plus the exact command the device would emit (dpos/drot, pinch distance, gripper state). Used to calibrate headset placement and the XR→Isaac mapping without launching the sim. MasterProject-only — not deployed into the leisaac tree. |
+| `quest3_webxr.py` | Shared, Isaac-free WebXR layer for Quest 3 teleop: the WebXR page (`_HTML_TEMPLATE`), the `_R_XR_TO_ISAAC` frame matrix, `_TeleopState`, the pinch indices, and the `xr_delta_to_world` per-step delta math (used by the device). `_R_XR_TO_ISAAC` maps the XR wrist axes `[right, up, back]` into the **monitor's** robot display frame `[up, right, back]` (idx0=up, idx1=right with positive=to-the-right, idx2=back, forward=−idx2); it is a reflection (det −1) used only for the calibration monitor's display. The live device passes its own `_R_XR_TO_ISAAC_SO101` to `xr_delta_to_world`, so the device and monitor axis maps are independent. Imported by **both** `so101_quest3.py` (in the leisaac tree) and `quest3_hand_monitor.py`. Lives at `devices/quest3_webxr.py`. |
+| `quest3_hand_monitor.py` | Standalone Quest 3 calibration tool (no Isaac, no GPU). Runs the same WebXR server and serves a self-contained browser dashboard (`/monitor`) that live-plots the right-hand skeleton plus the hand's **current position and rotation** mapped into the robot display frame (up / right / back, measured from an origin anchored on connect), pinch distance and gripper state. Used to calibrate headset placement and the XR→robot axis mapping without launching the sim. Uses the monitor's own `_R_XR_TO_ISAAC` (in `quest3_webxr.py`), which is independent of the device's `_R_XR_TO_ISAAC_SO101`. MasterProject-only — not deployed into the leisaac tree. |
 
 ## What the patch contains
 
@@ -137,31 +137,30 @@ locally. The SSH `-L` tunnel carries the dashboard + its WebSocket fine (all TCP
 On the leisaac env the deps are already present:
 `conda run -n leisaac_envhub python quest3_hand_monitor.py`.
 
-### What the dashboard shows / how it transfers
+### What the dashboard shows
 
-Two **fixed-scale robot-frame views** (TOP = forward×lateral, SIDE = forward×up)
-plot a **virtual end-effector**: the yellow dot is the running integral of the
-mapped per-step `dpos`, a green arrow shows the current step's `dpos`, and an
-`x`/`y`/`z` triad shows the wrist's orientation mapped through `_R_XR_TO_ISAAC`
-into the robot frame. A third panel keeps one auto-fit hand-skeleton view (the
-hand view deliberately re-centers every frame, so it hides translation — that is
-why the EE views exist). The side panel lists `dpos`/`drot`, the integrated `ee`,
-pinch vs threshold, and an OPEN/CLOSED gripper. A **Reset EE origin** button
-re-zeros the integrator (also sent automatically when tracking re-anchors).
+Two **fixed-scale robot-frame views** (TOP = forward×right, SIDE = forward×up)
+plot the hand's **current position**: the yellow dot is the wrist position mapped
+into the robot frame and measured from the origin (a short trail shows recent
+motion), and an `x`/`y`/`z` triad shows the wrist's orientation mapped through
+`_R_XR_TO_ISAAC` into the robot frame. A third panel keeps one auto-fit
+hand-skeleton view for pinch reference (it re-centers every frame, so it hides
+translation — that is why the position views exist). The side panel lists the
+current **position** (up / right / back, m) and **rotation** (about up / right /
+back, deg) from the origin, pinch vs threshold, and an OPEN/CLOSED gripper. A
+**Reset origin** button re-anchors the origin to the current pose (also done
+automatically when the Quest reconnects).
 
-The axes are labelled in the **gamepad convention** so they match the working
-`so101_gamepad_v3` teleop: position index **0 = up**, **1 = lateral**,
-**2 = back** (forward = −idx2); rotation = [roll, pitch, yaw]. Move your hand and
-read which robot axis actually responds — that exposes a wrong/mirrored/swapped
-axis, which you then fix by editing the rows/signs of `_R_XR_TO_ISAAC` in
-`quest3_webxr.py` (shared, so `so101_quest3.py` inherits the fix on restart). If
-the EE view looks correct but the real robot moves wrong, the bug is downstream
-in `so101_quest3.py`'s `_world_to_root` / base orientation, not the matrix.
+The axes follow the **gamepad_v3 convention**: position **idx0 = up**,
+**idx1 = right** (positive = to the right), **idx2 = back** (forward = −idx2).
+Move your hand and read which axis responds — if one comes out
+mirrored/swapped, fix it by editing the rows/signs of `_R_XR_TO_ISAAC` in
+`quest3_webxr.py` (this matrix is the monitor's; the device has its own
+`_R_XR_TO_ISAAC_SO101` and is not affected).
 
-The command is computed with the same `xr_delta_to_world` / `pinch_distance` as
-the device. CLI flags (`--pos-scale`, `--rot-scale`, `--pinch-threshold`,
-`--max-pos-step`, `--max-rot-step`, `--ee-span` [metres across the EE views],
-`--port`, `--send-hz`) default to the device's values.
+Pinch is computed with the same `pinch_distance` as the device. CLI flags
+(`--pos-scale`, `--rot-scale`, `--pinch-threshold`, `--ee-span` [metres across
+the position views], `--port`, `--send-hz`) default to the device's values.
 
 ## Regenerating the patch (Desktop side, when leisaac is edited)
 

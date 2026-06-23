@@ -2,17 +2,17 @@
 """Standalone Quest 3 hand-tracking calibration monitor (no Isaac required).
 
 Runs the *same* WebXR server the live ``SO101Quest3`` device uses (it imports the
-page, frame matrix, state and delta math from ``quest3_webxr.py``), but instead
-of driving a robot it computes the *exact* per-step command the device would emit
-and streams it — together with the raw hand skeleton — to a self-contained
-browser dashboard. Open the dashboard beside your WebRTC window, place the
-headset in different spots, and watch how tracking and the XR->Isaac mapping
-respond, without paying the cost of launching Isaac Sim each time.
+page, frame matrix and state from ``quest3_webxr.py``), but instead of driving a
+robot it reports the hand's **current position and rotation** — mapped into the
+robot display frame (up / right / back) and measured from an origin anchored on
+connect — together with the raw hand skeleton, to a self-contained browser
+dashboard. Open the dashboard beside your WebRTC window, place the headset in
+different spots, and watch how tracking and the XR->robot axis mapping respond,
+without paying the cost of launching Isaac Sim each time.
 
-Because the command is computed with ``xr_delta_to_world`` / ``pinch_distance``
-from ``quest3_webxr.py`` (the same code the device runs), anything you tune here
-— ``_R_XR_TO_ISAAC``, the scales, the clamps, ``--pinch-threshold`` — transfers
-to the real device unchanged.
+The axis mapping (``_R_XR_TO_ISAAC`` in ``quest3_webxr.py``) and pinch threshold
+are the monitor's; the live device has its own ``_R_XR_TO_ISAAC_SO101`` and is
+not affected by changes here.
 
 Run from this directory (so ``import quest3_webxr`` resolves)::
 
@@ -43,7 +43,6 @@ from quest3_webxr import (
     _R_XR_TO_ISAAC,
     _TeleopState,
     pinch_distance,
-    xr_delta_to_world,
 )
 
 
@@ -96,10 +95,10 @@ _DASHBOARD_HTML = """\
 </head>
 <body>
   <h1>Quest3 Hand Monitor <span id="conn">connecting…</span>
-      <button id="reset">Reset EE origin</button></h1>
+      <button id="reset">Reset origin</button></h1>
   <div id="wrap">
     <div class="views">
-      <div class="panel"><h2>ROBOT FRAME — TOP · forward × lateral</h2><canvas id="cTop"></canvas></div>
+      <div class="panel"><h2>ROBOT FRAME — TOP · forward × right</h2><canvas id="cTop"></canvas></div>
       <div class="panel"><h2>ROBOT FRAME — SIDE · forward × up</h2><canvas id="cSide"></canvas></div>
       <div class="panel"><h2>RIGHT HAND (front) — pinch reference</h2><canvas id="cHand"></canvas></div>
     </div>
@@ -111,20 +110,16 @@ _DASHBOARD_HTML = """\
         <div class="row"><span>threshold</span><b id="pt">– m</b></div>
       </div>
       <div class="stat">
-        <div class="lbl">dpos — per step · robot index (gamepad frame)</div>
-        <div class="row"><span>idx0 → UP</span><b id="dx">–</b></div>
-        <div class="row"><span>idx1 → LATERAL</span><b id="dy">–</b></div>
-        <div class="row"><span>idx2 → BACK (−=fwd)</span><b id="dz">–</b></div>
+        <div class="lbl">position — from origin (m)</div>
+        <div class="row"><span>up (+up / −down)</span><b id="px">–</b></div>
+        <div class="row"><span>right (+right / −left)</span><b id="py">–</b></div>
+        <div class="row"><span>back (+back / −fwd)</span><b id="pz">–</b></div>
       </div>
       <div class="stat">
-        <div class="lbl">ee — integrated command (m)</div>
-        <div class="row"><span>up / lat / back</span><b id="ee">–</b></div>
-      </div>
-      <div class="stat">
-        <div class="lbl">drot — per step · rotvec</div>
-        <div class="row"><span>r0 → ROLL</span><b id="rx">–</b></div>
-        <div class="row"><span>r1 → PITCH</span><b id="ry">–</b></div>
-        <div class="row"><span>r2 → YAW</span><b id="rz">–</b></div>
+        <div class="lbl">rotation — from origin (deg)</div>
+        <div class="row"><span>about up</span><b id="rx">–</b></div>
+        <div class="row"><span>about right</span><b id="ry">–</b></div>
+        <div class="row"><span>about back</span><b id="rz">–</b></div>
       </div>
       <div class="stat">
         <div class="lbl">stream</div>
@@ -132,19 +127,19 @@ _DASHBOARD_HTML = """\
         <div class="row"><span>wrist pos (xr)</span><b id="wp">–</b></div>
       </div>
       <div class="stat note">
-        Robot-frame views use the gamepad convention: <b>idx0 = up</b>,
-        <b>idx1 = lateral</b>, <b>idx2 = back (forward = −idx2)</b>.
-        Yellow dot = integrated EE; green arrow = this step's dpos; triad =
-        wrist axes mapped to the robot frame (<span class="ax0">x</span>
-        <span class="ax1">y</span> <span class="ax2">z</span>).
+        Robot-frame views: <b>up</b>, <b>right (positive = to the right)</b>,
+        <b>back (forward = −back)</b>. Position and rotation are relative to the
+        origin (set on connect / by <b>Reset origin</b>). Yellow dot = current
+        position; triad = wrist axes mapped to the robot frame
+        (<span class="ax0">x</span> <span class="ax1">y</span>
+        <span class="ax2">z</span>).
       </div>
     </div>
   </div>
 <script>
 const BONES = __BONES__;
 const VIEW_M = __VIEW_M__;          // metres across the fixed-scale robot views
-const ARROW_GAIN = 2500;            // px per metre of dpos
-const ARROW_MAX = 70, TRIAD_LEN = 46, TRAIL_MAX = 240;
+const TRIAD_LEN = 46, TRAIL_MAX = 240;
 const $ = id => document.getElementById(id);
 const conn = $('conn');
 let trail = [];
@@ -159,12 +154,12 @@ const gTop = cTop.getContext('2d'), gSide = cSide.getContext('2d'), gHand = cHan
 function fitAll() { fitCanvas(cTop); fitCanvas(cSide); fitCanvas(cHand); }
 window.addEventListener('resize', fitAll); fitAll();
 
-// Robot-frame vector v = [idx0 up, idx1 lateral, idx2 back]; forward = -idx2.
-const projTop  = v => [-v[2], v[1]];   // horizontal = forward, vertical = lateral
+// Robot-frame vector v = [up, right, back]; forward = -back.
+const projTop  = v => [-v[2], v[1]];   // horizontal = forward, vertical = right
 const projSide = v => [-v[2], v[0]];   // horizontal = forward, vertical = up
 const col = (M, k) => [M[0][k], M[1][k], M[2][k]];   // column k of a 3x3
 
-// Fixed-scale robot-frame view: EE trail + dot + dpos arrow + wrist triad.
+// Fixed-scale robot-frame view: position trail + current-position dot + wrist triad.
 function drawRobotView(ctx, cv, proj, topLbl, botLbl) {
   const w = cv.width, h = cv.height, cx = w / 2, cy = h / 2;
   const pxm = Math.min(w, h) / VIEW_M;
@@ -185,18 +180,8 @@ function drawRobotView(ctx, cv, proj, topLbl, botLbl) {
     trail.forEach((p, i) => { const q = proj(p); const x = sx(q), y = sy(q); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
     ctx.stroke();
   }
-  const e = last.ee_pos ? proj(last.ee_pos) : [0, 0];
+  const e = last.pos ? proj(last.pos) : [0, 0];
   const ex = sx(e), ey = sy(e);
-  // dpos arrow (this step's command direction)
-  if (last.dpos) {
-    const dp = proj(last.dpos); let ax = dp[0] * ARROW_GAIN, ay = dp[1] * ARROW_GAIN;
-    const L = Math.hypot(ax, ay);
-    if (L > ARROW_MAX) { ax = ax / L * ARROW_MAX; ay = ay / L * ARROW_MAX; }
-    if (L > 0.5) {
-      ctx.strokeStyle = '#7ee787'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(ex + ax, ey - ay); ctx.stroke();
-    }
-  }
   // wrist orientation triad mapped to robot frame
   if (last.ee_basis) {
     const cols = ['#ff8a8a', '#7ee787', '#6bb8ff'], names = ['x', 'y', 'z'];
@@ -208,7 +193,7 @@ function drawRobotView(ctx, cv, proj, topLbl, botLbl) {
       ctx.fillStyle = cols[k]; ctx.fillText(names[k], tx + 2, ty - 2);
     }
   }
-  // EE dot on top
+  // current-position dot on top
   ctx.fillStyle = '#ffd54f'; ctx.beginPath(); ctx.arc(ex, ey, 5, 0, 7); ctx.fill();
 }
 
@@ -244,22 +229,21 @@ function connect() {
   ws.onclose = () => { conn.textContent = 'disconnected — retrying…'; setTimeout(connect, 1000); };
   ws.onmessage = ev => {
     const d = JSON.parse(ev.data); last = d;
-    if (d.ee_pos) { trail.push(d.ee_pos); if (trail.length > TRAIL_MAX) trail.shift(); }
-    drawRobotView(gTop,  cTop,  projTop,  'LATERAL +', 'LATERAL −');
+    if (d.pos) { trail.push(d.pos); if (trail.length > TRAIL_MAX) trail.shift(); }
+    drawRobotView(gTop,  cTop,  projTop,  'RIGHT +', 'LEFT −');
     drawRobotView(gSide, cSide, projSide, 'UP +', 'DOWN −');
     drawHand(gHand, cHand, d.joints, p => [p[0], p[1]]);   // X, Y
     const f = (v, n=4) => (v >= 0 ? ' ' : '') + v.toFixed(n);
     $('pd').textContent = f(d.pinch_d, 4) + ' m';
     $('pt').textContent = f(d.pinch_threshold, 4) + ' m';
-    $('dx').textContent = f(d.dpos[0]); $('dy').textContent = f(d.dpos[1]); $('dz').textContent = f(d.dpos[2]);
-    $('rx').textContent = f(d.drot[0]); $('ry').textContent = f(d.drot[1]); $('rz').textContent = f(d.drot[2]);
-    $('ee').textContent = d.ee_pos.map(v => v.toFixed(3)).join(', ');
+    $('px').textContent = f(d.pos[0], 3); $('py').textContent = f(d.pos[1], 3); $('pz').textContent = f(d.pos[2], 3);
+    $('rx').textContent = f(d.rot[0], 1); $('ry').textContent = f(d.rot[1], 1); $('rz').textContent = f(d.rot[2], 1);
     $('fps').textContent = d.fps;
     $('wp').textContent = d.wrist_pos.map(v => v.toFixed(2)).join(', ');
     const g = $('grip'); g.textContent = d.gripper.toUpperCase(); g.className = d.gripper;
   };
 }
-$('reset').onclick = () => { trail = []; if (ws && ws.readyState === 1) ws.send(JSON.stringify({ cmd: 'reset_ee' })); };
+$('reset').onclick = () => { trail = []; if (ws && ws.readyState === 1) ws.send(JSON.stringify({ cmd: 'reset_origin' })); };
 connect();
 </script>
 </body>
@@ -280,46 +264,40 @@ class Monitor:
             .replace("__VIEW_M__", json.dumps(args.ee_span))
         )
         self.monitors: weakref.WeakSet = weakref.WeakSet()
-        # per-step delta anchoring (mirrors the device)
-        self._prev_pos: np.ndarray | None = None
-        self._prev_rot: Rotation | None = None
-        # virtual EE: running integral of the mapped per-step dpos (robot frame),
-        # so the dashboard can show translation a fixed-scale view (the hand
-        # skeleton view auto-recenters every frame and hides global motion).
-        self._ee_pos = np.zeros(3, dtype=np.float64)
+        # Origin anchor (set on the first frame / when "Reset origin" is pressed).
+        # Current position and rotation are reported relative to this pose, so the
+        # dashboard shows where the hand is *now* rather than per-step increments.
+        self._origin_pos: np.ndarray | None = None
+        self._origin_rot: Rotation | None = None
         # fps accounting
         self._fps = 0
         self._fps_count = 0
         self._fps_t0 = 0.0
 
-    # ---- command computation (identical math to SO101Quest3) ----
+    # ---- current pose, mapped into the robot display frame ----
     def compute(self, wrist_pos, wrist_quat, joints) -> dict:
-        dpos = np.zeros(3)
-        drot = np.zeros(3)
-        if self._prev_pos is None:
-            self._prev_pos = wrist_pos.copy()
-            self._prev_rot = Rotation.from_quat(wrist_quat)
-            self._ee_pos[:] = 0.0          # re-anchor the virtual EE origin
-        else:
-            dpos, drot, rot_now = xr_delta_to_world(
-                self._prev_pos, self._prev_rot, wrist_pos, wrist_quat,
-                self.args.pos_scale, self.args.rot_scale,
-                self.args.max_pos_step, self.args.max_rot_step,
-            )
-            self._prev_pos = wrist_pos.copy()
-            self._prev_rot = rot_now
-            self._ee_pos += dpos           # integrate the mapped command
+        rot_now = Rotation.from_quat(wrist_quat)
+        if self._origin_pos is None:
+            self._origin_pos = wrist_pos.copy()
+            self._origin_rot = rot_now
+        # Current position relative to the origin, mapped into the robot frame
+        # (idx0 = up, idx1 = right, idx2 = back). No clamping / integration — this
+        # is the absolute displacement of the hand from the anchor.
+        pos = _R_XR_TO_ISAAC @ (wrist_pos - self._origin_pos) * self.args.pos_scale
+        # Current rotation relative to the origin, as an axis-angle vector mapped
+        # the same way (components are rotation about the up / right / back axes).
+        rotvec_xr = (rot_now * self._origin_rot.inv()).as_rotvec()
+        rot = _R_XR_TO_ISAAC @ rotvec_xr * self.args.rot_scale
         pd = pinch_distance(joints)
-        # Absolute wrist orientation mapped through the SAME matrix the command
-        # uses, so the dashboard triad shows the wrist's local X/Y/Z as the robot
-        # would see them. Columns of ee_basis are those three axes (robot frame).
-        ee_basis = _R_XR_TO_ISAAC @ Rotation.from_quat(wrist_quat).as_matrix()
+        # Absolute wrist orientation mapped through the SAME matrix, so the
+        # dashboard triad shows the wrist's local X/Y/Z as the robot would see
+        # them. Columns of ee_basis are those three axes (robot frame).
+        ee_basis = _R_XR_TO_ISAAC @ rot_now.as_matrix()
         return {
             "joints": joints.tolist(),
             "wrist_pos": wrist_pos.tolist(),
-            "dpos": dpos.tolist(),
-            "drot": drot.tolist(),
-            "ee_pos": self._ee_pos.tolist(),
+            "pos": pos.tolist(),
+            "rot": np.rad2deg(rot).tolist(),
             "ee_basis": ee_basis.tolist(),
             "pinch_d": pd,
             "pinch_threshold": self.args.pinch_threshold,
@@ -357,8 +335,8 @@ class Monitor:
                     cmd = json.loads(msg.data)
                 except Exception:
                     continue
-                if cmd.get("cmd") == "reset_ee":
-                    self._ee_pos[:] = 0.0
+                if cmd.get("cmd") == "reset_origin":
+                    self._origin_pos = None   # re-anchor on the next frame
         finally:
             print("[Monitor] Dashboard disconnected")
         return ws
@@ -370,8 +348,8 @@ class Monitor:
         await ws.prepare(request)
         print("[Monitor] Quest connected")
         # fresh anchor for this session
-        self._prev_pos = None
-        self._prev_rot = None
+        self._origin_pos = None
+        self._origin_rot = None
         self._fps_t0 = time.monotonic()
         self._fps_count = 0
         first = True
@@ -428,10 +406,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--pos-scale", type=float, default=1.0)
     p.add_argument("--rot-scale", type=float, default=1.0)
     p.add_argument("--pinch-threshold", type=float, default=0.035, help="metres")
-    p.add_argument("--max-pos-step", type=float, default=0.02, help="metres / step clamp")
-    p.add_argument("--max-rot-step", type=float, default=0.10, help="rad / step clamp")
     p.add_argument("--ee-span", type=float, default=0.4,
-                   help="metres shown across the robot-frame EE views (fixed scale)")
+                   help="metres shown across the robot-frame position views (fixed scale)")
     return p.parse_args()
 
 
