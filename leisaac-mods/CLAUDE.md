@@ -6,6 +6,7 @@ Custom patches and modules that extend the upstream [LightwheelAI/leisaac](https
 
 | File | Purpose |
 |------|---------|
+| `README.md` | Quick command reference for the Quest 3 teleop pipeline (server command + monitor command, no explanation). See below for the full writeup. |
 | `leisaac.patch` | Full diff of our `~/Documents/leisaac/` working tree against the pinned upstream commit. Apply with `git apply` from the leisaac root. |
 | `ik_hold_action.py` | Custom IK action: caches joint targets and reapplies them on zero-delta commands, preventing gravity sag when holding a grasped object. |
 | `so101_gamepad_v2.py` | Gamepad controller v2 (superseded — kept for reproducibility of older recordings). |
