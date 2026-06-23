@@ -97,15 +97,19 @@ from .quest3_webxr import (
 # maps XR wrist axes [right, up, back] -> the gamepad_v3 display axes
 # [up, right, back]; relabelling those into Isaac world (forward = -back,
 # left = -right, up = up) yields this matrix. So with XR wrist axes [right, up, back]:
-#     world +X (forward) <-  wrist[2]   (forward/back came out mirrored: row 0 flipped)
+#     world +X (forward) <- -wrist[2]   (hand back  -> -X)
 #     world +Y (left)    <- -wrist[0]   (hand right -> -Y)
 #     world +Z (up)      <-  wrist[1]   (hand up    -> +Z)
 # The robot then moves up / right / back exactly as the monitor and
 # so101_gamepad_v3 name those axes. Kept as the device's own copy so the
-# calibration monitor (its own ``_R_XR_TO_ISAAC``) is unaffected. Flip a row's
-# sign if a motion axis comes out mirrored on the real robot.
+# calibration monitor (its own ``_R_XR_TO_ISAAC``) is unaffected. This matrix is
+# ALSO reused as the rotation map (``_R_rot_map = Rotation.from_matrix(...)``),
+# which requires a proper rotation (det = +1) — so do NOT fix a mirrored
+# translation axis by flipping a single row here (that makes det = -1 and
+# scipy rejects it). Position-only sign fixes go on the root-frame output in
+# ``get_device_state`` instead (see the forward/back negation on ``out[0]``).
 _R_XR_TO_ISAAC_SO101: np.ndarray = np.array(
-    [[0.0, 0.0, 1.0],
+    [[0.0, 0.0, -1.0],
      [-1.0, 0.0, 0.0],
      [0.0, 1.0, 0.0]],
     dtype=np.float64,
@@ -392,7 +396,7 @@ class SO101Quest3(Device):
             np.clip(self._shoulder_pan_target, self._shoulder_pan_min, self._shoulder_pan_max)
         )
 
-        out[0] = dpos_root[0]   # forward/back -> IK
+        out[0] = -dpos_root[0]  # forward/back -> IK (negated: came out mirrored)
         out[1] = 0.0            # lateral removed from IK (driven by shoulder_pan below)
         out[2] = dpos_root[2]   # up/down -> IK
         out[3:6] = drot_root    # wrist rotation -> IK
