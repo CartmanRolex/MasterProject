@@ -353,14 +353,13 @@ class SO101Quest3(Device):
             self._shoulder_pan_target = self._read_shoulder_pan()
             return out
 
-        # Per-step EE delta in the Isaac world frame. Uses the device's own axis
-        # map (_R_XR_TO_ISAAC_SO101) so the hand→arm directions can be tuned
-        # independently of the calibration monitor. ``anchor_rot`` re-expresses the
-        # translation in the hand's current body frame so it follows the wrist
-        # orientation (held since the last reset). Only the position delta
-        # (``dpos_world``) and the absolute hand orientation (``rot_now``) are
-        # consumed here; the per-step rotation delta ``drot_world`` is ignored —
-        # rotation is now absolute (see _anchored_rotation_error below).
+        # Per-step hand position delta, mapped to the [forward, left, up] control
+        # axes via the device's own axis map (_R_XR_TO_ISAAC_SO101). anchor_rot is
+        # None here: forward/up are applied in the GRIPPER body frame below, which
+        # already makes the translation follow the gripper's orientation (the gripper
+        # tracks the hand) — also re-expressing in the hand body frame would
+        # double-rotate. Only the position delta and the absolute hand orientation
+        # (rot_now) are used; the per-step rotation delta is ignored (absolute below).
         dpos_world, _drot_world, rot_now = xr_delta_to_world(
             self._prev_wrist_pos,
             self._prev_wrist_rot,
@@ -371,47 +370,42 @@ class SO101Quest3(Device):
             self.max_pos_step_m,
             self.max_rot_step_rad,
             R=_R_XR_TO_ISAAC_SO101,
-            anchor_rot=self._anchor_wrist_rot,
+            anchor_rot=None,
         )
 
-        # Absolute (anchored) rotation: feed the relative-IK term the root-frame
-        # error rotvec from the current gripper orientation to the target (= the
-        # hand's rotation-since-anchor, mapped via _R_rot_map, composed onto the
-        # gripper's anchor orientation). The IK's relative mode applies this as a
-        # world/root-frame left-multiplication, so the gripper chases the absolute
-        # target each step — drift-free, no per-step delta accumulation, no
-        # sign/swap hacks. See _anchored_rotation_error for the tuning knob.
+        # Absolute (anchored) rotation, root frame — see _anchored_rotation_error.
         drot_root = self._anchored_rotation_error(rot_now)
 
-        # World -> robot base frame (the frame the relative DLS-IK term consumes).
+        # Scalar position commands in the robot base frame: [forward, left, up].
         dpos_root = self._world_to_root(dpos_world)
 
-        # Lateral (root-Y) is handled by shoulder_pan directly, NOT the IK
-        # (so101_gamepad_v3 convention). Integrate it into a bounded internal
-        # target and emit the relative joint command (target - current); the
-        # RelativeJointPositionAction then drives shoulder_pan to that target.
+        # Left/right (root-Y) drives shoulder_pan directly, NOT the IK
+        # (so101_gamepad_v3 convention): integrate into a bounded internal target and
+        # emit the relative joint command (target - current).
         shoulder_pan_now = self._read_shoulder_pan()
         self._shoulder_pan_target += self.shoulder_pan_sensitivity * float(dpos_root[1])
         self._shoulder_pan_target = float(
             np.clip(self._shoulder_pan_target, self._shoulder_pan_min, self._shoulder_pan_max)
         )
 
-        # Forward/back must be commanded along the arm's CURRENT plane, not the
-        # fixed root +X. shoulder_pan is removed from the IK, so the 4 IK joints can
-        # only translate the gripper within the vertical plane at the current
-        # shoulder_pan azimuth. Root +X leaves that plane as soon as the arm is
-        # panned, so a root-frame forward command becomes unreachable and forward/back
-        # stalls — while up/down (root +Z, in every vertical plane) keeps working.
-        # Rotate the forward command into the plane by shoulder_pan so it stays
-        # reachable (this is what gamepad_v3 gets for free by commanding in the gripper
-        # body frame). Up/down (Z) is invariant under this rotation. If forward curves
-        # the wrong way when the arm is panned, negate `theta`.
-        fwd = -float(dpos_root[0])  # forward/back command (negated: came out mirrored)
-        theta = float(shoulder_pan_now)
-        out[0] = np.cos(theta) * fwd   # forward -> IK, projected into the arm plane
-        out[1] = np.sin(theta) * fwd   # in-plane Y component of forward (reachable)
-        out[2] = dpos_root[2]          # up/down -> IK (plane-invariant)
-        out[3:6] = drot_root           # wrist rotation -> IK
+        # Forward/back + up/down are commanded in the GRIPPER body frame and then
+        # rotated into the root frame the IK consumes — exactly what so101_gamepad_v3
+        # does via _convert_delta_from_frame. This is the principled fix for the
+        # reachability problem: with shoulder_pan removed from the IK the gripper can
+        # only translate within the vertical plane at the current pan azimuth, so a
+        # fixed root +X forward command leaves that plane and stalls once the arm is
+        # panned; the gripper frame moves with the arm, so forward/up stay reachable
+        # and translation follows where the gripper points. Gripper-frame axis
+        # convention (matches gamepad_v3's delta mapping): forward = -z, up = +x,
+        # left/right = y (handled by shoulder_pan, so 0 here).
+        fwd = -float(dpos_root[0])   # forward command (negated: came out mirrored)
+        up = float(dpos_root[2])     # up command
+        Q_grip_root = self._read_root_rot().inv() * self._read_ee_world_rot()
+        v_root = Q_grip_root.apply(np.array([up, 0.0, -fwd]))   # gripper [x=up, y=0, z=-fwd]
+        out[0] = float(v_root[0])
+        out[1] = float(v_root[1])
+        out[2] = float(v_root[2])
+        out[3:6] = drot_root         # wrist rotation -> IK (absolute, root frame)
         out[6] = self._shoulder_pan_target - shoulder_pan_now  # relative shoulder_pan command
 
         self._prev_wrist_pos = wrist_pos.copy()
