@@ -19,24 +19,30 @@ delta* in the SO-101 robot **base/root frame** that flows through leisaac's
 relative DLS-IK action term (see ``init_action_cfg``/``preprocess_device_action``
 for the matching ``"quest3"`` branches):
 
-    joint_state = [dx, dy, dz, drvx, drvy, drvz, d_gripper]   # 7D, root frame
+    joint_state = [dx, 0, dz, drvx, drvy, drvz, d_shoulder_pan, d_gripper]  # 8D, root frame
 
-The 6D EE delta is handed to a DLS IK controller over all 5 arm joints
-(shoulder_pan, shoulder_lift, elbow_flex, wrist_flex, wrist_roll); the solver
-coordinates the joints to follow the hand, so there is no manual lateral->pan /
-roll decomposition like the gamepad device needs. ``d_gripper`` is a relative
-joint command (pinch closes).
+Like ``so101_gamepad_v3``, the **lateral** (left/right) hand motion is decomposed
+off the IK and drives the ``shoulder_pan`` joint directly (a bounded relative
+target), while forward/back + up/down + the wrist rotation go to a DLS IK
+controller over the remaining 4 arm joints (shoulder_lift, elbow_flex,
+wrist_flex, wrist_roll) — ``shoulder_pan`` is removed from the IK. So the root-Y
+component of the EE position delta is zeroed (``dy = 0``) and re-routed to
+``d_shoulder_pan``. ``d_gripper`` is a relative joint command (pinch closes).
 
 Start/reset use leisaac's standard desktop keyboard: B starts control, R resets
 (fail), N resets (success). The in-headset blue button only starts the WebXR
 hand-tracking session.
 
 Tuning: ``pos_scale``, ``rot_scale``, ``gripper_sensitivity``,
-``pinch_threshold_m``, and the per-step clamps. If a motion axis is mirrored or
-swapped, edit the device axis map ``_R_XR_TO_ISAAC_SO101`` (defined in this
-module and passed to ``xr_delta_to_world`` as ``R``) or flip the sign of the
-relevant scale. That matrix is the device's own copy so the calibration monitor
-(which still uses ``quest3_webxr._R_XR_TO_ISAAC``) is unaffected for now.
+``pinch_threshold_m``, and the per-step clamps. The hand->arm axis directions are
+set by ``_R_XR_TO_ISAAC_SO101`` (defined in this module and passed to
+``xr_delta_to_world`` as ``R``): it maps the XR wrist delta into the Isaac
+**world** frame so that ``_world_to_root`` can hand the relative DLS-IK term a
+true root-frame delta, and the robot moves up / right / back exactly as the
+calibration monitor and ``so101_gamepad_v3`` name those axes. If a motion axis
+comes out mirrored or swapped on the robot, flip the corresponding row's sign of
+that matrix (or the sign of the relevant scale). It is the device's own copy, so
+the calibration monitor (which uses ``quest3_webxr._R_XR_TO_ISAAC``) is unaffected.
 """
 
 import asyncio
@@ -49,6 +55,8 @@ import torch
 from aiohttp import WSMsgType, web
 from scipy.spatial.transform import Rotation
 
+from leisaac.assets.robots.lerobot import SO101_FOLLOWER_USD_JOINT_LIMLITS
+
 from .device_base import Device
 from .quest3_webxr import (
     _HTML_TEMPLATE,
@@ -59,17 +67,26 @@ from .quest3_webxr import (
 )
 
 
-# Per-step XR->IK axis map used by the *device* (passed to ``xr_delta_to_world``
-# as ``R``). The XR wrist axes (x=right, y=up, z=back) line up directly with the
-# SO-101 relative-IK position-delta indices in the so101_gamepad_v3 convention —
-# idx0=right, idx1=up, idx2=back (forward = -idx2) — so this is the identity.
-# Tuned here (NOT in quest3_webxr._R_XR_TO_ISAAC) so the calibration monitor is
-# unaffected for now; the two will be reconciled when the monitor is revisited.
-# Flip a row / sign if a motion axis comes out mirrored on the real robot.
+# Per-step XR->Isaac-WORLD axis map used by the *device* (passed to
+# ``xr_delta_to_world`` as ``R``). ``get_device_state`` runs the result through
+# ``_world_to_root`` (which rotates by the live robot base quaternion), so this
+# matrix MUST land the XR wrist delta in the **Isaac world** frame (Z-up, +X fwd)
+# — NOT the monitor's [up, right, back] display frame. It is the world-frame
+# companion of the monitor's verified ``quest3_webxr._R_XR_TO_ISAAC``: the monitor
+# maps XR wrist axes [right, up, back] -> the gamepad_v3 display axes
+# [up, right, back]; relabelling those into Isaac world (forward = -back,
+# left = -right, up = up) yields this matrix. So with XR wrist axes [right, up, back]:
+#     world +X (forward) <- -wrist[2]   (hand back  -> -X)
+#     world +Y (left)    <- -wrist[0]   (hand right -> -Y)
+#     world +Z (up)      <-  wrist[1]   (hand up    -> +Z)
+# The robot then moves up / right / back exactly as the monitor and
+# so101_gamepad_v3 name those axes. Kept as the device's own copy so the
+# calibration monitor (its own ``_R_XR_TO_ISAAC``) is unaffected. Flip a row's
+# sign if a motion axis comes out mirrored on the real robot.
 _R_XR_TO_ISAAC_SO101: np.ndarray = np.array(
-    [[1.0, 0.0, 0.0],
-     [0.0, 1.0, 0.0],
-     [0.0, 0.0, 1.0]],
+    [[0.0, 0.0, -1.0],
+     [-1.0, 0.0, 0.0],
+     [0.0, 1.0, 0.0]],
     dtype=np.float64,
 )
 
@@ -77,8 +94,9 @@ _R_XR_TO_ISAAC_SO101: np.ndarray = np.array(
 class SO101Quest3(Device):
     """Quest 3 hand tracking -> SO-101 relative IK teleoperation.
 
-    ``get_device_state`` returns a 7D root-frame delta:
-    ``[dx, dy, dz, drvx, drvy, drvz, d_gripper]``.
+    ``get_device_state`` returns an 8D root-frame delta:
+    ``[dx, 0, dz, drvx, drvy, drvz, d_shoulder_pan, d_gripper]`` — lateral motion
+    drives ``shoulder_pan`` directly, the rest goes to the IK.
     """
 
     def __init__(
@@ -92,11 +110,14 @@ class SO101Quest3(Device):
         max_pos_step_m: float = 0.02,
         max_rot_step_rad: float = 0.10,
         gripper_sensitivity: float = 0.15,
+        shoulder_pan_sensitivity: float = 4.0,
     ) -> None:
         # Per-step scales. sensitivity is a global multiplier (matches gamepad devices).
         self.pos_scale = 1.0 * sensitivity
         self.rot_scale = 1.0 * sensitivity
         self.gripper_sensitivity = gripper_sensitivity * sensitivity
+        # rad of shoulder_pan per metre of lateral (root-Y) hand motion.
+        self.shoulder_pan_sensitivity = shoulder_pan_sensitivity * sensitivity
         self.pinch_threshold_m = pinch_threshold_m
         self.safety_timeout_s = safety_timeout_s
         self.max_pos_step_m = max_pos_step_m
@@ -107,9 +128,25 @@ class SO101Quest3(Device):
         # robot handle (root frame for delta conversion)
         self.robot_asset = self.env.scene["robot"]
 
+        # shoulder_pan is driven directly (not by the IK): bounded internal target
+        # accumulated from lateral hand motion, like so101_gamepad_v3.
+        self._joint_names = self.robot_asset.data.joint_names
+        self._shoulder_pan_joint_idx = self._joint_names.index("shoulder_pan")
+        shoulder_pan_limits_deg = SO101_FOLLOWER_USD_JOINT_LIMLITS["shoulder_pan"]
+        self._shoulder_pan_min = float(np.deg2rad(shoulder_pan_limits_deg[0]))
+        self._shoulder_pan_max = float(np.deg2rad(shoulder_pan_limits_deg[1]))
+        self._shoulder_pan_target = self._read_shoulder_pan()
+
         # previous wrist pose, captured on first valid frame (and after every reset)
         self._prev_wrist_pos: np.ndarray | None = None
         self._prev_wrist_rot: Rotation | None = None
+        # Anchor wrist orientation for orientation-aware translation. Unlike
+        # _prev_wrist_rot (re-anchored every step for the rotation delta), this is
+        # held until an explicit reset (and on tracking loss) so the translation
+        # frame follows the hand's pointing direction across a whole session
+        # ("additive"): the room-frame position delta is re-expressed in the hand
+        # body frame via dQ = rot_now * anchor_wrist_rot.inv() before mapping.
+        self._anchor_wrist_rot: Rotation | None = None
         self._close_gripper = False
 
         # WebXR streaming server (reused from gregorio via quest3_webxr)
@@ -133,12 +170,23 @@ class SO101Quest3(Device):
         # re-anchor on next valid frame so teleop resumes from the current pose
         self._prev_wrist_pos = None
         self._prev_wrist_rot = None
+        # also drop the translation-frame anchor so the hand's current pose
+        # redefines "forward/right/up" after a reset
+        self._anchor_wrist_rot = None
         self._close_gripper = False
+        # re-seed the bounded shoulder_pan target from the (reset) joint state
+        self._shoulder_pan_target = self._read_shoulder_pan()
+
+    def _read_shoulder_pan(self) -> float:
+        """Current shoulder_pan joint angle (rad), clamped to its limits."""
+        now = float(self.robot_asset.data.joint_pos[0, self._shoulder_pan_joint_idx].item())
+        return float(np.clip(now, self._shoulder_pan_min, self._shoulder_pan_max))
 
     def _add_device_control_description(self) -> None:
         self._display_controls_table.add_row(["Headset blue button", "start WebXR hand tracking"])
-        self._display_controls_table.add_row(["Move right hand", "move gripper (relative)"])
-        self._display_controls_table.add_row(["Rotate right wrist", "rotate gripper (relative)"])
+        self._display_controls_table.add_row(["Move right hand up/down/fwd/back", "move gripper via IK (relative)"])
+        self._display_controls_table.add_row(["Move right hand left/right", "rotate shoulder_pan joint (relative)"])
+        self._display_controls_table.add_row(["Rotate right wrist", "rotate gripper via IK (relative)"])
         self._display_controls_table.add_row(["Pinch thumb+index", "close gripper"])
 
     def _world_to_root(self, vec_world: np.ndarray) -> np.ndarray:
@@ -149,29 +197,43 @@ class SO101Quest3(Device):
         return vec_root.squeeze(0).cpu().numpy()
 
     def get_device_state(self) -> np.ndarray:
-        """Return the 7D root-frame delta for the relative IK + gripper action."""
+        """Return the 8D delta: [dx, 0, dz, drvx, drvy, drvz, d_shoulder_pan, d_gripper].
+
+        The IK position/rotation deltas (indices 0:6) are in the robot base/root
+        frame; lateral (root-Y) is zeroed there and re-routed to the shoulder_pan
+        joint (index 6); index 7 is the relative gripper command.
+        """
         wrist_pos, wrist_quat, joints, age = self._state.get()
-        out = np.zeros(7, dtype=np.float64)
+        out = np.zeros(8, dtype=np.float64)
 
         # No stream yet (server up but no frames) or tracking stale -> hold still.
         if age > self.safety_timeout_s:
             self._prev_wrist_pos = None
             self._prev_wrist_rot = None
+            self._anchor_wrist_rot = None
             return out
 
         # Pinch -> gripper. Drives a relative joint command each step (sim clamps to limits).
         self._close_gripper = pinch_distance(joints) < self.pinch_threshold_m
-        out[6] = -self.gripper_sensitivity if self._close_gripper else self.gripper_sensitivity
+        out[7] = -self.gripper_sensitivity if self._close_gripper else self.gripper_sensitivity
 
-        # First valid frame after start/reset: anchor, no motion this step.
+        # First valid frame after start/reset: anchor wrist + shoulder_pan, no motion.
         if self._prev_wrist_pos is None:
             self._prev_wrist_pos = wrist_pos.copy()
             self._prev_wrist_rot = Rotation.from_quat(wrist_quat)
+            # (re)capture the translation-frame anchor: this block only runs after
+            # init/reset/staleness, all of which null _anchor_wrist_rot, so the
+            # anchor is genuinely held between resets (and across tracking loss
+            # it is re-established here).
+            self._anchor_wrist_rot = Rotation.from_quat(wrist_quat)
+            self._shoulder_pan_target = self._read_shoulder_pan()
             return out
 
         # Per-step EE delta in the Isaac world frame. Uses the device's own axis
         # map (_R_XR_TO_ISAAC_SO101) so the hand→arm directions can be tuned
-        # independently of the calibration monitor.
+        # independently of the calibration monitor. ``anchor_rot`` re-expresses the
+        # translation in the hand's current body frame so it follows the wrist
+        # orientation (held since the last reset).
         dpos_world, drot_world, rot_now = xr_delta_to_world(
             self._prev_wrist_pos,
             self._prev_wrist_rot,
@@ -182,11 +244,39 @@ class SO101Quest3(Device):
             self.max_pos_step_m,
             self.max_rot_step_rad,
             R=_R_XR_TO_ISAAC_SO101,
+            anchor_rot=self._anchor_wrist_rot,
         )
 
+        # Rotation axis correction. On this headset the wrist *orientation* axes
+        # come in swapped relative to the *translation* axes, so a hand roll about
+        # the forward/back axis was driving an EE rotation about the left/right
+        # axis. Swap the world X (forward) and Y (left) rotation components so a
+        # hand roll about fwd/back maps to an EE roll about fwd/back. In addition,
+        # the left/right (world-Y) rotation comes out inverted on this headset, so
+        # negate that component. Tuning: if a rotation runs the wrong way, flip the
+        # sign of the relevant component below; if a different pair is swapped,
+        # change the indices.
+        drot_world = np.array([drot_world[1], -drot_world[0], drot_world[2]], dtype=np.float64)
+
         # World -> robot base frame (the frame the relative DLS-IK term consumes).
-        out[0:3] = self._world_to_root(dpos_world)
-        out[3:6] = self._world_to_root(drot_world)
+        dpos_root = self._world_to_root(dpos_world)
+        drot_root = self._world_to_root(drot_world)
+
+        # Lateral (root-Y) is handled by shoulder_pan directly, NOT the IK
+        # (so101_gamepad_v3 convention). Integrate it into a bounded internal
+        # target and emit the relative joint command (target - current); the
+        # RelativeJointPositionAction then drives shoulder_pan to that target.
+        shoulder_pan_now = self._read_shoulder_pan()
+        self._shoulder_pan_target += self.shoulder_pan_sensitivity * float(dpos_root[1])
+        self._shoulder_pan_target = float(
+            np.clip(self._shoulder_pan_target, self._shoulder_pan_min, self._shoulder_pan_max)
+        )
+
+        out[0] = dpos_root[0]   # forward/back -> IK
+        out[1] = 0.0            # lateral removed from IK (driven by shoulder_pan below)
+        out[2] = dpos_root[2]   # up/down -> IK
+        out[3:6] = drot_root    # wrist rotation -> IK
+        out[6] = self._shoulder_pan_target - shoulder_pan_now  # relative shoulder_pan command
 
         self._prev_wrist_pos = wrist_pos.copy()
         self._prev_wrist_rot = rot_now

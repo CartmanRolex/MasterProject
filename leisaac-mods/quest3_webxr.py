@@ -91,6 +91,7 @@ def xr_delta_to_world(
     max_pos_step_m: float,
     max_rot_step_rad: float,
     R: np.ndarray | None = None,
+    anchor_rot: Rotation | None = None,
 ) -> tuple[np.ndarray, np.ndarray, Rotation]:
     """Per-step EE delta in the Isaac **world** frame, from two wrist poses.
 
@@ -102,16 +103,37 @@ def xr_delta_to_world(
     ``R`` is the XR->Isaac axis map; defaults to the module ``_R_XR_TO_ISAAC``.
     Callers (e.g. the device) may pass their own matrix to tune the axis mapping
     independently — see ``SO101Quest3._R_XR_TO_ISAAC_SO101``.
+
+    ``anchor_rot`` (optional) is a wrist orientation captured at a start/reset
+    anchor and held by the caller. When given, the position delta is first
+    re-expressed in the hand's *current* body frame — rotated by the inverse of
+    the wrist rotation since the anchor — before ``R`` maps it to world. This
+    makes the translation follow the hand's pointing direction instead of the
+    fixed room axes (which only match the initial hand direction); see the
+    device's ``_anchor_wrist_rot``. When ``None`` (e.g. the calibration monitor,
+    which does not call this) the legacy room-frame mapping is used unchanged.
     """
     if R is None:
         R = _R_XR_TO_ISAAC
 
-    # Position delta (world/Isaac frame), clamped for safety.
-    dpos_world = R @ (wrist_pos - prev_wrist_pos) * pos_scale
+    rot_now = Rotation.from_quat(wrist_quat)
+
+    # Position delta (world/Isaac frame), clamped for safety. When an anchor
+    # orientation is given, first re-express the room-frame translation in the
+    # hand's current body frame: rotate the delta by the inverse of the wrist
+    # rotation since the anchor (dQ = rot_now * anchor_rot.inv()). That makes the
+    # translation follow the hand's pointing direction — held until the caller
+    # resets the anchor — instead of the fixed room axes, which only match the
+    # initial hand direction. With anchor_rot=None this is the legacy room-frame
+    # mapping, byte-for-byte unchanged.
+    dpos_rm = wrist_pos - prev_wrist_pos
+    if anchor_rot is not None:
+        dQ = rot_now * anchor_rot.inv()       # wrist rotation since anchor (room frame)
+        dpos_rm = dQ.inv().apply(dpos_rm)     # re-express in the hand body frame
+    dpos_world = R @ dpos_rm * pos_scale
     dpos_world = np.clip(dpos_world, -max_pos_step_m, max_pos_step_m)
 
     # Rotation delta as axis-angle (world/Isaac frame), clamped for safety.
-    rot_now = Rotation.from_quat(wrist_quat)
     rotvec_xr = (rot_now * prev_wrist_rot.inv()).as_rotvec()
     drot_world = R @ rotvec_xr * rot_scale
     ang = float(np.linalg.norm(drot_world))
@@ -175,7 +197,8 @@ function sendDebug(msg) {
 }
 
 let xrSession = null, refSpace = null, glContext = null;
-let lastSend = 0, frameCount = 0, lastFpsStamp = 0;
+let lastSend = 0, frameCount = 0, lastFpsStamp = 0, lastValidFrame = 0;
+const STALL_MS = 30000;   // end a session whose tracking has been dead this long
 
 btn.addEventListener('click', async () => {
   if (!navigator.xr) { sendDebug('ERROR: WebXR not available'); return; }
@@ -194,6 +217,18 @@ btn.addEventListener('click', async () => {
     btn.disabled = false; btn.textContent = 'Start Hand Tracking';
     sendDebug('Session ended');
   });
+
+  // If the headset idles or is taken off, the AR session goes 'hidden' but stays
+  // alive with dead tracking, trapping the user in a frozen passthrough with no
+  // way to the menus. End it so they drop back to this browser page and can
+  // restart. ('visible-blurred' = system menu up; leave that alone.)
+  xrSession.addEventListener('visibilitychange', () => {
+    if (xrSession && xrSession.visibilityState === 'hidden') {
+      sendDebug('Headset idle — ending AR session');
+      xrSession.end().catch(() => {});
+    }
+  });
+  lastValidFrame = performance.now();
 
   try {
     const canvas = document.createElement('canvas');
@@ -221,6 +256,16 @@ setInterval(() => {
     ? srcs.map(s => s.handedness + (s.hand ? '[✓]' : '[✗]')).join(', ')
     : 'no input sources yet');
 }, 3000);
+
+// Watchdog (timer-based, so it keeps running even while the rAF loop is paused
+// during idle): if a session is alive but no valid hand frames have arrived for
+// STALL_MS, end it so the user is not stuck in dead hand-tracking.
+setInterval(() => {
+  if (xrSession && performance.now() - lastValidFrame > STALL_MS) {
+    sendDebug('Tracking stalled — ending AR session');
+    xrSession.end().catch(() => {});
+  }
+}, 2000);
 
 function onFrame(t, frame) {
   xrSession.requestAnimationFrame(onFrame);
@@ -259,6 +304,7 @@ function onFrame(t, frame) {
 
     ws.send(JSON.stringify({ joints: positions, wrist_quat: wristQuat }));
     lastSend = t;
+    lastValidFrame = performance.now();
 
     frameCount++;
     if (t - lastFpsStamp >= 1000) {
