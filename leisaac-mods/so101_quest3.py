@@ -283,9 +283,10 @@ class SO101Quest3(Device):
         dQ_hand = rot_now * self._anchor_wrist_rot.inv()
         w_world = (self._R_rot_map * dQ_hand * self._R_rot_map.inv()).as_rotvec()
         w_root = Q_root.inv().apply(w_world)
-        # Feedforward forward<->right swap; up is left out of the command (it is not
-        # controlled — see the error zeroing below).
-        w_cmd = np.array([w_root[1], w_root[0], 0.0])
+        # Feedforward forward<->right swap (right is also sign-inverted: rotation
+        # about the right axis came out reversed); up is left out of the command (it
+        # is not controlled — see the error zeroing below).
+        w_cmd = np.array([w_root[1], -w_root[0], 0.0])
         # Target = anchor EE rotated by the commanded hand rotation (all root frame).
         Q_ee_anchor_root = Q_root.inv() * self._anchor_ee_world_rot
         Q_target_root = Rotation.from_rotvec(w_cmd) * Q_ee_anchor_root
