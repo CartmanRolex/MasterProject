@@ -7,32 +7,41 @@ an algorithmic orchestrator sequences them using privileged Isaac state.
 
 ## Core conceptual framing (READ BEFORE EDITING ORCHESTRATOR OR REPORT)
 
-The system has THREE distinct mechanisms that were previously all called
-"recovery." Do not conflate them. Code, comments, and report text must
-use these names:
+Recovery is defined at TWO LEVELS of the goal hierarchy
+(task > per-orange goal GRASP→LIFT→PLACE > subtask). Pinning every
+recovery action to a level keeps the term precise and makes the
+monotask-vs-subtask comparison fair. There are still THREE distinct
+mechanisms — one recovery mechanism per level, plus an enabler. Do not
+conflate them. Code, comments, and report text must use these names:
 
-1. **Local retry** — true recovery. Orange slips during LIFT/PLACE →
-   return to GRASP for the SAME orange. Original goal preserved.
+1. **Local retry** — LEVEL-1 (sub-goal) recovery; recovers the SAME
+   orange. Orange slips during LIFT/PLACE, or LIFT/PLACE times out →
+   return to GRASP for the SAME orange. Original sub-goal preserved.
 
-2. **Spatial reset** — a PRECONDITION, not recovery. VLA language
-   conditioning only switches targets reliably when the arm is far from
-   all oranges. Implemented as a SCRIPTED joint-space interpolation to
-   home (NOT a VLA prompt). Required before any target change.
+2. **Target redirection** — LEVEL-2 (task) recovery; recovers task
+   PROGRESS via a DIFFERENT orange. Repeated GRASP failure on orange A →
+   give up on A, attempt orange B so the episode keeps scoring. The
+   sub-goal is dropped, but the task objective (indifferent to WHICH
+   orange is placed) is served — this is task-level recovery, NOT mere
+   abandonment.
 
-3. **Target redirection** — goal ABANDONMENT, not recovery. Repeated
-   GRASP failure on orange A → give up on A, attempt orange B. Improves
-   task completion rate; original sub-goal is dropped.
+3. **Spatial reset** — a PRECONDITION / enabler, NOT a recovery level.
+   VLA language conditioning only switches targets reliably when the arm
+   is far from all oranges. Implemented as a SCRIPTED joint-space
+   interpolation to home (NOT a VLA prompt). Required before any Level-2
+   target change.
 
 Invariant: any change of language target must be preceded by a spatial
-reset. Same target after a slip does not need one.
+reset. A Level-1 retry on the same target after a slip does not.
 
 The VLA is responsible for: GRASP(target), LIFT, PLACE.
 The orchestrator is responsible for: subtask sequencing, outcome
 classification, spatial resets, and target selection.
 
 ## Terminology — do not drift
-- "Recovery" refers ONLY to local retry. Not to spatial reset, not to
-  redirection.
+- "Recovery" is TWO-LEVEL: Level-1 = local retry (same orange); Level-2
+  = target redirection (different orange / task progress). Spatial reset
+  is the enabler, NOT recovery — never call it "recovery".
 - "Subtask" = one of GRASP / LIFT / PLACE. HOME is a scripted primitive,
   not a subtask.
 - "Phantom grasp" = gripper closed on air; detected via gripper force.
@@ -78,6 +87,7 @@ Python scripts that generate the report figures. Run from `report/scripts/` on t
 | `extract_positional_prevalence.py` | (no figure) Prints the per-source count of GRASP episodes per positional label (left/right/middle/…) for the `tab:label_prevalence` table in `experiments.tex`. Downloads only the small `meta/episodes` parquet from HF (Xet disabled), so it runs on the laptop; needs `huggingface_hub`/`pyarrow`. |
 | `plot_grasp_confusion.py` | `figures/grasp_obedience_confusion.pdf` — 2×2 grid of grasp-obedience confusion matrices (requested vs. actually-grasped position) for the two subtask models × {0,1} oranges placed. Reads the git-tracked subtask checkpoints under `isaac-inference/results`; reconstructs grasp-time position labels. Pure-Python via `plot_lib`. |
 | `compute_place_success.py` | (no figure) Prints place success for all four models (`tab:place_success`), read directly from the per-attempt `target_in_plate_end` field (eval schema EpisodeStory v2 / PhaseMonitor v3), with scene state from `scene_start.n_in_plate`. No anchoring/heuristics — the old gripper-retraction artifact is fixed at the source. Also prints post-failure place recovery / re-engagement (`tab:place_recovery`). Self-validates `final_scene` vs `oranges_in_plate`. Reads checkpoints under `isaac-inference/results`; pure stdlib. |
+| `compute_recovery.py` | (no figure) Prints leveled recovery for all four models. **Level-1** (same orange): lift + place reclaim — reproduces `tab:lift_recovery` / `tab:place_recovery` "recovered" cells. **Level-2** (different orange / task progress, `tab:task_recovery`): per-episode score recovery and per-event different-orange recovery after a LIFT drop / PLACE slip, measured identically for both formulations. Reuses the same per-attempt fields as `compute_place_success.py`; self-validates `final_scene` vs `oranges_in_plate`. Reads checkpoints under `isaac-inference/results`; pure stdlib. |
 | `plot_lib.py` | Shared helpers (colors, axis formatting, save wrappers) — imported by the scripts above; not run directly. |
 
 ## Figures (`figures/`)

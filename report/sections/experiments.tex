@@ -27,12 +27,12 @@ The current evaluations use the same reference seed set, \texttt{pick\_orange\_r
 \subsection{Lift Failures and Recovery}
 \label{sec:lift_recovery}
 
-Beyond the final outcome, the per-step traces show how each policy reacts when a grasped orange slips during the lift. A \textbf{lift} begins once a held orange rises above its initial height; it is a \textbf{drop} if the orange leaves the gripper before reaching the plate. From these traces we read three metrics, all reported in \Cref{tab:lift_recovery}:
+Beyond the final outcome, the per-step traces show how each policy reacts when a grasped orange slips during the lift. A \textbf{lift} begins once a held orange rises above its initial height; it is a \textbf{drop} if the orange leaves the gripper before reaching the plate. From these traces we read three metrics, all reported in \Cref{tab:lift_recovery}. The first measures lift reliability; the next two measure \textbf{Level-1 (same-orange) recovery} --- whether the dropped orange is itself reclaimed --- which \cref{sec:task_recovery} complements with the formulation-fair, task-level comparison:
 
 \begin{itemize}[leftmargin=1.4em,itemsep=2pt,topsep=2pt]
     \item \textbf{Lift success rate} --- successes as a fraction of genuine lift attempts (successes plus drops, excluding attempts cut short when the episode ends).
     \item \textbf{Drop-recovery rate} --- of the oranges whose \emph{first} lift dropped, the fraction nonetheless lifted later in the same episode (a placed orange counts as lifted).
-    \item \textbf{Re-engagement} --- the fraction of drops whose \emph{next} lift attempt returns to the same orange rather than moving to a different one: the signature of a \emph{local retry}.
+    \item \textbf{Re-engagement} --- the fraction of drops whose \emph{next} lift attempt returns to the same orange rather than moving to a different one: the signature of a \emph{local retry}. This is a behavioural descriptor of the orchestrator, which is built to return to the same target; we report it for context, not as a fair head-to-head number, since the monotask has no fixed target to return to.
 \end{itemize}
 
 One caveat frames the comparison: the monotask traces are observer-inferred from physics, whereas the subtask traces are the orchestrator's own log.
@@ -57,7 +57,7 @@ One caveat frames the comparison: the monotask traces are observer-inferred from
 
 \paragraph{The subtask policies lift more reliably.} Lift success is markedly higher under the subtask formulation (89--92\% vs.\ 61--83\% for monotask), most starkly on Teleop where the monotask model loses nearly two of every five held oranges. Part of this gap is by construction: in subtask mode the orchestrator only enters LIFT once its grasp check passes --- the orange centred between the fingers, within the grip span, with strong bilateral contact forces --- so a subtask lift starts from a \emph{verified} solid grasp. The monotask trace, by contrast, infers a lift from any upward motion of a held orange, with no such precondition, so it counts lifts that begin from marginal grasps. The higher subtask lift rate is therefore partly a better-conditioned starting point, not only a better policy.
 
-\paragraph{Recovery after a drop is suggestive but small-sample here.} Because subtask drops are now rare, the post-drop columns of \Cref{tab:lift_recovery} rest on few events. On Teleop the subtask policy still re-engages the dropped orange far more often than the monotask one (77\% vs.\ 40\%), the signature of the orchestrator's \emph{local retry} returning to GRASP for the same orange --- a step the end-to-end monotask policy cannot take. On Teleop+Auto, with only a handful of subtask drops, re-engagement and recovery show no clear advantage. We therefore read drop-recovery and re-engagement as indicative rather than conclusive.
+\paragraph{Recovery after a drop is suggestive but small-sample here.} Because subtask drops are now rare, the post-drop columns of \Cref{tab:lift_recovery} rest on few events. On Teleop the subtask policy re-engages the dropped orange more often than the monotask one (77\% vs.\ 40\%): the orchestrator's \emph{local retry} returns to GRASP for the same orange by design, whereas the monotask reaches it only emergently --- which it nonetheless does after two of every five drops, so this is not a step the end-to-end policy is incapable of. On Teleop+Auto, with only a handful of subtask drops, re-engagement and recovery show no clear advantage. We therefore read these Level-1 columns as indicative rather than conclusive, and turn to task-level recovery (\cref{sec:task_recovery}) for the comparison that does not hinge on same-orange behaviour.
 
 \subsection{Placing Failures}
 \label{sec:place}
@@ -86,7 +86,7 @@ Placing the lifted orange into the plate is the final subtask. A \textbf{place} 
 
 \paragraph{The subtask policies place reliably; the Teleop monotask model struggles to start.} Once an orange has been lifted, the orchestrated subtask policies put it in the plate about four times in five (89\% Teleop, 82\% Teleop+Auto), roughly flat across scene state. The monotask models are more uneven: the \textbf{Teleop monotask succeeds on only 58\% of \emph{first} placements} but rises to 90--95\% once the plate is no longer empty --- the difficulty is getting the first orange in, not a late-episode collapse, mirroring the many empty episodes it leaves (\Cref{fig:orange_outcome_distribution}). On Teleop+Auto the two formulations place at a similar rate. \textbf{Placing is not where the subtask advantage comes from} --- once lifting has succeeded, both formulations finish the place comparably; the formulations diverge earlier, at getting an orange grasped and lifted at all.
 
-\paragraph{A failed place rarely recovers.} We can ask the same recovery question as for the lift: of the oranges whose \emph{first} place attempt failed (dropped outside the plate), how often is that orange nonetheless placed at some point later in the episode (\Cref{tab:place_recovery})? The answer is: seldom. Recovery is only 17--21\% under the subtask formulation and as low as 3\% for the Teleop monotask model --- well below the lift drop-recovery rates --- and a dropped-during-place orange is re-engaged only about a quarter to a third of the time. \textbf{A slip at the plate is largely terminal}: unlike a dropped lift, which the local retry often reclaims, a failed place usually loses that orange for the rest of the episode. The subtask policy still recovers somewhat more often than the monotask one, consistent with the orchestrator's local retry, but the effect is small because few place failures are recovered at all.
+\paragraph{A failed place rarely recovers.} We can ask the same \textbf{Level-1 (same-orange)} recovery question as for the lift: of the oranges whose \emph{first} place attempt failed (dropped outside the plate), how often is that orange nonetheless placed at some point later in the episode (\Cref{tab:place_recovery})? The answer is: seldom. Recovery is only 17--21\% under the subtask formulation and as low as 3\% for the Teleop monotask model --- well below the lift drop-recovery rates --- and a dropped-during-place orange is re-engaged only about a quarter to a third of the time. \textbf{A slip at the plate is largely terminal}: unlike a dropped lift, which the local retry often reclaims, a failed place usually loses that orange for the rest of the episode. The subtask policy still recovers somewhat more often than the monotask one, consistent with the orchestrator's local retry, but the effect is small because few place failures are recovered at all. As with the lift, this same-orange view favours the orchestrator by construction; \cref{sec:task_recovery} gives the formulation-fair picture by asking whether the episode keeps scoring at all.
 
 \begin{table}[H]
     \centering
@@ -105,6 +105,33 @@ Placing the lifted orange into the plate is the final subtask. A \textbf{place} 
         \bottomrule
     \end{tabular}
 \end{table}
+
+\subsection{Task-Level Recovery}
+\label{sec:task_recovery}
+
+The lift and place analyses above measure \textbf{Level-1 (same-orange) recovery}: whether the specific orange that failed is reclaimed. That is the orchestrator's local retry, and the ``re-engaged same orange'' columns are by construction its signature --- a behaviour the monotask policy, never given a fixed target, has no mechanism to aim for. To compare the two formulations on equal footing we therefore also measure \textbf{Level-2 (task) recovery}: after a physical setback, does the system keep making task progress by placing \emph{some} orange, regardless of which? Because the objective is indifferent to which orange ends up in the plate, this is the level at which monotask and subtask are genuinely comparable, and it needs no inference of which orange a policy intended.
+
+The trigger is the same physical setback for both formulations --- a LIFT drop or a PLACE slip, read from simulator state --- and the recovery criterion is a later successful placement. \Cref{tab:task_recovery} reports two views. \emph{Score recovery} is the fraction of episodes that suffered at least one setback whose placed count nonetheless rose afterward (same or different orange; the dropped orange is itself still available, so the opportunity is intrinsic). \emph{Different-orange recovery} is the stricter Level-2 signal: of setbacks for which at least one \emph{other} orange was still unplaced, the fraction followed by a successful placement of a \emph{different} orange. The 5000-step budget is shared, so budget exhaustion is symmetric across formulations.
+
+\begin{table}[H]
+    \centering
+    \small
+    \caption{Level-2 (task) recovery after a physical setback (LIFT drop or PLACE slip), measured identically for both formulations from simulator state. \emph{Score recovery}: of episodes with at least one setback, the fraction whose placed count rose after the first setback. \emph{Different-orange recovery}: of setbacks with at least one other orange still unplaced, the fraction followed by a successful placement of a different orange. Denominators differ because the subtask policy suffers far fewer setbacks.}
+    \label{tab:task_recovery}
+    \begin{tabular}{llcc}
+        \toprule
+        Training set & Formulation & Score recovery & Different-orange recovery \\
+        \midrule
+        Teleop      & Monotask & 35.5\% (27/76) & 23.1\% (28/121) \\
+        Teleop      & Subtask  & 73.5\% (25/34) & 60.0\% (18/30)  \\
+        \midrule
+        Teleop+Auto & Monotask & 53.7\% (22/41) & 35.1\% (20/57)  \\
+        Teleop+Auto & Subtask  & 42.9\% (18/42) & 28.0\% (14/50)  \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\paragraph{Level-2 is where the orchestrator's advantage is real --- and where Auto data erodes it.} On Teleop the subtask formulation both suffers far fewer setbacks (34 vs.\ 76 episodes contain one) and recovers from them far more often: after a drop or slip it keeps scoring in 73.5\% of episodes against 35.5\% for monotask, and reaches a \emph{different} orange after 60.0\% of setbacks against 23.1\%. This is the mechanism behind the ``rarely fails completely'' result of \cref{fig:orange_outcome_distribution}: Level-2 redirection turns dead-ends into progress that the end-to-end policy, prone to fixating on one orange, does not make. The pattern reverses on Teleop+Auto, where the subtask model recovers \emph{less} often than its monotask counterpart on both views (42.9\% vs.\ 53.7\%; 28.0\% vs.\ 35.1\%) --- the same regression seen in the full-task metrics, now visible at the level of recovery: the added autonomous data weakened exactly the task-level robustness the orchestrator exists to provide.
 
 \subsection{Target Obedience in the Subtask Policies}
 \label{sec:obedience}

@@ -22,6 +22,67 @@ At every step, the learned policy observes the same fixed set of inputs: the six
     \label{fig:environment}
 \end{figure}
 
+\subsection{Policy Architecture and Fine-Tuning}
+\label{subsec:finetuning}
+
+The learned policy used throughout this work is \textbf{SmolVLA}, a compact Vision-Language-Action model. It couples a pretrained vision-language backbone --- the \num{500}-million-parameter \texttt{SmolVLM2-500M-Video-Instruct} model, comprising a vision encoder and a 16-layer language transformer --- with a smaller \textbf{action expert}. At each step the backbone encodes the two camera views and the language prompt into a sequence of tokens; the action expert cross-attends to those tokens and, conditioned on the current joint state, denoises a noise sample into the next action chunk through a flow-matching objective. A separate linear \textbf{state projection} maps the six-dimensional joint state into the model's token space. The policy outputs a chunk of 20 six-dimensional joint actions per query, matching the 20-frame terminal hold used during data collection (\cref{subsec:teleop}). All models are initialised from the public \texttt{lerobot/smolvla\_base} checkpoint and fine-tuned on our datasets.
+
+Fine-tuning follows a \textbf{parameter-efficient} scheme in which the bulk of the pretrained backbone is kept frozen. The vision encoder is frozen, so the perceptual features are reused as-is; the language transformer of the backbone is also frozen; and only the \textbf{action expert} and the \textbf{state projection} are updated. Under this scheme roughly \num{100} million of the model's \num{450} million parameters are trainable (about 22\%). This keeps the broad visual and linguistic priors of the pretrained model intact while adapting the action-generation pathway to the SO-101 and the task. All models are optimised with AdamW (learning rate \num{1e-4}, $\beta=(0.9,0.95)$, weight decay \num{1e-10}) under a cosine schedule with a 1000-step warm-up, a batch size of 64, and \num{20000} gradient steps. Observations are normalised with image identity scaling and mean/standard-deviation normalisation for the joint state and actions. \Cref{fig:smolvla_finetune} summarises which components are frozen and which are trained.
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[
+        font=\small, >=Latex, node distance=6mm,
+        frozen/.style={draw=blue!55!black, fill=blue!12, rounded corners, align=center, minimum height=10mm, inner sep=4pt},
+        trained/.style={draw=orange!80!black, fill=orange!20, rounded corners, align=center, minimum height=10mm, inner sep=4pt},
+        io/.style={draw=black!45, fill=black!6, rounded corners, align=center, minimum height=8mm, inner sep=3pt},
+        arr/.style={->, thick, draw=black!65},
+    ]
+        % inputs
+        \node[io] (front) {Front\\camera};
+        \node[io, below=4mm of front] (wrist) {Wrist\\camera};
+        \node[io, below=8mm of wrist] (state) {Joint state\\$q\in\mathbb{R}^{6}$};
+        \node[io, below=8mm of state] (prompt) {Language\\prompt};
+
+        % encoders
+        \node[frozen, right=12mm of $(front)!0.5!(wrist)$] (venc) {Vision\\encoder};
+        \node[frozen, right=12mm of prompt] (emb) {Token\\embedding};
+        \node[trained, right=12mm of state] (sproj) {State\\projection};
+
+        % backbone
+        \node[frozen, right=14mm of venc, minimum height=24mm] (vlm) {VLM backbone\\\footnotesize(16-layer LM)};
+
+        % expert
+        \node[trained, right=16mm of vlm, minimum height=30mm] (expert) {Action\\expert\\\footnotesize(flow matching)};
+
+        % output
+        \node[io, right=12mm of expert] (act) {Action chunk\\$a_{t:t+20}\in\mathbb{R}^{20\times 6}$};
+        \node[io, above=6mm of expert] (noise) {noise $+$ time};
+
+        % arrows
+        \draw[arr] (front.east) -- (venc.west);
+        \draw[arr] (wrist.east) -- (venc.west);
+        \draw[arr] (prompt.east) -- (emb.west);
+        \draw[arr] (state.east) -- (sproj.west);
+        \draw[arr] (venc.east) -- (vlm.west);
+        \draw[arr] (emb.east) -- (vlm.west);
+        \draw[arr] (vlm.east) -- node[above, font=\scriptsize]{cross-attn} (expert.west);
+        \draw[arr] (sproj.east) -- (expert.west);
+        \draw[arr] (noise.south) -- (expert.north);
+        \draw[arr] (expert.east) -- (act.west);
+
+        % legend
+        \node[frozen, below=10mm of vlm, minimum height=5mm, xshift=-2mm] (lf) {};
+        \node[right=1.5mm of lf, font=\footnotesize] (lft) {frozen (pretrained, not updated)};
+        \node[trained, right=6mm of lft, minimum height=5mm] (lt) {};
+        \node[right=1.5mm of lt, font=\footnotesize] {trained (fine-tuned)};
+    \end{tikzpicture}
+    \caption{SmolVLA architecture and the fine-tuning scheme used for every model in this report. The pretrained vision encoder and language backbone are frozen (blue); only the action expert and the state projection are trained (orange). The backbone-unfreezing ablation of \cref{subsec:finetuning} additionally trains the VLM backbone.}
+    \label{fig:smolvla_finetune}
+\end{figure}
+
+As a separate ablation we also \textbf{unfreeze the language backbone}, training the 16-layer transformer jointly with the action expert (the vision encoder remains frozen). This raises the trainable parameter count from roughly \num{100} million to \num{316} million (about 70\% of the model) and lets the backbone adapt its representations to the robot domain rather than reusing the frozen web-pretrained ones, at the cost of a heavier optimisation that is more prone to overfitting on a single dataset. This variant is trained on the same Teleop subtask data as its frozen counterpart, changing only which parameters receive gradients, and is evaluated under the identical protocol so the difference is attributable to the unfreezing alone. \textbf{[Placeholder: backbone-unfreezing result vs.\ the frozen subtask model to be reported once the evaluation completes.]}
+
 \subsection{LightwheelAI Baseline}
 
 The first experimental setting treats the task as a single full-task imitation-learning problem. This report refers to this training source as the \textbf{LightwheelAI Baseline} dataset. It is the 60-episode \texttt{leisaac-pick-orange-mimic-v0} dataset published by LightwheelAI, the developers of the upstream \texttt{leisaac} library this project builds on, and serves as the official reference dataset for the task. It contains 60 complete pick-and-place demonstrations, where each episode covers the full sequence of picking the three oranges and placing them in the plate. The demonstrations are unsegmented: they are not split into subtasks, and the learned policy is expected to execute the full task from start to finish.
@@ -62,6 +123,7 @@ These subtask checkpoints are where a subtask outcome --- success or one of the 
 An intermediate attempt was made by slicing the LightwheelAI Baseline dataset into shorter subtask segments. This produced a subtask-style dataset, but the original demonstrations always follow the same object order. As a result, the sliced data does not provide a meaningful signal connecting a language instruction to a specific target object: target identity is entangled with progress through the fixed sequence rather than with the instruction itself. This limitation motivated the creation of a custom dataset.
 
 \subsection{Teleop Dataset Construction}
+\label{subsec:teleop}
 
 A custom teleoperated dataset, referred to as \textbf{Teleop}, was collected to support orchestrated execution, with the SO-101 arm driven by hand through an Xbox gamepad controller. Each episode is a single successful subtask annotated with its instruction, such as ``Grasp left orange'', ``Grasp top right orange'', ``Pick it up'', or ``Place it into plate''. The pick order is randomised across episodes, which breaks the fixed-order correlation of the baseline and forces the policy to associate a relative-position instruction with the specified orange rather than inferring the target from task progress. The dataset used for the evaluated subtask model contains 846 such episodes.
 
@@ -87,11 +149,13 @@ The three learned subtasks are guarded by explicit physical checks. GRASP is con
 
 Each manipulation state has a timeout: 700 steps for GRASP, 400 for LIFT, and 500 for PLACE. A confirmed GRASP advances to LIFT; a confirmed LIFT advances to PLACE; a confirmed PLACE either returns to \texttt{SELECT\_TARGET} for the next orange or ends the episode once all three oranges are in the plate.
 
-The implementation separates three mechanisms that should not be conflated. \textbf{Local retry} is the true recovery mechanism. If the orange is dropped during LIFT or PLACE, or if LIFT/PLACE times out, the controller preserves the same target and returns directly to GRASP. The original sub-goal is still active, and no target-change reset is inserted.
+\textbf{Recovery is defined at two levels of the goal hierarchy} --- the task (place all three oranges), the per-orange goal (GRASP\,$\rightarrow$\,LIFT\,$\rightarrow$\,PLACE for one orange), and the individual subtask. Pinning every recovery action to a level keeps the term precise and lets the same definition apply to both formulations. The orchestrator implements one recovery mechanism at each level, plus a precondition that enables the higher one. The three mechanisms must not be conflated.
 
-\textbf{Home-pose reset} is a precondition for reliable target switching, not recovery. When GRASP times out, the controller clears the active target and bypasses the VLA entirely. The arm first moves only the shoulder-lift joint toward the episode-start pose for 40 steps, then interpolates all joints to the episode-start pose for 60 steps. After the reset completes, the policy action queue is cleared and target selection resumes from a state where a new language target is more reliable.
+\textbf{Local retry is Level-1 (sub-goal) recovery}: it recovers the \emph{same} orange. If the orange is dropped during LIFT or PLACE, or if LIFT/PLACE times out, the controller preserves the same target and returns directly to GRASP. The original sub-goal is still active, and no target-change reset is inserted.
 
-\textbf{Target redirection} happens after a GRASP timeout when another unplaced orange is available. The controller intentionally selects a different orange after the home-pose reset, so this is goal abandonment rather than recovery of the original sub-goal. If no alternative target remains, the controller retries the same orange after the reset. In these experiments, redirection is tracked as a mechanism counter, but oranges are not permanently marked as abandoned in the final episode metrics.
+\textbf{Target redirection is Level-2 (task) recovery}: it recovers task \emph{progress} by switching to a \emph{different} orange. After a GRASP timeout, when another unplaced orange is available, the controller intentionally selects a different orange so the episode keeps scoring instead of stalling on an unreachable target. The original sub-goal is dropped, but the task objective --- which is indifferent to \emph{which} orange is placed --- is served, so this is recovery at the task level rather than mere abandonment. If no alternative target remains, the controller retries the same orange (a Level-1 retry). Redirection is tracked as a mechanism counter; oranges are not permanently marked as abandoned in the final episode metrics.
+
+\textbf{Home-pose reset is a precondition, not a recovery level.} VLA language conditioning only switches targets reliably when the arm is far from all oranges --- the spatial context-dependence examined in \cref{sec:obedience} --- so any Level-2 target change must first be preceded by a scripted reset. When GRASP times out, the controller clears the active target and bypasses the VLA entirely. The arm first moves only the shoulder-lift joint toward the episode-start pose for 40 steps, then interpolates all joints to the episode-start pose for 60 steps. After the reset completes, the policy action queue is cleared and target selection resumes from a state where a new language target is more reliable. A Level-1 retry on the same target after a slip needs no such reset.
 
 \subsection{Subtask Outcomes and Failure Modes}
 \label{subsec:failure_taxonomy}
@@ -99,6 +163,8 @@ The implementation separates three mechanisms that should not be conflated. \tex
 Each subtask has a single intended physical outcome, confirmed by the privileged checks of \cref{subsec:orchestrator}. A failure is the negation of that check and falls into one of three physical modes. A \textbf{grasp failure} means the target orange is never acquired: the gripper never closes on it with confirmed contact. A \textbf{lift failure} means an acquired orange is never raised at least \SI{0.06}{m} above its start height, either because that height is never reached or because the orange slips from the gripper during the lift. A \textbf{place failure} means a lifted orange never comes to rest inside the plate bounds, either because it is never deposited or because it is dropped outside the plate during the release. Because each outcome is read directly from simulator state, these three modes are well defined for any rollout, independent of how the task is framed.
 
 What differs between formulations is not the failure modes themselves but how they are detected and what follows. In the orchestrated subtask formulation each subtask carries a step budget --- 700 steps for GRASP, 400 for LIFT, and 500 for PLACE --- and a subtask is declared failed when its success check is not met within that budget. The timeout is therefore a \emph{detection trigger}, not a fourth failure mode: it is what lets the orchestrator notice the physical failure and respond with one of the mechanisms of \cref{subsec:orchestrator} --- a local retry after a slip, or a home-pose reset followed by target redirection after a GRASP timeout. GRASP is the one subtask that can only ever be declared failed by timeout, since no instantaneous physical event marks a grasp as impossible; LIFT and PLACE can additionally fail the moment the orange is lost.
+
+These three failure modes map cleanly onto the two recovery levels of \cref{subsec:orchestrator}, and the mapping is what makes the recovery metrics in \cref{sec:experiments} fair across formulations. A \textbf{LIFT drop} or \textbf{PLACE slip} happens to an orange that was demonstrably held, so its identity is read directly from contact; ``the same orange'' is therefore unambiguous for both formulations, and these setbacks are the natural trigger for \textbf{Level-1} (same-orange) recovery. A \textbf{GRASP failure}, by contrast, never establishes contact, so no orange identity can be read from physics --- attributing the attempt to a specific intended orange would require guessing, which the monotask trace cannot do reliably. A grasp dead-end is exactly the case \textbf{Level-2} (different-orange) recovery addresses, and Level-2 needs no such attribution: it only asks whether a \emph{different} orange is subsequently placed. Measuring each failure at the level where the worked orange is unambiguous lets both formulations be scored by the same physical reads, with no inferred targets.
 
 The monotask formulation has no such per-subtask structure. The policy runs end-to-end under a single global prompt within one 5000-step episode budget, with no intermediate checkpoints and therefore no per-subtask timeout. The same three physical failure modes still occur, but they are never detected or acted on during the episode: without per-subtask checkpoints, nothing verifies an outcome before the policy continues under the single global prompt. To compare the two formulations on a common footing, the during-episode analysis in \cref{sec:experiments} reconstructs the same physical events for monotask runs offline from privileged state --- inferring the worked target from the orange layout --- so that grasp, lift, and place outcomes can be read for both formulations even though only the orchestrated one observes them online.
 
