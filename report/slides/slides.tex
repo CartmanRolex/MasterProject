@@ -154,13 +154,13 @@
   \end{itemize}
 \end{frame}
 
-% ===== 7. Baseline (defines "monotask" + 47% ceiling) =====
+% ===== 7. Baseline (defines "monotask" + 41% ceiling) =====
 \begin{frame}{Baseline: is the bottleneck the policy class?}
   \begin{columns}[T]
     \begin{column}{0.54\textwidth}
       \begin{itemize}
         \item 60 public full-task demos (LightwheelAI). One fixed prompt, run end-to-end --- the \hl{monotask} formulation.
-        \item \hl{SmolVLA $>$ ACT} --- but even SmolVLA completes only \hl{47 / 100} episodes.
+        \item \hl{SmolVLA $>$ ACT} (41\% vs.\ 13\%) --- but even SmolVLA completes only \hl{41 / 100} episodes.
         \item[$\Rightarrow$] The limit is \hl{not policy expressiveness}; it is the \hl{structure of the execution problem}.
       \end{itemize}
     \end{column}
@@ -279,7 +279,7 @@
         \item Subtask runs \hl{rarely fail completely}: $\geq$1 orange in \gn{97\%} (Teleop) vs.\ 57\% (monotask).
         \item Adding Auto data \hl{hurt}: Teleop subtask \hl{20\% $\rightarrow$ 13\%} full success.
       \end{itemize}
-      {\footnotesize Reference ceiling: SmolVLA monotask baseline = 47\%.}
+      {\footnotesize Reference ceiling: SmolVLA monotask baseline = 41\%.}
     \end{column}
     \begin{column}{0.48\textwidth}
       \centering
