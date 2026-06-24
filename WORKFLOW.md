@@ -77,34 +77,48 @@ code/writing/analysis and the main tree for live data-touching runs.
 
 ## 3. "Which Claude is waiting for me?" — push, not poll
 
-Stop scanning terminals. Sessions announce themselves via the `Notification`/`Stop`
-hooks (`.claude/settings.json` → `tooling/notify.sh`):
+For the **phone**, the Claude app's native push (§4) is the primary path. The pieces
+below are for when you're **at the desk** (over SSH) and want to see all sessions at
+once. They come from the `Notification`/`Stop` hooks (`.claude/settings.json` →
+`tooling/notify.sh`):
 
 - **One dashboard (works over SSH):**
   ```bash
   tail -f ~/.claude/cc-waiting.log
   ```
   Every session's "⏸ waiting / ✅ done" events land here with the directory.
-- **Phone push:** `export CC_NTFY_TOPIC=<long-random-string>` before starting a
-  session and subscribe to that topic in the **ntfy** app (free). Unattended sessions
-  push automatically; for attended ones add `export CC_NTFY_ALWAYS=1`.
-  ⚠️ ntfy topics are public — use a long random name, never send secrets.
 - **In tmux:** the hook flashes a status-bar message; turn on
   `set -g monitor-activity on` to flag windows that moved.
 - **The orchestrator** is itself a dashboard for background subagents — it reports
   "task 2 done, task 3 needs a decision" without you visiting each.
+- **Optional ntfy phone push** (a backstop that fires even for sessions you have NOT
+  attached with `/rc`): `export CC_NTFY_TOPIC=<long-random-string>` before starting a
+  session and subscribe to that topic in the **ntfy** app. Unattended sessions push
+  automatically; for attended ones add `export CC_NTFY_ALWAYS=1`.
+  ⚠️ ntfy topics are public — use a long random name, never send secrets.
 
 ---
 
-## 4. Drive Claude from your phone — Remote Control
+## 4. Drive Claude from your phone — Remote Control + native push
 
 Steer a session running here from the Claude mobile app, from anywhere, no VPN and no
 open ports (needs Claude Code ≥ 2.1.51; this box runs 2.1.187).
 
-1. Install the **Claude app** (iOS/Android); sign in with the same account.
-2. In the session (ideally inside tmux — see §5), run **`/rc`**.
-3. Scan the QR code. You can now watch live, approve/reject edits, redirect, and
-   monitor multiple attached sessions — including which one is waiting.
+One-time setup:
+1. Install the **Claude app** (iOS/Android); sign in with the **same account** as the
+   terminal; accept the OS notification permission.
+2. Run **`/config`** and enable **"Push when Claude decides"** and **"Push when actions
+   required"** (needs ≥ 2.1.110) — this is what makes the app notify your phone.
+
+Each time you leave the desk:
+3. In the session (inside tmux — see §5), run **`/rc`** and scan the QR code.
+4. Walk away. The **Claude app itself pushes** you when a task finishes or needs a
+   decision (it smartly skips pings while you're focused on the terminal). From the
+   app you watch live, approve/reject edits, redirect, send the next instruction, and
+   see which of several attached sessions is waiting.
+
+You do **not** need a separate notifications app for this — the native push is the
+primary remote path. (ntfy in §3 is an optional at-desk extra.)
 
 ---
 
@@ -114,10 +128,10 @@ Run inside **tmux** so it survives SSH/laptop disconnects, isolated on its own b
 with bypass-permissions so it doesn't stall:
 
 ```bash
-export CC_NTFY_TOPIC=<your-topic>          # so you get phone pings
+export CC_NTFY_TOPIC=<your-topic>          # optional ntfy backstop (see §3)
 tooling/cc-unattended.sh nightly "refactor eval_utils.py per the plan and run its tests"
 # -> detached tmux session cc-nightly on branch cc/nightly
-tmux attach -t cc-nightly     # then /rc to steer from phone
+tmux attach -t cc-nightly     # then /rc to steer + get native app push (§4)
 tail -f ~/.claude/cc-waiting.log
 ```
 
