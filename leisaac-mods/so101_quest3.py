@@ -42,6 +42,13 @@ A left hand that is not tracked at all reads as open, so it never freezes. The f
 is detected from the left-hand joints (``left_hand_closed`` in ``quest3_webxr``);
 sensitivity is ``left_fist_curl_ratio``.
 
+Two rotation aids: the keyboard **L** key toggles a **forward-rotation (roll) lock**
+that holds the gripper's roll about its own forward axis (the hand's roll is ignored)
+so the wrist can drive pitch + translation without the roll drifting; and
+``right_rot_gain`` (CLI ``--quest_right_rot_gain``) amplifies the **right-axis**
+rotation only, so a smaller real wrist pitch reaches a larger gripper pitch
+(90/70 ≈ 1.286 maps a 70° wrist pitch to 90°, since 90° is hard to reach physically).
+
 Tuning: ``pos_scale``, ``gripper_sensitivity``, ``pinch_threshold_m``, and the
 per-step clamps. The hand->arm axis directions are set by ``_R_XR_TO_ISAAC_SO101``
 (defined in this module and passed to ``xr_delta_to_world`` as ``R``): it maps the
@@ -99,6 +106,7 @@ import asyncio
 import json
 import threading
 
+import carb
 import isaaclab.utils.math as math_utils
 import numpy as np
 import torch
@@ -168,6 +176,7 @@ class SO101Quest3(Device):
         gripper_sensitivity: float = 0.15,
         shoulder_pan_sensitivity: float = 4.0,
         left_fist_curl_ratio: float = 1.3,
+        right_rot_gain: float = 1.0,
     ) -> None:
         # Per-step scales. sensitivity is a global multiplier (matches gamepad devices).
         self.pos_scale = 1.0 * sensitivity
@@ -198,6 +207,15 @@ class SO101Quest3(Device):
         # is a fist when >=3 of 4 fingers are curled (see left_hand_closed). Lower =
         # must close more fully to engage. A missing left hand reads as open.
         self._left_fist_curl_ratio = left_fist_curl_ratio
+        # Gain on the RIGHT-axis rotation (pitch about the hand's right axis). >1
+        # amplifies it so a smaller real wrist pitch reaches a larger gripper pitch:
+        # 90/70 ≈ 1.286 maps a 70° wrist pitch to a 90° gripper pitch (90° is hard to
+        # reach physically). 1.0 = no scaling. Forward roll and heading are untouched.
+        self.right_rot_gain = right_rot_gain
+        # Forward-rotation (roll) lock, toggled by the keyboard L key. When on, the
+        # gripper holds its roll about its own forward axis (the hand's roll is
+        # ignored) — see _anchored_rotation_error and _on_keyboard_event.
+        self._freeze_forward_rot = False
 
         super().__init__(env, "quest3")
 
@@ -274,6 +292,18 @@ class SO101Quest3(Device):
         # re-seed the bounded shoulder_pan target from the (reset) joint state
         self._shoulder_pan_target = self._read_shoulder_pan()
 
+    def _on_keyboard_event(self, event, *args, **kwargs) -> None:
+        """Extend the base B/R/N (start / reset-fail / reset-success) handling with an
+        L toggle that locks the gripper's forward rotation (roll). Pressing L holds
+        the current roll so the wrist can keep driving pitch + translation without the
+        roll drifting; pressing it again releases."""
+        super()._on_keyboard_event(event, *args, **kwargs)
+        if (event.type == carb.input.KeyboardEventType.KEY_PRESS
+                and event.input.name == "L"):
+            self._freeze_forward_rot = not self._freeze_forward_rot
+            print(f"[Quest3] forward-rotation (roll) lock: "
+                  f"{'ON' if self._freeze_forward_rot else 'OFF'}")
+
     def _read_shoulder_pan(self) -> float:
         """Current shoulder_pan joint angle (rad), clamped to its limits."""
         now = float(self.robot_asset.data.joint_pos[0, self._shoulder_pan_joint_idx].item())
@@ -286,6 +316,7 @@ class SO101Quest3(Device):
         self._display_controls_table.add_row(["Rotate right wrist", "rotate gripper via IK (relative)"])
         self._display_controls_table.add_row(["Pinch thumb+index", "close gripper"])
         self._display_controls_table.add_row(["Close LEFT hand (fist)", "freeze commands — recentre the right hand, then open to resume"])
+        self._display_controls_table.add_row(["Keyboard L", "toggle forward-rotation (roll) lock"])
 
     def _world_to_root(self, vec_world: np.ndarray) -> np.ndarray:
         """Rotate a world-frame (Isaac) vector into the robot base/root frame."""
@@ -377,6 +408,11 @@ class SO101Quest3(Device):
             R_hand = Rotation.from_quat(twist_z / n).inv() * R_hand   # remove heading
         w_world = R_hand.as_rotvec()
         w_root = Q_root.inv().apply(w_world)
+        # Amplify the RIGHT-axis rotation (pitch about the hand's right axis, the
+        # w_root[1] component): right_rot_gain > 1 lets a smaller real wrist pitch
+        # reach a larger gripper pitch (90/70 ≈ 1.286 maps a 70° wrist pitch to 90°).
+        # 1.0 leaves it unchanged; forward roll (w_root[0]) and heading are untouched.
+        w_root[1] *= self.right_rot_gain
         # Feedforward forward<->right swap. The component that drives rotation about
         # the RIGHT axis (index 0 after the swap) is sign-inverted — that rotation
         # came out reversed in teleop. Up is left out of the command (it is not
@@ -412,6 +448,12 @@ class SO101Quest3(Device):
         #     pitch. Project the gripper-up component out of the error instead.
         up_axis = Q_ee_root.apply(np.array([1.0, 0.0, 0.0]))
         drot_root = drot_root - np.dot(drot_root, up_axis) * up_axis
+        # Forward-rotation lock (keyboard L toggle): also free the gripper's own
+        # forward axis (body -z, = f_now), so its roll holds at the current value and
+        # stops tracking the hand. Same projection trick as the up axis, so it holds
+        # with no jump; pitch and translation keep working.
+        if self._freeze_forward_rot:
+            drot_root = drot_root - np.dot(drot_root, f_now) * f_now
         # Soften orientation tracking so it yields to translation: scaling the error
         # down de-weights the rotation rows in the DLS least-squares, so the shared
         # arm joints spend more of their motion on position. Orientation still
