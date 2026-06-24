@@ -45,9 +45,11 @@ sensitivity is ``left_fist_curl_ratio``.
 Two rotation aids: the keyboard **L** key toggles a **forward-rotation (roll) lock**
 that holds the gripper's roll about its own forward axis (the hand's roll is ignored)
 so the wrist can drive pitch + translation without the roll drifting; and
-``right_rot_gain`` (CLI ``--quest_right_rot_gain``) amplifies the **right-axis**
-rotation only, so a smaller real wrist pitch reaches a larger gripper pitch
-(90/70 ≈ 1.286 maps a 70° wrist pitch to 90°, since 90° is hard to reach physically).
+``right_rot_in_deg`` / ``right_rot_out_deg`` (CLI ``--quest_right_rot_in_deg`` /
+``--quest_right_rot_out_deg``) remap the **right-axis** rotation only, **symmetrically**:
+a real wrist pitch of ``right_rot_in_deg`` reaches a gripper pitch of
+``right_rot_out_deg`` (e.g. 70 → 90, since 90° is hard to reach physically), the same
+on both sides and saturating beyond. Disabled when ``right_rot_in_deg`` ≤ 0.
 
 Tuning: ``pos_scale``, ``gripper_sensitivity``, ``pinch_threshold_m``, and the
 per-step clamps. The hand->arm axis directions are set by ``_R_XR_TO_ISAAC_SO101``
@@ -176,7 +178,8 @@ class SO101Quest3(Device):
         gripper_sensitivity: float = 0.15,
         shoulder_pan_sensitivity: float = 4.0,
         left_fist_curl_ratio: float = 1.3,
-        right_rot_gain: float = 1.0,
+        right_rot_in_deg: float = 0.0,
+        right_rot_out_deg: float = 90.0,
     ) -> None:
         # Per-step scales. sensitivity is a global multiplier (matches gamepad devices).
         self.pos_scale = 1.0 * sensitivity
@@ -207,11 +210,15 @@ class SO101Quest3(Device):
         # is a fist when >=3 of 4 fingers are curled (see left_hand_closed). Lower =
         # must close more fully to engage. A missing left hand reads as open.
         self._left_fist_curl_ratio = left_fist_curl_ratio
-        # Gain on the RIGHT-axis rotation (pitch about the hand's right axis). >1
-        # amplifies it so a smaller real wrist pitch reaches a larger gripper pitch:
-        # 90/70 ≈ 1.286 maps a 70° wrist pitch to a 90° gripper pitch (90° is hard to
-        # reach physically). 1.0 = no scaling. Forward roll and heading are untouched.
-        self.right_rot_gain = right_rot_gain
+        # Symmetric, saturating remap of the RIGHT-axis rotation (pitch about the
+        # hand's right axis): a real wrist pitch of magnitude right_rot_in_deg maps to
+        # a gripper pitch of right_rot_out_deg (e.g. 70 -> 90, since 90° is hard to
+        # reach physically), the SAME on both sides (negative pitch maps the mirror),
+        # and saturates beyond right_rot_in_deg so it never overshoots right_rot_out_deg.
+        # Disabled (pass-through) when right_rot_in_deg <= 0. Forward roll and heading
+        # are untouched. Stored in radians.
+        self._right_rot_in = float(np.deg2rad(right_rot_in_deg))
+        self._right_rot_out = float(np.deg2rad(right_rot_out_deg))
         # Forward-rotation (roll) lock, toggled by the keyboard L key. When on, the
         # gripper holds its roll about its own forward axis (the hand's roll is
         # ignored) — see _anchored_rotation_error and _on_keyboard_event.
@@ -408,11 +415,14 @@ class SO101Quest3(Device):
             R_hand = Rotation.from_quat(twist_z / n).inv() * R_hand   # remove heading
         w_world = R_hand.as_rotvec()
         w_root = Q_root.inv().apply(w_world)
-        # Amplify the RIGHT-axis rotation (pitch about the hand's right axis, the
-        # w_root[1] component): right_rot_gain > 1 lets a smaller real wrist pitch
-        # reach a larger gripper pitch (90/70 ≈ 1.286 maps a 70° wrist pitch to 90°).
-        # 1.0 leaves it unchanged; forward roll (w_root[0]) and heading are untouched.
-        w_root[1] *= self.right_rot_gain
+        # Remap the RIGHT-axis rotation (pitch = the w_root[1] component): a real wrist
+        # pitch of right_rot_in_deg reaches a gripper pitch of right_rot_out_deg,
+        # applied SYMMETRICALLY (clip is symmetric and the scale preserves sign, so
+        # −in → −out exactly mirrors +in → +out) and saturating beyond ±in. Forward
+        # roll (w_root[0]) and heading are untouched.
+        if self._right_rot_in > 1e-6:
+            w_root[1] = (np.clip(w_root[1], -self._right_rot_in, self._right_rot_in)
+                         / self._right_rot_in * self._right_rot_out)
         # Feedforward forward<->right swap. The component that drives rotation about
         # the RIGHT axis (index 0 after the swap) is sign-inverted — that rotation
         # came out reversed in teleop. Up is left out of the command (it is not

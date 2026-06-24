@@ -520,7 +520,7 @@ index aba21df..0000000
 -if __name__ == "__main__":
 -    main()
 diff --git a/scripts/environments/teleoperation/teleop_se3_agent.py b/scripts/environments/teleoperation/teleop_se3_agent.py
-index a467482..a028859 100644
+index a467482..383fe6f 100644
 --- a/scripts/environments/teleoperation/teleop_se3_agent.py
 +++ b/scripts/environments/teleoperation/teleop_se3_agent.py
 @@ -25,6 +25,9 @@ parser.add_argument(
@@ -533,7 +533,7 @@ index a467482..a028859 100644
          "so101leader",
          "bi-so101leader",
          "lekiwi-keyboard",
-@@ -33,17 +36,24 @@ parser.add_argument(
+@@ -33,17 +36,28 @@ parser.add_argument(
      ],
      help="Device for interacting with environment",
  )
@@ -558,15 +558,19 @@ index a467482..a028859 100644
 +    help="Quest3 extra speed multiplier for forward/back and up/down translation only (left/right pan speed is untouched).",
 +)
 +parser.add_argument(
-+    "--quest_right_rot_gain", type=float, default=1.0,
-+    help="Quest3 gain on the right-axis wrist rotation (pitch) only: >1 lets a smaller real wrist pitch reach a larger gripper pitch. Use 90/70 (~1.286) to map a 70 deg wrist pitch to 90 deg. 1.0 = no scaling.",
++    "--quest_right_rot_in_deg", type=float, default=0.0,
++    help="Quest3 right-axis (pitch) remap: a real wrist pitch of this many degrees reaches --quest_right_rot_out_deg on the gripper, symmetrically (negatives mirror) and saturating beyond. e.g. 70 maps a 70 deg wrist pitch to 90 deg. 0 = off.",
++)
++parser.add_argument(
++    "--quest_right_rot_out_deg", type=float, default=90.0,
++    help="Quest3 right-axis (pitch) remap target (deg) reached at --quest_right_rot_in_deg; only used when that is > 0.",
 +)
 +parser.add_argument(
 +    "--port", type=str, default="/dev/ttyACM0", help="Port for the teleop device:so101leader, default is /dev/ttyACM0"
  )
  parser.add_argument(
      "--left_arm_port",
-@@ -95,7 +105,7 @@ import time
+@@ -95,7 +109,7 @@ import time
  import gymnasium as gym
  import torch
  from isaaclab.envs import DirectRLEnv, ManagerBasedRLEnv
@@ -575,7 +579,7 @@ index a467482..a028859 100644
  from isaaclab_tasks.utils import parse_env_cfg
  from leisaac.enhance.managers import EnhanceDatasetExportMode, StreamingRecorderManager
  from leisaac.utils.env_utils import dynamic_reset_gripper_effort_limit_sim
-@@ -224,6 +234,18 @@ def main():  # noqa: C901
+@@ -224,6 +238,18 @@ def main():  # noqa: C901
  
      # create environment
      env: ManagerBasedRLEnv | DirectRLEnv = gym.make(task_name, cfg=env_cfg).unwrapped
@@ -594,7 +598,7 @@ index a467482..a028859 100644
      # replace the original recorder manager with the streaming recorder manager or lerobot recorder manager
      if args_cli.record:
          del env.recorder_manager
-@@ -254,15 +276,26 @@ def main():  # noqa: C901
+@@ -254,15 +280,26 @@ def main():  # noqa: C901
          from leisaac.devices import SO101Gamepad
  
          teleop_interface = SO101Gamepad(env, sensitivity=args_cli.sensitivity)
@@ -610,16 +614,16 @@ index a467482..a028859 100644
 +        teleop_interface = SO101GamepadV2(env, sensitivity=args_cli.sensitivity)
 +    elif args_cli.teleop_device == "gamepad_v3":
 +        from leisaac.devices import SO101GamepadV3
-+
+ 
+-            teleop_interface = SO101Leader(env, port=args_cli.port, recalibrate=args_cli.recalibrate)
 +        teleop_interface = SO101GamepadV3(env, sensitivity=args_cli.sensitivity)
 +    elif args_cli.teleop_device == "quest3":
 +        from leisaac.devices import SO101Quest3
- 
--            teleop_interface = SO101Leader(env, port=args_cli.port, recalibrate=args_cli.recalibrate)
++
 +        teleop_interface = SO101Quest3(
 +            env, sensitivity=args_cli.sensitivity, port=args_cli.quest_port, pinch_threshold_m=args_cli.pinch_threshold,
 +            rot_track_gain=args_cli.quest_rot_track_gain, fwd_up_gain=args_cli.quest_fwd_up_gain,
-+            right_rot_gain=args_cli.quest_right_rot_gain,
++            right_rot_in_deg=args_cli.quest_right_rot_in_deg, right_rot_out_deg=args_cli.quest_right_rot_out_deg,
 +        )
 +    elif args_cli.teleop_device == "so101leader":
 +        from leisaac.devices import SO101Leader
@@ -628,7 +632,7 @@ index a467482..a028859 100644
      elif args_cli.teleop_device == "bi-so101leader":
          from leisaac.devices import BiSO101Leader
  
-@@ -283,8 +316,9 @@ def main():  # noqa: C901
+@@ -283,8 +320,9 @@ def main():  # noqa: C901
          teleop_interface = LeKiwiGamepad(env, sensitivity=args_cli.sensitivity)
      else:
          raise ValueError(
@@ -640,7 +644,7 @@ index a467482..a028859 100644
          )
  
      # add teleoperation key for env reset
-@@ -312,6 +346,7 @@ def main():  # noqa: C901
+@@ -312,6 +350,7 @@ def main():  # noqa: C901
          env.initialize()
      env.reset()
      teleop_interface.reset()
@@ -648,7 +652,7 @@ index a467482..a028859 100644
  
      resume_recorded_demo_count = 0
      if args_cli.record and args_cli.resume:
-@@ -345,6 +380,8 @@ def main():  # noqa: C901
+@@ -345,6 +384,8 @@ def main():  # noqa: C901
                          manual_terminate(env, True)
                  if should_reset_recording_instance:
                      env.reset()
@@ -657,7 +661,7 @@ index a467482..a028859 100644
                      should_reset_recording_instance = False
                      if start_record_state:
                          if args_cli.record:
-@@ -380,6 +417,14 @@ def main():  # noqa: C901
+@@ -380,6 +421,14 @@ def main():  # noqa: C901
                              print("Start Recording!!!")
                          start_record_state = True
                      env.step(actions)
