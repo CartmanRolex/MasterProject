@@ -1,21 +1,37 @@
 # MasterProject
 
-Three-machine robotics research project. See each subdirectory's CLAUDE.md for machine-specific details.
+Robotics research project: SmolVLA fine-tuning for SO-101 pick-and-place in Isaac
+Sim, with a scripted subtask orchestrator (GRASP / LIFT / PLACE). See each
+subdirectory's CLAUDE.md for details.
+
+**Single machine.** Everything now runs on the basement desktop (RTX 5090).
+Historically the work spanned four machines (Dell laptop; the room desktop where most
+datasets were created; this basement desktop; the SCITAS cluster). They are no longer
+used — **if a source file or dataset is missing here, it is on the room desktop or the
+Dell laptop** and should be copied over. The 236 GB raw `teleop-datasets/` HDF5 in
+particular still lives on the room desktop; the trainable LeRobot datasets are in this
+machine's HF cache and on the Hub.
+
+See **[WORKFLOW.md](WORKFLOW.md)** for how to run Claude here (parallel subagents,
+phone control via `/rc`, unattended runs, notifications) and **[WORKLOG.md](WORKLOG.md)**
+to coordinate active sessions.
 
 ## Subdirectory Map
 
-| Directory | Machine | Docs |
+| Directory | Purpose | Docs |
 |-----------|---------|------|
-| `isaac-inference/` | Desktop | [CLAUDE.md](isaac-inference/CLAUDE.md) |
-| `cluster-training/` | Cluster | [CLAUDE.md](cluster-training/CLAUDE.md) |
-| `dataset-editor/` | Laptop | [CLAUDE.md](dataset-editor/CLAUDE.md) |
-| `leisaac-mods/` | Desktop | [CLAUDE.md](leisaac-mods/CLAUDE.md) |
-| `report/` | Laptop | [CLAUDE.md](report/CLAUDE.md) |
+| `isaac-inference/` | Policy evaluation, orchestrator, dataset pipeline (Isaac Sim) | [CLAUDE.md](isaac-inference/CLAUDE.md) |
+| `cluster-training/` | SmolVLA training — now **local** on the 5090 (SLURM scripts kept as reference) | [CLAUDE.md](cluster-training/CLAUDE.md) |
+| `dataset-editor/` | Manual dataset annotation GUI | [CLAUDE.md](dataset-editor/CLAUDE.md) |
+| `leisaac-mods/` | Custom LeIsaac/Isaac modules (teleop devices, Quest3) | [CLAUDE.md](leisaac-mods/CLAUDE.md) |
+| `report/` | Thesis (LaTeX + figure/analysis scripts) | [CLAUDE.md](report/CLAUDE.md) |
+| `tooling/` | Claude Code workflow scripts (worktrees, unattended, notifications) | [CLAUDE.md](tooling/CLAUDE.md) |
+| `.claude/agents/` | Reusable subagents (report-plotter, eval-analyzer, code-refactor) | — |
 
 ## Git Policy
 
-**Tracked:** source files, shell scripts, CLAUDE.md and AGENTS.md files, eval result `.txt` logs (small).
-**Gitignored:** `isaac-inference/${data}/` (NvStreamer logs), `isaac-inference/teleop-datasets/` (236 GB HDF5), `isaac-inference/synthetic_datasets/` (local LeRobot recordings), `cluster-training/bash-out/` and `cluster-training/outputs/` (SLURM outputs and checkpoints), `__pycache__/`.
+**Tracked:** source files, shell scripts, CLAUDE.md and AGENTS.md files, eval result `.txt` logs (small), `.claude/agents/` and `.claude/settings.json` (shared workflow config).
+**Gitignored:** `isaac-inference/${data}/` (NvStreamer logs), `isaac-inference/teleop-datasets/` (236 GB HDF5), `isaac-inference/synthetic_datasets/` (local LeRobot recordings), `cluster-training/bash-out/` and `cluster-training/outputs/` (training outputs/checkpoints), `.claude/` except the two paths above (so `settings.local.json` stays local), `__pycache__/`.
 
 After making repository changes, commit the relevant files and push the branch
 to `origin`. Keep unrelated dirty working-tree changes out of the commit.

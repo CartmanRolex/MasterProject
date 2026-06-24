@@ -53,11 +53,11 @@ motivates the scripted spatial reset.
 
 ---
 
-# Report (laptop)
+# Report
 
-LaTeX toolchain lives on this laptop. Inference and eval results are
-produced on the desktop and synced via git. Do not attempt to run
-inference from this machine.
+The LaTeX toolchain and the figure/analysis scripts run here on the basement
+desktop — the same machine that produces the inference and eval results.
+(Historically the report was written on the Dell laptop; that split is gone.)
 
 ## Report state (June 2026)
 
@@ -73,7 +73,7 @@ Sections in `report/`:
 
 ## Plotting scripts (`scripts/`)
 
-Python scripts that generate the report figures. Run from `report/scripts/` on the laptop.
+Python scripts that generate the report figures. Run from `report/scripts/`.
 
 | Script | Output figure |
 |--------|---------------|
@@ -83,8 +83,8 @@ Python scripts that generate the report figures. Run from `report/scripts/` on t
 | `plot_orchestrator_flow.py` | `figures/orchestrator_decision_flow.pdf` — decision-flow diagram. **Requires `matplotlib`** (the only script that does; the rest use the pure-Python `plot_lib` writer). |
 | `plot_subtask_placeholders.py` | `figures/subtask_{grasp,lift,place}_placeholder.pdf` |
 | `plot_dataset_composition.py` | `figures/dataset_composition.pdf` — subtask episode-length boxplot, Teleop vs Auto. Self-contained: stats baked in from `extract_dataset_composition.py`. |
-| `extract_dataset_composition.py` | (no figure) Reads the LeRobot training datasets from the desktop HF cache and prints the per-source × per-subtask episode-length stats used by `plot_dataset_composition.py`. **Desktop only** — needs the datasets + `pyarrow`/`numpy`. |
-| `extract_positional_prevalence.py` | (no figure) Prints the per-source count of GRASP episodes per positional label (left/right/middle/…) for the `tab:label_prevalence` table in `experiments.tex`. Downloads only the small `meta/episodes` parquet from HF (Xet disabled), so it runs on the laptop; needs `huggingface_hub`/`pyarrow`. |
+| `extract_dataset_composition.py` | (no figure) Reads the LeRobot training datasets from the local HF cache and prints the per-source × per-subtask episode-length stats used by `plot_dataset_composition.py`. Needs the datasets + `pyarrow`/`numpy` (present here). |
+| `extract_positional_prevalence.py` | (no figure) Prints the per-source count of GRASP episodes per positional label (left/right/middle/…) for the `tab:label_prevalence` table in `experiments.tex`. Downloads only the small `meta/episodes` parquet from HF (Xet disabled); needs `huggingface_hub`/`pyarrow`. |
 | `plot_grasp_confusion.py` | `figures/grasp_obedience_confusion.pdf` — 2×2 grid of grasp-obedience confusion matrices (requested vs. actually-grasped position) for the two subtask models × {0,1} oranges placed. Reads the git-tracked subtask checkpoints under `isaac-inference/results`; reconstructs grasp-time position labels. Pure-Python via `plot_lib`. |
 | `compute_place_success.py` | (no figure) Prints place success for all four models (`tab:place_success`), read directly from the per-attempt `target_in_plate_end` field (eval schema EpisodeStory v2 / PhaseMonitor v3), with scene state from `scene_start.n_in_plate`. No anchoring/heuristics — the old gripper-retraction artifact is fixed at the source. Also prints post-failure place recovery / re-engagement (`tab:place_recovery`). Self-validates `final_scene` vs `oranges_in_plate`. Reads checkpoints under `isaac-inference/results`; pure stdlib. |
 | `compute_recovery.py` | (no figure) Prints leveled recovery for all four models. **Level-1** (same orange): lift + place reclaim — reproduces `tab:lift_recovery` / `tab:place_recovery` "recovered" cells. **Level-2** (different orange / task progress, `tab:task_recovery`): per-episode score recovery and per-event different-orange recovery after a LIFT drop / PLACE slip, measured identically for both formulations. Reuses the same per-attempt fields as `compute_place_success.py`; self-validates `final_scene` vs `oranges_in_plate`. Reads checkpoints under `isaac-inference/results`; pure stdlib. |

@@ -25,7 +25,13 @@ isaac-inference/logs/
 isaac-inference/logs.txt
 
 # ── Local assistant/tool settings ────────────────────────────────────────
-.claude/
+# Ignore everything under .claude/ EXCEPT the shared, version-controlled
+# workflow config (subagents + notification hooks). settings.local.json (local
+# permission approvals) and transient state stay ignored. Tracking agents/ and
+# settings.json also makes them available inside git worktrees.
+.claude/*
+!.claude/agents/
+!.claude/settings.json
 
 # ── LaTeX build artifacts ────────────────────────────────────────────────
 report/*.aux

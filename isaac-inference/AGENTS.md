@@ -61,7 +61,7 @@ the LeRobot framework.
 
 ## Status (June 2026)
 
-Implementation and evaluation are complete. The orchestrator refactor, scripted spatial reset, full 100-episode seeded evals, and Phase 5 autonomous data generation are all done. Current focus is the report (`report/` on the laptop).
+Implementation and evaluation are complete. The orchestrator refactor, scripted spatial reset, full 100-episode seeded evals, and Phase 5 autonomous data generation are all done. Current focus is the report (`report/`).
 
 ## Key files (current work)
 
@@ -185,6 +185,6 @@ must be re-run to populate the new fields.**
 
 ## Keeping this file current
 
-Update this file **and** `CLAUDE.md` in the same commit as any structural change: new scripts, deleted scripts, renamed files, or significant feature additions. The `.md` and the code must always agree. Always commit and push after changes — never leave the working tree dirty.
+Update this file **and** `AGENTS.md` in the same commit as any structural change: new scripts, deleted scripts, renamed files, or significant feature additions. The `.md` and the code must always agree. Always commit and push after changes — never leave the working tree dirty.
 
 **Commit messages must not include "Co-Authored-By: Claude" or any AI attribution line.**

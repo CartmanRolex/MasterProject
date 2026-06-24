@@ -1,6 +1,6 @@
 # Dataset Editor
 
-GUI tool for manually annotating and correcting LeRobot V3 datasets. Runs on the laptop.
+GUI tool for manually annotating and correcting LeRobot V3 datasets. Runs locally on the basement desktop (GUI — use at the machine or over X forwarding / VNC).
 
 ## Entry Points
 

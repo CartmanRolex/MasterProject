@@ -1,6 +1,6 @@
 # Dataset Editor
 
-GUI tool for manually annotating and correcting LeRobot V3 datasets. Runs on the laptop.
+GUI tool for manually annotating and correcting LeRobot V3 datasets. Runs locally on the basement desktop (GUI — use at the machine or over X forwarding / VNC).
 
 ## Entry Points
 
@@ -56,6 +56,6 @@ Standalone dataset inspection utilities — run directly, no GUI needed:
 
 ## Keeping this file current
 
-Update this file **and** `CLAUDE.md` in the same commit as any structural change: new modules, deleted scripts, renamed files, or significant feature additions. The `.md` and the code must always agree. Always commit and push after changes — never leave the working tree dirty.
+Update this file **and** `AGENTS.md` in the same commit as any structural change: new modules, deleted scripts, renamed files, or significant feature additions. The `.md` and the code must always agree. Always commit and push after changes — never leave the working tree dirty.
 
 **Commit messages must not include "Co-Authored-By: Claude" or any AI attribution line.**
