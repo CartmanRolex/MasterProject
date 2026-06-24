@@ -1,0 +1,23 @@
+
+========================================
+EVALUATION COMPLETE
+Model ID:             /home/students/Gal/outputs/train/Gal-pick-orange-tailedCH20-unfrozen-vlm/checkpoints/020000/pretrained_model
+Result name:          Gal-pick-orange-tailedCH20-unfrozen-vlm
+Seed set:             pick_orange_reference_100_v1 (812885552604b60060a608a6139d78d0e589635470dd435a22e1e6811df52e96)
+Success Rate:         33/100 (33.00%)
+Avg oranges in plate: 1.88/3
+Mean steps (success): 2793.0
+3/3 oranges:          33/100 (33.0%)
+2/3 oranges:          31/100 (31.0%)
+1/3 oranges:          27/100 (27.0%)
+0/3 oranges:          9/100 (9.0%)
+Per-episode oranges:  [3, 2, 2, 3, 2, 2, 3, 2, 3, 3, 2, 2, 2, 1, 1, 2, 1, 2, 3, 1, 1, 0, 2, 2, 3, 1, 3, 0, 3, 1, 1, 2, 3, 1, 0, 1, 3, 2, 1, 3, 3, 2, 3, 3, 1, 1, 3, 2, 1, 1, 3, 1, 1, 1, 1, 2, 3, 3, 3, 0, 2, 3, 3, 1, 2, 1, 3, 3, 3, 1, 3, 1, 3, 2, 2, 2, 3, 1, 0, 2, 2, 1, 2, 0, 2, 2, 3, 1, 2, 0, 0, 3, 3, 2, 3, 2, 0, 1, 3, 2]
+Per-subtask success rates (by oranges in plate at subtask start):
+  GRASP:  0 placed: 116/205 ( 56.6%)   1 placed:  90/230 ( 39.1%)   2 placed:  44/150 ( 29.3%)
+  LIFT:   0 placed: 102/116 ( 87.9%)   1 placed:  78/90  ( 86.7%)   2 placed:  36/42  ( 85.7%)
+  PLACE:  0 placed:  82/101 ( 81.2%)   1 placed:  63/78  ( 80.8%)   2 placed:  31/36  ( 86.1%)
+Mechanism usage (local retry = same orange after slip; redirection = new orange after timeout):
+  Local retries:      178 total, fired in 74/100 episodes
+  Target redirections:232 total, fired in 72/100 episodes
+  Oranges abandoned:  0 total (0.00 avg/episode)
+========================================
