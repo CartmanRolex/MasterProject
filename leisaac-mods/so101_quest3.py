@@ -58,12 +58,32 @@ rate cap. If a rotation axis comes out swapped/wrong, ``_R_rot_map`` is the sing
 tuning knob — it defaults to the same matrix as the position path but may be split
 into a dedicated one.
 
-Axis fixes happen in ``_anchored_rotation_error`` (root-frame axes
-``[forward, right, up]``): the hand's forward<->right rotation is **swapped on the
-commanded target** (feedforward, so the closed loop stays stable — permuting the
-error instead diverges), and **up is not controlled** — its error component
-is zeroed so the IK is commanded the gripper's current up orientation every step
-and never tries to correct it.
+Axis fixes happen in ``_anchored_rotation_error``: the hand's forward<->right
+rotation is **swapped on the commanded target** (feedforward, so the closed loop
+stays stable — permuting the error instead diverges). Three further corrections,
+**all verified in a numerical simulation of the function**, remove the cross-axis
+bleed seen on hardware — one on the hand side, two on the gripper side:
+
+  1. **Hand heading stripped (swing-twist), hand side.** The command is the
+     axis-angle of the hand's rotation-since-anchor, and the axis-angle of a
+     compound rotation does not separate cleanly: a 90° hand *yaw* rotates a forward
+     *roll* into the right axis (seen in the calibration monitor as the "right"
+     value moving while the hand only rolls). A gimbal-free swing-twist split about
+     vertical removes the heading twist (owned by shoulder_pan), leaving pitch+roll.
+  2. The chase **target is re-headed to the gripper's current heading** (rotated by
+     the pan-since-anchor about root up). Left-multiplying the root-frame command
+     onto the anchor leaves a large heading error in the chase rotvec once the arm
+     pans, which bleeds a forward hand rotation into the gripper's right axis.
+  3. The **gripper's own up axis is freed, not root up**: heading is owned by
+     shoulder_pan, so we project the gripper-up component (body +x) out of the
+     error. When the wrist is pitched, gripper-up tilts away from root up, so the
+     old "zero root-Z" dropped the wrong component and bled a forward roll into
+     pitch.
+
+In simulation a single-axis hand rotation (roll/pitch) now produces a single
+constant-axis gripper rotation at every hand yaw and every gripper pan/pitch, and a
+hand yaw produces none. The naive versions only looked correct at the start, where
+hand and gripper are unyawed/unpanned/unpitched so all the frames coincide.
 """
 
 import asyncio
@@ -284,35 +304,96 @@ class SO101Quest3(Device):
         the robot at frame 1: the hand has not rotated yet => target == current EE
         => error 0 (no start jump). Any constant hand<->gripper offset is absorbed.
 
-        Axis handling (root-frame axes ``[forward, right, up]``):
+        Axis handling — three corrections, each fixing one cross-axis bleed:
+          * **hand heading stripped (swing-twist).** The command is the axis-angle of
+            the hand's rotation-since-anchor, and the axis-angle of a compound
+            rotation does not separate cleanly: a 90° hand *yaw* rotates a forward
+            *roll* into the right axis. A gimbal-free swing-twist split about vertical
+            removes the heading twist (owned by shoulder_pan), leaving the hand's
+            pitch+roll, so a roll stays a roll at any hand yaw. Done before the swap.
           * **forward<->right swap** is applied to the COMMANDED hand rotation
             (feedforward), not to the error: rotating the hand about its forward axis
             was turning the gripper about right. Permuting the closed-loop *error*
             instead makes the IK chase a swapped direction and one mode diverges;
             doing it on the command keeps the error honest and the loop stable.
-          * **up is not controlled** — its error component is zeroed, so the IK
-            is effectively commanded the gripper's *current* up orientation every
-            step and never tries to correct it. Dropping a DOF this way is stable
-            (unlike swapping); we are not asking the solver to reach anything.
+          * **target re-headed to the gripper's current heading.** w_cmd is
+            calibrated in the root frame; left-multiplying it onto the anchor
+            orientation (as a naive version does) leaves a large heading error in the
+            chase rotvec once shoulder_pan pans the arm, and that error bleeds a
+            forward hand rotation into the gripper's right axis. Rotating the target
+            by the pan-since-anchor ``dpsi`` about root up (``dpsi`` = azimuth of the
+            gripper forward axis now minus at the anchor) cancels it. No-op at the
+            anchor, so the tuned start is unchanged.
+          * **the gripper's own up axis is freed, not root up.** Heading is owned by
+            shoulder_pan, so the DOF we must not impose is the gripper-up axis
+            (body +x). When the wrist is pitched this tilts away from root up, so
+            zeroing root-Z (a naive version) drops the wrong component and bleeds a
+            forward roll into pitch. We project the gripper-up component out of the
+            error instead. Dropping a DOF this way is stable (unlike swapping); we
+            are not asking the solver to reach anything.
+
+        All three corrections were verified in a standalone numerical simulation of
+        this function: a single-axis hand rotation (roll / pitch) produces a single
+        constant-axis gripper rotation at every hand yaw and every gripper pan/pitch,
+        and a hand yaw produces no gripper rotation. The naive versions bled roll
+        into right (hand yaw, and gripper pan) and roll into pitch (gripper pitch).
         """
         Q_root = self._read_root_rot()
-        # Hand rotation since the anchor, mapped through _R_rot_map into the world
-        # frame, then expressed in the robot root axes [about fwd, right, up].
+        # Hand rotation since the anchor, mapped through _R_rot_map into the robot
+        # world frame.
         dQ_hand = rot_now * self._anchor_wrist_rot.inv()
-        w_world = (self._R_rot_map * dQ_hand * self._R_rot_map.inv()).as_rotvec()
+        R_hand = self._R_rot_map * dQ_hand * self._R_rot_map.inv()
+        # Strip the hand's HEADING (its rotation about vertical) before reading the
+        # command. The command is the axis-angle of this rotation, and the axis-angle
+        # of a compound rotation does NOT separate into clean components: a 90° hand
+        # yaw rotates a forward roll into the right axis (visible in the calibration
+        # monitor as the "right" value moving when the hand only rolls about the
+        # middle-finger axis). A gimbal-free swing–twist split about vertical removes
+        # the heading twist, leaving the hand's pitch+roll (tilt) — which is what we
+        # mirror; heading is owned by shoulder_pan. Verified in simulation: a forward
+        # roll then maps to a fixed command direction at any hand yaw and pitch.
+        q = R_hand.as_quat()                          # [x, y, z, w]
+        twist_z = np.array([0.0, 0.0, q[2], q[3]])    # projection onto the vertical axis
+        n = float(np.linalg.norm(twist_z))
+        if n > 1e-8:
+            R_hand = Rotation.from_quat(twist_z / n).inv() * R_hand   # remove heading
+        w_world = R_hand.as_rotvec()
         w_root = Q_root.inv().apply(w_world)
         # Feedforward forward<->right swap. The component that drives rotation about
         # the RIGHT axis (index 0 after the swap) is sign-inverted — that rotation
         # came out reversed in teleop. Up is left out of the command (it is not
         # controlled — see the error zeroing below).
         w_cmd = np.array([-w_root[1], w_root[0], 0.0])
-        # Target = anchor EE rotated by the commanded hand rotation (all root frame).
-        Q_ee_anchor_root = Q_root.inv() * self._anchor_ee_world_rot
-        Q_target_root = Rotation.from_rotvec(w_cmd) * Q_ee_anchor_root
         Q_ee_root = Q_root.inv() * self._read_ee_world_rot()
+        Q_ee_anchor_root = Q_root.inv() * self._anchor_ee_world_rot
+        # Two corrections (both verified by numerical simulation) remove the
+        # cross-axis bleed that appears once the arm has panned (shoulder_pan) and/or
+        # the wrist has pitched. Without them a hand rotation about a single axis
+        # turns the gripper about a mix of axes; with them it is a pure single-axis
+        # gripper rotation at any pan and pitch.
+        #
+        # (1) Re-head the target to the gripper's CURRENT heading. w_cmd is
+        #     calibrated in the root frame; left-multiplying it onto the anchor
+        #     orientation leaves a large heading (azimuth) term in the chase rotvec
+        #     once the arm pans, and that term contaminates the forward/right axes.
+        #     Rotating the target by the pan-since-anchor dpsi about root up cancels
+        #     it. Heading = azimuth of the gripper forward axis (body -z) in root.
+        f_now = Q_ee_root.apply(np.array([0.0, 0.0, -1.0]))
+        f_anc = Q_ee_anchor_root.apply(np.array([0.0, 0.0, -1.0]))
+        dpsi = float(np.arctan2(f_now[1], f_now[0]) - np.arctan2(f_anc[1], f_anc[0]))
+        Q_target_root = (
+            Rotation.from_rotvec([0.0, 0.0, dpsi])
+            * Rotation.from_rotvec(w_cmd)
+            * Q_ee_anchor_root
+        )
         drot_root = (Q_target_root * Q_ee_root.inv()).as_rotvec()
-        # Up is not constrained: zero its error so the IK never drives it.
-        drot_root[2] = 0.0
+        # (2) Free the gripper's OWN up axis (body +x), not root up. Heading is owned
+        #     by shoulder_pan; the DOF we must not impose is the gripper-up axis.
+        #     When the wrist is pitched it tilts away from root up, so zeroing root-Z
+        #     (the old code) drops the wrong component and bleeds a forward roll into
+        #     pitch. Project the gripper-up component out of the error instead.
+        up_axis = Q_ee_root.apply(np.array([1.0, 0.0, 0.0]))
+        drot_root = drot_root - np.dot(drot_root, up_axis) * up_axis
         # Soften orientation tracking so it yields to translation: scaling the error
         # down de-weights the rotation rows in the DLS least-squares, so the shared
         # arm joints spend more of their motion on position. Orientation still
