@@ -136,7 +136,7 @@ _DASHBOARD_HTML = """\
       <div class="stat">
         <div class="lbl">stream</div>
         <div class="row"><span>fps</span><b id="fps">–</b></div>
-        <div class="row"><span>wrist pos (xr, m)</span><b id="wp">–</b></div>
+        <div class="row"><span>wrist pos (lvl, m)</span><b id="wp">–</b></div>
       </div>
       <div class="stat note">
         3D view is centered on the wrist (hand stays visible while you rotate it).
@@ -342,16 +342,21 @@ class Monitor:
         rotvec_xr = (rot_now * self._origin_rot.inv()).as_rotvec()
         r = _R_XR_TO_ISAAC @ rotvec_xr * self.args.rot_scale                          # [up,right,back]
         rot = np.rad2deg(np.array([-r[2], r[1], r[0]]))                               # [fwd,right,up]
-        # Wrist body-frame triad in the ROOM frame, labelled with the device's
-        # room-axis convention (body +X = RIGHT, +Y = UP, +Z = BACK => FWD = -Z).
-        # Columns of rot_now.as_matrix() are the wrist's local X/Y/Z in room coords.
-        # This is the convention the dashboard verifies: if an arrow does not line up
-        # with the physical hand, the device's axis assignment is wrong.
+        # Everything drawn in the 3D view is expressed in the LEVELED REFERENCE frame
+        # (set on connect / Reset origin), so the hand lies flat on the horizontal
+        # plane at the reset pose and tilts visibly as you rotate away from it. The
+        # skeleton is centered on the reset origin; the camera/orbit is applied on top.
+        R_inv = self._origin_rot.inv()
+        joints_ref = R_inv.apply(joints - self._origin_pos)
+        # Wrist body-frame triad, mapped the same way, labelled per the device's
+        # room-axis convention (body +X = RIGHT, +Y = UP, +Z = BACK => FWD = -Z). At
+        # the reset pose a flat hand's arrows line up with the corner R/U/F gizmo; if
+        # an arrow does not match the physical hand, the axis assignment is wrong.
         R = rot_now.as_matrix()
         triad = {
-            "right": R[:, 0].tolist(),
-            "up":    R[:, 1].tolist(),
-            "fwd":   (-R[:, 2]).tolist(),
+            "right": R_inv.apply(R[:, 0]).tolist(),
+            "up":    R_inv.apply(R[:, 1]).tolist(),
+            "fwd":   R_inv.apply(-R[:, 2]).tolist(),
         }
         # Quaternions as (w, x, y, z). scipy stores xyzw.
         qn = rot_now.as_quat(); qd = (rot_now * self._origin_rot.inv()).as_quat()
@@ -359,8 +364,8 @@ class Monitor:
         quat_delta = [qd[3], qd[0], qd[1], qd[2]]
         pd = pinch_distance(joints)
         return {
-            "joints": joints.tolist(),
-            "wrist_pos": wrist_pos.tolist(),
+            "joints": joints_ref.tolist(),
+            "wrist_pos": joints_ref[0].tolist(),
             "pos": pos.tolist(),
             "rot": rot.tolist(),
             "triad": triad,
