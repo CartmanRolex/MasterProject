@@ -9,11 +9,12 @@ hardest to get right. One wrist-centered 3D view (mouse-drag to orbit) plots the
 hand skeleton plus the wrist's body-frame triad labelled **FWD / RIGHT / UP** (per
 the device's room-axis convention: body +X=RIGHT, +Y=UP, +Z=BACK => FWD=-Z), with a
 room-frame gizmo for comparison. The side panel reports position (from an origin
-anchored on connect) and rotation **from a flat, level hand** about
-**FWD / RIGHT / UP** plus the raw wrist quaternion (absolute and since-level), so
-the rotation readout shows the hand's true tilt from horizontal regardless of its
-pose at reset. Reset origin (or reconnect) re-anchors the position origin and
-re-asserts the level rotation reference. Use it to verify the axis assignment visually — if a triad
+anchored on connect) and rotation about **FWD / RIGHT / UP** measured from a
+**leveled reference** — the hand's heading at reset with its forward/right axes
+forced into the horizontal plane (pitch & roll removed) — plus the raw wrist
+quaternion (absolute and since-level). So a flat hand reads zero and the readout
+shows tilt away from horizontal. Reset origin (or reconnect) re-anchors the
+position origin and re-levels the rotation reference to the current heading. Use it to verify the axis assignment visually — if a triad
 arrow does not line up with the physical hand direction, the device's
 ``_R_rot_map`` needs fixing — without launching the sim.
 
@@ -147,7 +148,8 @@ _DASHBOARD_HTML = """\
         device's <code>_R_rot_map</code>. Corner gizmo shows the room frame
         (R/U/F) under the same camera for comparison. Position is relative to the
         origin (set on connect / by <b>Reset origin</b>); rotation is measured from a
-        flat, level hand, so it reads the hand's true tilt from horizontal.
+        leveled reference — the hand's heading at reset with forward/right forced
+        into the horizontal plane — so a flat hand reads zero and it shows tilt.
       </div>
     </div>
   </div>
@@ -293,20 +295,43 @@ class Monitor:
         # Position origin (set on the first frame / when "Reset origin" is pressed),
         # so position is reported as displacement from where the hand is *now*.
         self._origin_pos: np.ndarray | None = None
-        # Rotation reference is a fixed, ideal flat/level hand (identity orientation:
-        # palm-down, fingers forward => body axes aligned with the room axes). Rotation
-        # is reported as deviation from level, independent of the hand's tilt at reset.
+        # Rotation reference: the hand's heading at reset, *leveled* — its forward and
+        # right axes forced into the horizontal plane (pitch & roll removed, up = room
+        # +Y). Re-captured on connect / Reset origin from the next frame's pose, so
+        # rotation is reported as deviation from that flat, level hand.
         self._origin_rot: Rotation = Rotation.identity()
         # fps accounting
         self._fps = 0
         self._fps_count = 0
         self._fps_t0 = 0.0
 
+    @staticmethod
+    def _leveled_reference(rot_now: Rotation) -> Rotation:
+        """The hand's current heading, leveled to the horizontal plane.
+
+        Keeps which way the hand points (yaw) but forces its forward and right axes
+        into the horizontal plane — pitch and roll removed, up = room +Y. The result
+        is the zero reference so the rotation readout shows tilt away from flat. The
+        room frame is XR's: +X = right, +Y = up, +Z = back, so forward = -bodyZ.
+        """
+        R = rot_now.as_matrix()
+        fwd = -R[:, 2]                                   # hand forward, room coords
+        horiz = np.array([fwd[0], 0.0, fwd[2]])          # project onto the floor plane
+        n = np.linalg.norm(horiz)
+        if n < 1e-6:                                     # hand pointing straight up/down
+            return Rotation.identity()
+        fwd_l = horiz / n
+        up_l = np.array([0.0, 1.0, 0.0])
+        right_l = np.cross(up_l, -fwd_l)                 # X = Y x Z (back = -forward)
+        # Columns are the hand body axes [right, up, back] in room coords (det +1).
+        return Rotation.from_matrix(np.column_stack([right_l, up_l, -fwd_l]))
+
     # ---- current pose, mapped into the FWD/RIGHT/UP frame ----
     def compute(self, wrist_pos, wrist_quat, joints) -> dict:
         rot_now = Rotation.from_quat(wrist_quat)
         if self._origin_pos is None:
             self._origin_pos = wrist_pos.copy()
+            self._origin_rot = self._leveled_reference(rot_now)
         # Position relative to the origin, mapped into [up, right, back] then
         # relabelled to [fwd, right, up] (forward = -back). Absolute displacement of
         # the hand from the anchor — no clamping / integration.
@@ -378,8 +403,9 @@ class Monitor:
                 except Exception:
                     continue
                 if cmd.get("cmd") == "reset_origin":
-                    self._origin_pos = None                 # re-anchor position on the next frame
-                    self._origin_rot = Rotation.identity()  # rotation measured from a flat, level hand
+                    # Next frame re-anchors position and re-levels the rotation
+                    # reference to the hand's current (leveled) heading.
+                    self._origin_pos = None
         finally:
             print("[Monitor] Dashboard disconnected")
         return ws
