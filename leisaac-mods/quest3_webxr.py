@@ -16,6 +16,7 @@ Contents:
 - ``_R_XR_TO_ISAAC``  — WebXR (Y-up, -Z fwd) -> Isaac (Z-up, +X fwd) rotation.
 - ``_TeleopState``    — thread-safe latch written by the WebSocket, read by sim.
 - ``THUMB_TIP_IDX`` / ``INDEX_TIP_IDX`` / ``pinch_distance`` — gripper pinch.
+- ``left_hand_closed`` — left-hand fist detector for the teleop freeze clutch.
 - ``xr_delta_to_world`` — per-step EE delta in the Isaac **world** frame.
 """
 
@@ -57,13 +58,21 @@ class _TeleopState:
         self._wrist_pos = np.zeros(3, dtype=np.float64)
         self._wrist_quat = np.array([0.0, 0.0, 0.0, 1.0])   # xyzw
         self._joint_pos = np.zeros((25, 3), dtype=np.float64)
+        self._left_closed = False                            # left-hand clutch (fist) -> freeze
         self._last_update = 0.0
 
-    def update(self, wrist_pos: np.ndarray, wrist_quat: np.ndarray, joint_pos: np.ndarray) -> None:
+    def update(
+        self,
+        wrist_pos: np.ndarray,
+        wrist_quat: np.ndarray,
+        joint_pos: np.ndarray,
+        left_closed: bool = False,
+    ) -> None:
         with self._lock:
             self._wrist_pos[:] = wrist_pos
             self._wrist_quat[:] = wrist_quat
             self._joint_pos[:] = joint_pos
+            self._left_closed = bool(left_closed)
             self._last_update = time.monotonic()
 
     def get(self) -> tuple[np.ndarray, np.ndarray, np.ndarray, float]:
@@ -75,10 +84,48 @@ class _TeleopState:
                 time.monotonic() - self._last_update,
             )
 
+    def left_closed(self) -> bool:
+        """Whether the left hand is currently a fist (the teleop clutch is engaged).
+        False until the first update, and whenever the left hand is not tracked."""
+        with self._lock:
+            return self._left_closed
+
 
 def pinch_distance(joints: np.ndarray) -> float:
     """Thumb-tip <-> index-tip distance (m). joints is the (25, 3) array."""
     return float(np.linalg.norm(joints[THUMB_TIP_IDX] - joints[INDEX_TIP_IDX]))
+
+
+# Left-hand fingertip / knuckle (MCP) joint indices in the XR 25-joint layout, used
+# to detect a closed fist for the teleop clutch. (index, middle, ring, pinky.)
+_LEFT_FINGER_TIPS = (9, 14, 19, 24)
+_LEFT_FINGER_MCPS = (6, 11, 16, 21)
+
+
+def left_hand_closed(left_joints, curl_ratio: float = 1.3, min_curled: int = 3) -> bool:
+    """True when the left hand is a fist — used as a teleop clutch to freeze commands.
+
+    ``left_joints`` is the left hand's 25 XR joint positions (list/array, metres) or
+    ``None`` when the left hand is not tracked. A missing, partial, or malformed hand
+    reads as **open** (returns ``False``), so lost left-hand tracking never freezes the
+    robot. A finger counts as curled when its tip is no farther from the wrist than
+    ``curl_ratio`` times its knuckle (MCP) distance; the hand is closed when at least
+    ``min_curled`` of the four non-thumb fingers are curled. The tip/knuckle ratio is
+    scale-invariant, so one threshold works across hand sizes.
+    """
+    if left_joints is None or len(left_joints) != 25:
+        return False
+    pts = np.asarray(left_joints, dtype=np.float64)
+    if pts.shape != (25, 3):
+        return False
+    wrist = pts[0]
+    curled = 0
+    for tip, mcp in zip(_LEFT_FINGER_TIPS, _LEFT_FINGER_MCPS):
+        tip_d = float(np.linalg.norm(pts[tip] - wrist))
+        mcp_d = float(np.linalg.norm(pts[mcp] - wrist))
+        if mcp_d > 1e-6 and tip_d < curl_ratio * mcp_d:
+            curled += 1
+    return curled >= min_curled
 
 
 def xr_delta_to_world(
@@ -279,11 +326,15 @@ function onFrame(t, frame) {
 
   if (!refSpace || ws.readyState !== WebSocket.OPEN || t - lastSend < SEND_INTERVAL_MS) return;
 
+  // Gather both hands: the right hand drives teleop (joints + wrist quat); the left
+  // hand is the clutch (its joints let the server detect a fist to freeze commands).
+  let rightPositions = null, wristQuat = null, leftJoints = null;
+
   for (const src of frame.session.inputSources) {
-    if (src.handedness !== 'right' || !src.hand) continue;
+    if (!src.hand) continue;
 
     const positions = [];
-    let wristQuat = null;
+    let wq = null;
     let nullCount = 0;
 
     for (const [jointName, jointSpace] of src.hand) {
@@ -293,26 +344,34 @@ function onFrame(t, frame) {
       positions.push([p.x, p.y, p.z]);
       if (jointName === 'wrist') {
         const o = jp.transform.orientation;
-        wristQuat = [o.x, o.y, o.z, o.w];
+        wq = [o.x, o.y, o.z, o.w];
       }
     }
 
-    if (nullCount > 0 || positions.length !== 25 || !wristQuat) {
-      sendDebug('Partial tracking — keep right hand in view (' + nullCount + ' null)');
-      break;
+    const full = (nullCount === 0 && positions.length === 25);
+    if (src.handedness === 'right') {
+      if (full && wq) { rightPositions = positions; wristQuat = wq; }
+    } else if (src.handedness === 'left') {
+      // Only a fully-tracked left hand can engage the clutch; a missing or partial
+      // left hand leaves leftJoints null (= open), so lost tracking never freezes.
+      if (full) leftJoints = positions;
     }
+  }
 
-    ws.send(JSON.stringify({ joints: positions, wrist_quat: wristQuat }));
-    lastSend = t;
-    lastValidFrame = performance.now();
+  if (!rightPositions) {
+    sendDebug('Partial tracking — keep right hand in view');
+    return;
+  }
 
-    frameCount++;
-    if (t - lastFpsStamp >= 1000) {
-      status.textContent = 'Sending ' + frameCount + ' fps ✓';
-      fpsEl.textContent = 'wrist: [' + wristQuat.map(v => v.toFixed(3)).join(', ') + ']';
-      frameCount = 0; lastFpsStamp = t;
-    }
-    break;
+  ws.send(JSON.stringify({ joints: rightPositions, wrist_quat: wristQuat, left_joints: leftJoints }));
+  lastSend = t;
+  lastValidFrame = performance.now();
+
+  frameCount++;
+  if (t - lastFpsStamp >= 1000) {
+    status.textContent = 'Sending ' + frameCount + ' fps ✓' + (leftJoints ? ' · L✋' : '');
+    fpsEl.textContent = 'wrist: [' + wristQuat.map(v => v.toFixed(3)).join(', ') + ']';
+    frameCount = 0; lastFpsStamp = t;
   }
 }
 </script>

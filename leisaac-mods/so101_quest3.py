@@ -33,6 +33,15 @@ Start/reset use leisaac's standard desktop keyboard: B starts control, R resets
 (fail), N resets (success). The in-headset blue button only starts the WebXR
 hand-tracking session.
 
+Left-hand clutch: closing the **left** hand into a fist freezes all commands (the
+robot holds still) so the operator can recentre a right hand that has drifted too
+far -- translation is incremental, so the hand and the gripper accumulate an offset
+over a session. Opening the left hand resumes teleop, re-anchored from the right
+hand's new position (no jump), exactly like recovering from a brief tracking loss.
+A left hand that is not tracked at all reads as open, so it never freezes. The fist
+is detected from the left-hand joints (``left_hand_closed`` in ``quest3_webxr``);
+sensitivity is ``left_fist_curl_ratio``.
+
 Tuning: ``pos_scale``, ``gripper_sensitivity``, ``pinch_threshold_m``, and the
 per-step clamps. The hand->arm axis directions are set by ``_R_XR_TO_ISAAC_SO101``
 (defined in this module and passed to ``xr_delta_to_world`` as ``R``): it maps the
@@ -103,6 +112,7 @@ from .quest3_webxr import (
     _HTML_TEMPLATE,
     _R_XR_TO_ISAAC,  # noqa: F401  (re-exported for callers/tools that import it from here)
     _TeleopState,
+    left_hand_closed,
     pinch_distance,
 )
 
@@ -157,6 +167,7 @@ class SO101Quest3(Device):
         fwd_up_gain: float = 1.0,
         gripper_sensitivity: float = 0.15,
         shoulder_pan_sensitivity: float = 4.0,
+        left_fist_curl_ratio: float = 1.3,
     ) -> None:
         # Per-step scales. sensitivity is a global multiplier (matches gamepad devices).
         self.pos_scale = 1.0 * sensitivity
@@ -181,6 +192,12 @@ class SO101Quest3(Device):
         # translation (it still converges once you stop translating); 1.0 = track
         # orientation as hard as possible (original behaviour, translation suffers).
         self.rot_track_gain = rot_track_gain
+        # Left-hand clutch: when the left hand is a fist, commands freeze so the
+        # operator can recentre a drifted right hand. A finger counts as curled when
+        # its fingertip is within this ratio of its knuckle's wrist-distance; the hand
+        # is a fist when >=3 of 4 fingers are curled (see left_hand_closed). Lower =
+        # must close more fully to engage. A missing left hand reads as open.
+        self._left_fist_curl_ratio = left_fist_curl_ratio
 
         super().__init__(env, "quest3")
 
@@ -268,6 +285,7 @@ class SO101Quest3(Device):
         self._display_controls_table.add_row(["Move right hand left/right", "rotate shoulder_pan joint (relative)"])
         self._display_controls_table.add_row(["Rotate right wrist", "rotate gripper via IK (relative)"])
         self._display_controls_table.add_row(["Pinch thumb+index", "close gripper"])
+        self._display_controls_table.add_row(["Close LEFT hand (fist)", "freeze commands — recentre the right hand, then open to resume"])
 
     def _world_to_root(self, vec_world: np.ndarray) -> np.ndarray:
         """Rotate a world-frame (Isaac) vector into the robot base/root frame."""
@@ -415,8 +433,12 @@ class SO101Quest3(Device):
         wrist_pos, wrist_quat, joints, age = self._state.get()
         out = np.zeros(8, dtype=np.float64)
 
-        # No stream yet (server up but no frames) or tracking stale -> hold still.
-        if age > self.safety_timeout_s:
+        # Freeze when there is no fresh stream / tracking is stale, OR the LEFT-HAND
+        # CLUTCH is closed (a fist). Freezing holds the robot still (zero command) and
+        # drops the prev pose + anchors, so when tracking returns or the clutch opens
+        # the next frame re-anchors from the right hand's NEW position with no jump --
+        # letting the operator recentre a hand that has drifted too far.
+        if age > self.safety_timeout_s or self._state.left_closed():
             self._prev_wrist_pos = None
             self._prev_wrist_rot = None
             self._anchor_wrist_rot = None
@@ -527,10 +549,16 @@ class SO101Quest3(Device):
                             wq = data["wrist_quat"]
                             if len(joints) == 25:
                                 pts = np.array(joints, dtype=np.float64)
+                                # Left-hand clutch: a fist freezes commands (None when
+                                # the left hand is not tracked -> open, never freezes).
+                                left_closed = left_hand_closed(
+                                    data.get("left_joints"), self._left_fist_curl_ratio
+                                )
                                 state.update(
                                     wrist_pos=pts[0],
                                     wrist_quat=np.array(wq, dtype=np.float64),
                                     joint_pos=pts,
+                                    left_closed=left_closed,
                                 )
                                 frame_count += 1
                                 if frame_count == 1:
