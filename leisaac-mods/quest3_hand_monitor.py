@@ -13,7 +13,10 @@ anchored on connect) and rotation about **FWD / RIGHT / UP** measured from a
 **leveled reference** — the hand's heading at reset with its forward/right axes
 forced into the horizontal plane (pitch & roll removed) — plus the raw wrist
 quaternion (absolute and since-level). So a flat hand reads zero and the readout
-shows tilt away from horizontal. Reset origin (or reconnect) re-anchors the
+shows tilt away from horizontal. The live hand's heading is also stripped each
+frame (gimbal-free swing-twist about vertical) before the FWD/RIGHT components are
+read, so a forward roll reads as pure "about fwd" at any hand yaw — the same de-yaw
+the live device applies, so the monitor predicts the robot's rotation. Reset origin (or reconnect) re-anchors the
 position origin and re-levels the rotation reference to the current heading. Use it to verify the axis assignment visually — if a triad
 arrow does not line up with the physical hand direction, the device's
 ``_R_rot_map`` needs fixing — without launching the sim.
@@ -337,11 +340,25 @@ class Monitor:
         # the hand from the anchor — no clamping / integration.
         m = _R_XR_TO_ISAAC @ (wrist_pos - self._origin_pos) * self.args.pos_scale   # [up,right,back]
         pos = np.array([-m[2], m[1], m[0]])                                          # [fwd,right,up]
-        # Rotation relative to the flat/level reference, mapped the same way and
-        # relabelled to [about fwd, about right, about up] (deg).
-        rotvec_xr = (rot_now * self._origin_rot.inv()).as_rotvec()
-        r = _R_XR_TO_ISAAC @ rotvec_xr * self.args.rot_scale                          # [up,right,back]
-        rot = np.rad2deg(np.array([-r[2], r[1], r[0]]))                               # [fwd,right,up]
+        # Rotation relative to the flat/level reference, relabelled to
+        # [about fwd, about right, about up] (deg). Strip the hand's HEADING (its
+        # twist about room vertical, +Y) with a gimbal-free swing-twist split before
+        # reading the fwd/right components: the axis-angle of a compound rotation does
+        # not separate cleanly, so without this a 90 deg hand yaw rotates a forward
+        # roll into the "about right" readout. This is the same de-yaw the live device
+        # applies in ``_anchored_rotation_error`` (so101_quest3.py), so the monitor and
+        # the robot agree -- a forward roll reads as pure "about fwd" at any hand yaw, a
+        # pitch as pure "about right", and the heading (which shoulder_pan owns on the
+        # robot) is reported as "about up". Verified in simulation.
+        dR = rot_now * self._origin_rot.inv()
+        q = dR.as_quat()                                                             # [x, y, z, w]
+        twist_y = np.array([0.0, q[1], 0.0, q[3]])                                   # projection onto +Y
+        n = float(np.linalg.norm(twist_y))
+        twist = Rotation.from_quat(twist_y / n) if n > 1e-8 else Rotation.identity()
+        tilt = twist.inv() * dR                                                      # heading-stripped pitch+roll
+        r = _R_XR_TO_ISAAC @ tilt.as_rotvec() * self.args.rot_scale                  # [up,right,back]
+        yaw = float(twist.as_rotvec()[1]) * self.args.rot_scale                      # heading about +Y
+        rot = np.rad2deg(np.array([-r[2], r[1], yaw]))                               # [fwd,right,up]
         # Everything drawn in the 3D view is expressed in the LEVELED REFERENCE frame
         # (set on connect / Reset origin), so the hand lies flat on the horizontal
         # plane at the reset pose and tilts visibly as you rotate away from it. The
