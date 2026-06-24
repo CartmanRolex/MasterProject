@@ -1,0 +1,11 @@
+# Beamer / LaTeX build artifacts (slides.tex is the source of truth)
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.nav
+*.out
+*.snm
+*.toc
+*.vrb
+slides.pdf

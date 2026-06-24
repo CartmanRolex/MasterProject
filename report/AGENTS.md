@@ -135,6 +135,23 @@ land from the desktop.
 Thesis writing advice deck:
 https://docs.google.com/presentation/d/1wdk6iVC3G0WgORenrWnNZ3Llxan1iO6rcQS7SlbRQxU/edit?usp=sharing
 
+## Slides (`slides/`)
+
+Oral-presentation deck, **LaTeX/Beamer** — `slides/slides.tex`. Built from the report
+sections with the final seeded numbers; figures are pulled directly from
+`report/figures/` (`\graphicspath{{../figures/}}`). The deck is **sequential**: every
+concept (monotask, subtask, Teleop/Auto, Level-1/Level-2 recovery, spatial reset) is
+defined before it is used. ~19 frames, 16:9.
+
+Build:
+```bash
+export PATH="/home/students/texlive/2026/bin/x86_64-linux:$PATH"
+cd report/slides && latexmk -pdf -interaction=nonstopmode -halt-on-error slides.tex
+```
+Output `slides/slides.pdf` is a build artifact (gitignored, like `main.pdf`); only
+`slides.tex` is tracked. The previous PowerPoint pipeline (`presentation.pptx`,
+`build_pptx.py`, `assets/`) has been removed in favour of this LaTeX deck.
+
 ## Keeping this file current
 
 Update this file **and** `AGENTS.md` in the same commit as any structural change: new plotting scripts, new sections, renamed figures, updated section status. The `.md` and the code must always agree. Always commit and push after changes — never leave the working tree dirty.

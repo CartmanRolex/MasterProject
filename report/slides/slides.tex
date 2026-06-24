@@ -1,0 +1,369 @@
+% Oral-presentation slides for the Master's project.
+% Built from the report (sections/*.tex) — final seeded results.
+% Build: export PATH="/home/students/texlive/2026/bin/x86_64-linux:$PATH"
+%        latexmk -pdf -interaction=nonstopmode -halt-on-error slides.tex
+\documentclass[aspectratio=169,10pt]{beamer}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{siunitx}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning}
+
+\graphicspath{{../figures/}}
+
+% ---------- clean built-in look (no external theme needed) ----------
+\usetheme{default}
+\useinnertheme{circles}
+\setbeamertemplate{navigation symbols}{}
+
+\definecolor{epflred}{HTML}{B51F1F}
+\definecolor{ink}{HTML}{222222}
+\definecolor{accent}{HTML}{2C6E9B}
+\definecolor{good}{HTML}{1B7F3B}
+
+\setbeamercolor{structure}{fg=epflred}
+\setbeamercolor{title}{fg=epflred}
+\setbeamercolor{frametitle}{fg=white,bg=epflred}
+\setbeamercolor{itemize item}{fg=epflred}
+\setbeamercolor{itemize subitem}{fg=accent}
+\setbeamercolor{block title}{fg=white,bg=accent}
+\setbeamercolor{block body}{bg=accent!8}
+\setbeamerfont{frametitle}{series=\bfseries}
+\setbeamerfont{title}{series=\bfseries}
+\setbeamertemplate{frametitle}{%
+  \nointerlineskip
+  \begin{beamercolorbox}[wd=\paperwidth,ht=3.2ex,dp=1.2ex,leftskip=0.6em,rightskip=0.6em]{frametitle}%
+    \usebeamerfont{frametitle}\insertframetitle%
+  \end{beamercolorbox}%
+}
+\setbeamertemplate{footline}{%
+  \leavevmode%
+  \hbox{%
+    \begin{beamercolorbox}[wd=.34\paperwidth,ht=2.4ex,dp=1ex,leftskip=.6em]{}%
+      \color{gray}\footnotesize Gal Pascual%
+    \end{beamercolorbox}%
+    \begin{beamercolorbox}[wd=.5\paperwidth,ht=2.4ex,dp=1ex,center]{}%
+      \color{gray}\footnotesize Enabling Recovery in VLA-Based Manipulation%
+    \end{beamercolorbox}%
+    \begin{beamercolorbox}[wd=.16\paperwidth,ht=2.4ex,dp=1ex,rightskip=.6em]{}%
+      \hfill\color{gray}\footnotesize\insertframenumber\,/\,\inserttotalframenumber%
+    \end{beamercolorbox}%
+  }%
+}
+\setbeamertemplate{caption}{\raggedright\insertcaption\par}
+\setlength{\parskip}{4pt}
+
+\newcommand{\hl}[1]{\textcolor{epflred}{\textbf{#1}}}
+\newcommand{\gn}[1]{\textcolor{good}{\textbf{#1}}}
+
+% ---------- title metadata ----------
+\title{Enabling Recovery in VLA-Based Robotic Manipulation}
+\subtitle{Master's Project}
+\author{Gal Pascual}
+\institute{EPFL \,\textbullet\, CREATE Lab (Prof.\ Josie Hughes) \,\textbullet\, Sycamore Lab\\
+\footnotesize Supervisors: A.\ Schlaginhaufen, C.\ Pan, T.\ Ni}
+\date{June 2026}
+
+\begin{document}
+
+% ===== 1. Title =====
+{\setbeamertemplate{footline}{}
+\begin{frame}[plain]
+  \centering
+  \includegraphics[height=1.6cm]{logo.png}\\[0.8em]
+  {\usebeamerfont{title}\color{epflred}\LARGE Enabling Recovery in\\[2pt] VLA-Based Robotic Manipulation\par}
+  \vspace{0.5em}
+  {\large Master's Project}\\[1.2em]
+  {\large\textbf{Gal Pascual}}\\[0.8em]
+  EPFL \,\textbullet\, CREATE Lab (Prof.\ Josie Hughes) \,\textbullet\, Sycamore Lab\\[0.3em]
+  {\footnotesize Supervisors: Andreas Schlaginhaufen, Cheng Pan, Tingting Ni}\\[1.0em]
+  {\footnotesize June 2026}
+\end{frame}}
+
+% ===== 2. The problem =====
+\begin{frame}{Long-horizon manipulation: failure is the hard part}
+  \begin{itemize}
+    \item A pick-and-place task succeeds only if the robot \hl{grasps $\rightarrow$ lifts $\rightarrow$ places} --- in that order.
+    \item The hard problem is not a single failed step, but \hl{what the system does \emph{after} a failure}.
+    \item \textbf{Stagnation:} a policy can keep retrying one orange until the timeout, ignoring the others.
+    \item \textbf{State poisoning (hypothesis):} a fumbled grasp can knock an orange into a rarely-seen state, from which the policy acts unreliably.
+  \end{itemize}
+  \vfill
+  \begin{block}{The angle}
+    Improve robustness by \hl{fixing the structure around the policy}, not just the policy itself.
+  \end{block}
+\end{frame}
+
+% ===== 3. Why learned policies are brittle =====
+\begin{frame}{Why learned policies are brittle here}
+  \begin{itemize}
+    \item Trained on \hl{successful demonstrations} --- the training distribution is mostly ``things went well so far''.
+    \item During autonomous execution, small deviations $\rightarrow$ \hl{out-of-distribution states} $\rightarrow$ errors accumulate over the long horizon.
+    \item Vision-Language-Action (VLA) models add language as an interface --- e.g.\ \emph{``place the object in the plate''}.
+    \item But that instruction \hl{assumes the object is already held}; language alone offers no way to \emph{detect} or \emph{interrupt} a failure.
+  \end{itemize}
+\end{frame}
+
+% ===== 4. Hypothesis & contributions =====
+\begin{frame}{Idea: decompose, then orchestrate}
+  \textbf{Hypothesis.} Long-horizon tasks become more robust if decomposed into \hl{language-conditioned subtasks} surrounded by an \hl{orchestrator} that checks each outcome and recovers from failure.
+  \vfill
+  \textbf{Contributions.}
+  \begin{enumerate}
+    \item A monolithic baseline (\hl{ACT vs.\ SmolVLA}) --- changing the policy class alone is not enough.
+    \item A targeted \hl{Teleop subtask dataset} + an orchestrator that monitors outcomes and performs \hl{retry / reset / redirect}.
+    \item Using the orchestrator for \hl{autonomous data generation} --- and asking whether more data helps (a useful \emph{negative} result).
+  \end{enumerate}
+\end{frame}
+
+% ===== 5. Setup =====
+\begin{frame}{Setup}
+  \begin{columns}[T]
+    \begin{column}{0.56\textwidth}
+      \begin{itemize}
+        \item \hl{SO-101} arm in an Isaac Sim kitchen; \hl{3 oranges $\rightarrow$ plate}.
+        \item Policy: \hl{SmolVLA} (Vision-Language-Action).
+        \item The policy sees \emph{only}:
+          \begin{itemize}
+            \item 6 joint states + front \& wrist cameras.
+            \item \textbf{no} object coordinates.
+          \end{itemize}
+        \item Privileged state (poses, contact forces) is used by the \hl{orchestrator and evaluation only} --- never by the policy.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \centering
+      \includegraphics[width=\textwidth]{environment_top_view.png}\\
+      {\footnotesize Top-camera view of the scene.}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ===== 6. SmolVLA & fine-tuning =====
+\begin{frame}{The policy: SmolVLA, fine-tuned efficiently}
+  \begin{itemize}
+    \item Pretrained vision-language backbone (\texttt{SmolVLM2-500M}) + a small \hl{action expert} (flow matching).
+    \item Outputs a \hl{chunk of 20 joint actions} per query (matches the 20-frame terminal hold used in data collection).
+    \item \hl{Parameter-efficient fine-tuning}: freeze the vision encoder \emph{and} language backbone; train only the \hl{action expert + state projection} ($\approx$100M of 450M params, $\sim$22\%).
+    \item Keeps the web-scale visual/linguistic priors; adapts the action pathway to the SO-101.
+  \end{itemize}
+\end{frame}
+
+% ===== 7. Baseline (defines "monotask" + 47% ceiling) =====
+\begin{frame}{Baseline: is the bottleneck the policy class?}
+  \begin{columns}[T]
+    \begin{column}{0.54\textwidth}
+      \begin{itemize}
+        \item 60 public full-task demos (LightwheelAI). One fixed prompt, run end-to-end --- the \hl{monotask} formulation.
+        \item \hl{SmolVLA $>$ ACT} --- but even SmolVLA completes only \hl{47 / 100} episodes.
+        \item[$\Rightarrow$] The limit is \hl{not policy expressiveness}; it is the \hl{structure of the execution problem}.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \centering
+      \includegraphics[width=\textwidth]{baseline_comparison.pdf}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ===== 8. Subtask decomposition =====
+\begin{frame}{Decompose: GRASP $\rightarrow$ LIFT $\rightarrow$ PLACE}
+  \begin{itemize}
+    \item Reformulate the full task as a sequence of subtasks --- each an explicit \hl{checkpoint}.
+    \item Verify the \hl{physical outcome} before committing to the next step.
+    \item GRASP targets \hl{one orange by relative position} (left / middle / right).
+  \end{itemize}
+  \vfill
+  \begin{columns}[c]
+    \column{0.32\textwidth}\centering\includegraphics[height=2.7cm]{grasp.png}\\\textbf{GRASP}
+    \column{0.32\textwidth}\centering\includegraphics[height=2.7cm]{pick.png}\\\textbf{LIFT}
+    \column{0.32\textwidth}\centering\includegraphics[height=2.7cm]{place.png}\\\textbf{PLACE}
+  \end{columns}
+\end{frame}
+
+% ===== 9. Teleop dataset =====
+\begin{frame}{A custom subtask dataset: \emph{Teleop}}
+  \begin{columns}[T]
+    \begin{column}{0.30\textwidth}
+      \centering
+      \vspace{0.6em}
+      {\color{epflred}\fontsize{42}{46}\selectfont\textbf{846}}\\[0.3em]
+      {\footnotesize manually teleoperated\\ subtask episodes}
+    \end{column}
+    \begin{column}{0.70\textwidth}
+      \begin{itemize}
+        \item Built from scratch: \hl{Xbox gamepad} $\rightarrow$ SO-101 in Isaac.
+        \item 1 episode = \hl{1 successful subtask}, labelled with its instruction.
+        \item \hl{Randomised pick order} $\rightarrow$ forces grounding of the position instruction (target $\neq$ task progress).
+        \item \hl{``Freeze tail''} (20 frames) $\rightarrow$ the policy learns to \emph{wait} at a boundary instead of drifting.
+        \item Trained SmolVLA as a \hl{subtask executor} (GRASP / LIFT / PLACE).
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ===== 10. Key insight =====
+\begin{frame}{Key insight: language is spatially context-dependent}
+  \begin{block}{The behavioural finding that motivates the orchestrator's reset}
+  \begin{itemize}
+    \item Gripper near orange A $\Rightarrow$ ``grasp the \emph{right} orange'' is \hl{ignored}.
+    \item Target switching only works when the arm is \hl{far from all oranges}.
+    \item[$\Rightarrow$] Before any target change, the arm must \hl{first move away}.
+  \end{itemize}
+  \end{block}
+  \vspace{0.4em}
+  This is exactly why the orchestrator needs a \hl{scripted home-pose reset} --- defined next.
+\end{frame}
+
+% ===== 11. Failures vs timeouts =====
+\begin{frame}{Two things to detect: failures vs.\ timeouts}
+  \textbf{Physical failure} --- the orange is actually lost:
+  \begin{itemize}
+    \item \textbf{LIFT} --- slips before reaching the plate.\quad \textbf{PLACE} --- dropped outside the plate.
+    \item \textbf{GRASP} --- no instantaneous event: the gripper simply never closes on it.
+  \end{itemize}
+  \vspace{0.3em}
+  \textbf{Timeout} --- a per-subtask step budget (\hl{only exists with the orchestrator}):
+  \begin{itemize}
+    \item A \hl{detection trigger} to react (retry / reset / redirect) --- \emph{not} a failure itself.
+    \item Monotask has no timeout $\Rightarrow$ a failure is \hl{never caught mid-episode}.
+  \end{itemize}
+\end{frame}
+
+% ===== 12. Orchestrator: three mechanisms (+ figure) =====
+\begin{frame}{Orchestrator: a finite-state controller around the VLA}
+  \begin{columns}[T]
+    \begin{column}{0.56\textwidth}
+      The VLA does \emph{only} GRASP / LIFT / PLACE; all checks use privileged state.
+      \medskip
+
+      Recovery at \hl{two levels} + one precondition:
+      \begin{itemize}
+        \item \hl{Level-1 --- local retry} \emph{(recovery)}: slip / timeout on LIFT or PLACE $\rightarrow$ re-GRASP the \textbf{same} orange.
+        \item \hl{Level-2 --- target redirection} \emph{(recovery)}: GRASP timeout $\rightarrow$ switch to a \textbf{different} orange so the episode keeps scoring. \emph{Not} giving up --- task-level recovery.
+        \item \hl{Home reset --- precondition} \emph{(not recovery)}: scripted move home before any target change.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \centering
+      \includegraphics[width=\textwidth]{orchestrator_decision_flow.pdf}\\
+      {\footnotesize Orchestrated decision flow.}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ===== 13. Autonomous data generation =====
+\begin{frame}{Probe: is the subtask policy just data-limited?}
+  \begin{itemize}
+    \item Run the orchestrator \hl{on its own}; keep only the \hl{successful} subtasks, discard the failed ones.
+    \item \hl{Target redirection} salvages data from scenes that would otherwise be wasted.
+    \item \hl{+414 Auto} episodes merged with 846 Teleop $\rightarrow$ \hl{1260} (\emph{Teleop+Auto}).
+    \item Auto episodes are \hl{shorter / less dispersed} --- drawn from the policy's own visited states.
+  \end{itemize}
+  \vfill
+  {\footnotesize Question: does adding in-distribution successful data improve the orchestrated policy?}
+\end{frame}
+
+% ===== 14. Results: full-task =====
+\begin{frame}{Results: full-task outcomes (100 seeded scenes)}
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+      \begin{itemize}
+        \item Decomposition $\rightarrow$ more \hl{partial progress}, not more completions:\\
+              Teleop mean \hl{1.11 $\rightarrow$ 1.77}; full success 18\% $\rightarrow$ 20\%.
+        \item Subtask runs \hl{rarely fail completely}: $\geq$1 orange in \gn{97\%} (Teleop) vs.\ 57\% (monotask).
+        \item Adding Auto data \hl{hurt}: Teleop subtask \hl{20\% $\rightarrow$ 13\%} full success.
+      \end{itemize}
+      {\footnotesize Reference ceiling: SmolVLA monotask baseline = 47\%.}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \centering
+      \includegraphics[width=\textwidth]{orange_outcome_distribution.pdf}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ===== 15. Results: task-level recovery =====
+\begin{frame}{Results: task-level recovery (the orchestrator's job)}
+  After a drop or slip, does the episode \hl{keep scoring}? --- measured identically for both formulations.
+  \vfill
+  \begin{columns}[c]
+    \begin{column}{0.62\textwidth}
+      \centering\small
+      \begin{tabular}{llcc}
+        \toprule
+        Training & Form. & Score recovery & Different-orange \\
+        \midrule
+        Teleop      & Monotask & 35.5\% & 23.1\% \\
+        Teleop      & \textbf{Subtask}  & \gn{73.5\%} & \gn{60.0\%} \\
+        \midrule
+        Teleop+Auto & Monotask & 53.7\% & 35.1\% \\
+        Teleop+Auto & Subtask  & 42.9\% & 28.0\% \\
+        \bottomrule
+      \end{tabular}
+    \end{column}
+    \begin{column}{0.38\textwidth}
+      \begin{itemize}
+        \item On Teleop, the orchestrator \hl{doubles} recovery --- this is \emph{why} it rarely fails completely.
+        \item But \hl{Auto data erodes} exactly this robustness.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ===== 16. Results: obedience =====
+\begin{frame}{Results: does it grasp the orange it was told to?}
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+      \begin{itemize}
+        \item $\sim$\hl{3 in 4} grasps obey; better as the scene clears.
+        \item Misgrabs are \hl{systematic}: the gripper closes on the orange just \emph{inward}.
+          \begin{itemize}\item ``right'' (the \emph{most common} label) is the \hl{worst} obeyed.\end{itemize}
+        \item More data $\neq$ better obedience.
+        \item[$\Rightarrow$] A \hl{grounding} gap, not a \emph{coverage} gap.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \centering
+      \includegraphics[width=\textwidth]{grasp_obedience_confusion.pdf}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ===== 17. Discussion & limitations =====
+\begin{frame}{Discussion \& limitations}
+  \begin{itemize}
+    \item Decomposition creates \hl{real intervention points} --- failures are caught, not ignored.
+    \item But it \hl{cannot fix a weak GRASP policy} --- the bottleneck, and worse as the scene fills.
+    \item Auto data did not help $\Rightarrow$ the bottleneck is grasp \hl{quality}, not data \hl{volume}.
+    \item \hl{Coverage gap}: trained on clean isolated subtasks, never on messy full runs.
+    \item Success checks use \hl{privileged state} --- real-world deployment needs perception.
+  \end{itemize}
+\end{frame}
+
+% ===== 18. Conclusion =====
+\begin{frame}{Conclusion \& future work}
+  \begin{itemize}
+    \item Recovery is an \hl{execution-level} problem, not just a policy choice.
+    \item The orchestrator enables \hl{retry / reset / redirection} --- and makes recovery \hl{measurable} at two levels.
+    \item Orchestration alone $\neq$ robustness while the grasp policy is weak (a \hl{useful negative result}).
+    \item \textbf{Next:} better GRASP / PLACE in late scenes; collect \hl{full, imperfect runs} --- \emph{before} more autonomous data.
+  \end{itemize}
+\end{frame}
+
+% ===== 19. Thanks =====
+{\setbeamertemplate{footline}{}
+\begin{frame}[plain]
+  \centering
+  \vspace{1.2cm}
+  {\color{epflred}\Huge\textbf{Thank you}}\\[0.8em]
+  {\large Questions?}\\[1.4em]
+  {\footnotesize Gal Pascual \,\textbullet\, EPFL CREATE Lab / Sycamore Lab}
+\end{frame}}
+
+\end{document}
