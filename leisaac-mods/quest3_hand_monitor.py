@@ -8,10 +8,12 @@ hand's orientation/coordinate frame — the part of the Quest 3 mapping that is
 hardest to get right. One wrist-centered 3D view (mouse-drag to orbit) plots the
 hand skeleton plus the wrist's body-frame triad labelled **FWD / RIGHT / UP** (per
 the device's room-axis convention: body +X=RIGHT, +Y=UP, +Z=BACK => FWD=-Z), with a
-room-frame gizmo for comparison. The side panel reports position and
-rotation-since-anchor about **FWD / RIGHT / UP** plus the raw wrist quaternion
-(absolute and since-origin). Reset origin (or reconnect) re-anchors so you start
-from a defined pose. Use it to verify the axis assignment visually — if a triad
+room-frame gizmo for comparison. The side panel reports position (from an origin
+anchored on connect) and rotation **from a flat, level hand** about
+**FWD / RIGHT / UP** plus the raw wrist quaternion (absolute and since-level), so
+the rotation readout shows the hand's true tilt from horizontal regardless of its
+pose at reset. Reset origin (or reconnect) re-anchors the position origin and
+re-asserts the level rotation reference. Use it to verify the axis assignment visually — if a triad
 arrow does not line up with the physical hand direction, the device's
 ``_R_rot_map`` needs fixing — without launching the sim.
 
@@ -120,7 +122,7 @@ _DASHBOARD_HTML = """\
         <div class="row"><span class="up">up (+up / −down)</span><b id="pu">–</b></div>
       </div>
       <div class="stat">
-        <div class="lbl">rotation — from origin (deg)</div>
+        <div class="lbl">rotation — from level (deg)</div>
         <div class="row"><span class="fwd">about fwd</span><b id="rf">–</b></div>
         <div class="row"><span class="right">about right</span><b id="rr">–</b></div>
         <div class="row"><span class="up">about up</span><b id="ru">–</b></div>
@@ -128,7 +130,7 @@ _DASHBOARD_HTML = """\
       <div class="stat">
         <div class="lbl">wrist quaternion (w, x, y, z)</div>
         <div class="row"><span>absolute</span><b id="qnow">–</b></div>
-        <div class="row"><span>since origin</span><b id="qdel">–</b></div>
+        <div class="row"><span>since level</span><b id="qdel">–</b></div>
       </div>
       <div class="stat">
         <div class="lbl">stream</div>
@@ -143,8 +145,9 @@ _DASHBOARD_HTML = """\
         <span class="up">UP</span>=body +Y). If an arrow does not line up with the
         physical hand direction, that axis assignment is wrong — fix it in the
         device's <code>_R_rot_map</code>. Corner gizmo shows the room frame
-        (R/U/F) under the same camera for comparison. Position &amp; rotation are
-        relative to the origin (set on connect / by <b>Reset origin</b>).
+        (R/U/F) under the same camera for comparison. Position is relative to the
+        origin (set on connect / by <b>Reset origin</b>); rotation is measured from a
+        flat, level hand, so it reads the hand's true tilt from horizontal.
       </div>
     </div>
   </div>
@@ -287,11 +290,13 @@ class Monitor:
             .replace("__BONES__", json.dumps(_BONES))
         )
         self.monitors: weakref.WeakSet = weakref.WeakSet()
-        # Origin anchor (set on the first frame / when "Reset origin" is pressed).
-        # Current position and rotation are reported relative to this pose, so the
-        # dashboard shows where the hand is *now* rather than per-step increments.
+        # Position origin (set on the first frame / when "Reset origin" is pressed),
+        # so position is reported as displacement from where the hand is *now*.
         self._origin_pos: np.ndarray | None = None
-        self._origin_rot: Rotation | None = None
+        # Rotation reference is a fixed, ideal flat/level hand (identity orientation:
+        # palm-down, fingers forward => body axes aligned with the room axes). Rotation
+        # is reported as deviation from level, independent of the hand's tilt at reset.
+        self._origin_rot: Rotation = Rotation.identity()
         # fps accounting
         self._fps = 0
         self._fps_count = 0
@@ -302,14 +307,13 @@ class Monitor:
         rot_now = Rotation.from_quat(wrist_quat)
         if self._origin_pos is None:
             self._origin_pos = wrist_pos.copy()
-            self._origin_rot = rot_now
         # Position relative to the origin, mapped into [up, right, back] then
         # relabelled to [fwd, right, up] (forward = -back). Absolute displacement of
         # the hand from the anchor — no clamping / integration.
         m = _R_XR_TO_ISAAC @ (wrist_pos - self._origin_pos) * self.args.pos_scale   # [up,right,back]
         pos = np.array([-m[2], m[1], m[0]])                                          # [fwd,right,up]
-        # Rotation since the origin, mapped the same way and relabelled to
-        # [about fwd, about right, about up] (deg).
+        # Rotation relative to the flat/level reference, mapped the same way and
+        # relabelled to [about fwd, about right, about up] (deg).
         rotvec_xr = (rot_now * self._origin_rot.inv()).as_rotvec()
         r = _R_XR_TO_ISAAC @ rotvec_xr * self.args.rot_scale                          # [up,right,back]
         rot = np.rad2deg(np.array([-r[2], r[1], r[0]]))                               # [fwd,right,up]
@@ -374,7 +378,8 @@ class Monitor:
                 except Exception:
                     continue
                 if cmd.get("cmd") == "reset_origin":
-                    self._origin_pos = None   # re-anchor on the next frame
+                    self._origin_pos = None                 # re-anchor position on the next frame
+                    self._origin_rot = Rotation.identity()  # rotation measured from a flat, level hand
         finally:
             print("[Monitor] Dashboard disconnected")
         return ws
@@ -385,9 +390,9 @@ class Monitor:
         ws = web.WebSocketResponse()
         await ws.prepare(request)
         print("[Monitor] Quest connected")
-        # fresh anchor for this session
+        # fresh position anchor for this session; rotation stays referenced to level
         self._origin_pos = None
-        self._origin_rot = None
+        self._origin_rot = Rotation.identity()
         self._fps_t0 = time.monotonic()
         self._fps_count = 0
         first = True

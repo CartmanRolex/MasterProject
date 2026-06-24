@@ -47,9 +47,11 @@ On the same PC: open `http://localhost:8080/monitor` (local, no ngrok).
 
 The dashboard shows one wrist-centered 3D view (drag to orbit) of the hand
 skeleton plus a FWD / RIGHT / UP triad on the wrist, and reports position
-(fwd / right / up, m), rotation since origin (deg) and the raw wrist quaternion
-from an origin anchored on connect — "Reset origin" re-anchors. If a triad arrow
-does not match the physical hand direction, the axis mapping is wrong.
+(fwd / right / up, m) from a position origin anchored on connect, rotation from
+level (deg) and the raw wrist quaternion. Rotation is measured from a fixed flat,
+level hand, so it reads the hand's true tilt regardless of pose at reset; "Reset
+origin" re-anchors the position origin and re-asserts the level reference. If a
+triad arrow does not match the physical hand direction, the axis mapping is wrong.
 
 Useful flags: `--port`, `--send-hz`, `--pos-scale`, `--rot-scale`,
 `--pinch-threshold` (see `--help`).
