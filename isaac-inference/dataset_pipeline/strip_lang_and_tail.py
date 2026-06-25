@@ -36,8 +36,8 @@ import pyarrow.parquet as pq
 from balance_dataset import CAMERAS
 
 ROOT = Path(__file__).parent
-SRC = ROOT / "synthetic_datasets" / "Gal-merged-tailed-auto"
-DST = ROOT / "synthetic_datasets" / "Gal-merged-tailed-auto-no-lang-no-home"
+SRC = ROOT.parent / "synthetic_datasets" / "Gal-merged-tailed-auto"
+DST = ROOT.parent / "synthetic_datasets" / "Gal-merged-tailed-auto-no-lang-no-home"
 TAIL = 20
 NEW_TASK = "Place the orange into plate"
 DROP_TASKS = {"Go back to start position"}

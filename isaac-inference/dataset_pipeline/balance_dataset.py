@@ -215,7 +215,7 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=42, help="Random seed (default: 42)")
     args = parser.parse_args()
 
-    this_dir = Path(__file__).parent / "synthetic_datasets"
+    this_dir = Path(__file__).parent.parent / "synthetic_datasets"
     source = this_dir / args.source
     dest = this_dir / args.output
 

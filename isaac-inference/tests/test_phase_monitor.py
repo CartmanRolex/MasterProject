@@ -1,5 +1,10 @@
 import os
+import sys
 import unittest
+from pathlib import Path
+
+# Allow running from the tests/ subfolder: make the isaac-inference root importable
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import torch
 

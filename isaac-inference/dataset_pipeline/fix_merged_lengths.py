@@ -68,7 +68,7 @@ def main() -> None:
 
     dest = Path(args.dataset)
     if not dest.is_absolute():
-        dest = Path(__file__).parent / "synthetic_datasets" / args.dataset
+        dest = Path(__file__).parent.parent / "synthetic_datasets" / args.dataset
     if not dest.exists():
         raise FileNotFoundError(dest)
 

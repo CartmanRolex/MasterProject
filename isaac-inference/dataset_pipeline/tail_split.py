@@ -47,7 +47,7 @@ from strip_lang_and_tail import _quantiles
 
 
 THIS_DIR = Path(__file__).parent
-SYNTH_DIR = THIS_DIR / "synthetic_datasets"
+SYNTH_DIR = THIS_DIR.parent / "synthetic_datasets"
 
 DROP_TASKS = {"Go back to start position"}
 DEFAULT_FREEZE = 20

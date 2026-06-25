@@ -63,6 +63,17 @@ the LeRobot framework.
 
 Implementation and evaluation are complete. The orchestrator refactor, scripted spatial reset, full 100-episode seeded evals, and Phase 5 autonomous data generation are all done. Current focus is the report (`report/`).
 
+## Directory layout
+
+Runtime code stays at the `isaac-inference/` root; one-shot and support scripts are grouped into subfolders:
+
+- **root** — inference/eval entry points (`inference_*.py`), shared libraries imported by them (`eval_utils.py`, `robot_utils.py`, `phase_monitor.py`, `dataset_recorder.py`), the eval-queue orchestrators (`overnight_eval_queue.py`, `rerun_gal_split_nolang_correct_prompt.py`), and `remote.sh`. These keep flat imports and are invoked by bare filename via `remote.sh`, so they are **not** moved.
+- `dataset_pipeline/` — one-shot dataset build/transform scripts (run any of them with `python dataset_pipeline/<script>.py`; they resolve `synthetic_datasets/` at the root via `__file__`).
+- `maintenance/` — diagnostic / repair / plotting one-shots.
+- `tests/` — unit tests (add the root to `sys.path` via the shim at the top).
+- `docs/` — reference notes (`commands.txt`, `EVAL_LOGGING_REWRITE.md`).
+- Unchanged data/output dirs: `results/`, `logs/`, `eval_seeds/`, `legacy/`, `synthetic_datasets/`.
+
 ## Key files (current work)
 
 | File | Purpose |
@@ -72,12 +83,12 @@ Implementation and evaluation are complete. The orchestrator refactor, scripted 
 | `eval_utils.py` | `SubtaskTracker`, `EvaluationTracker`, `EpisodeStory`, `HomeChecker`, position/scene helpers. |
 | `robot_utils.py` | Joint-space conversions: LeIsaac (radians) ↔ LeRobot (normalized degrees). |
 | `remote.sh` | Isaac Sim launcher — sets `ENABLE_LIVESTREAM`, `LEISAAC_ASSETS_ROOT`, then calls `python "$@"`. |
-| `commands.txt` | Reference commands (training, inference, teleop, dataset conversion). |
+| `docs/commands.txt` | Reference commands (training, inference, teleop, dataset conversion). |
 | `inference_privileged_grasp.py` | Privileged grasp policy — uses DLS (Damped Least Squares) IK to position the gripper above each orange's exact XY from Isaac privileged state. Fully scripted/geometric; no VLA. |
 | `inference_flat_prompt.py` | Flat single-instruction SmolVLA eval — one fixed prompt ("Place the orange into plate"), no subtask sequencing. Used to evaluate the no-lang-no-home model variant. |
 | `inference_act_flat_prompt.py` | ACT policy eval — same flat single-instruction structure as `inference_flat_prompt.py` but uses `ACTPolicy` with chunked action execution (`predict_action_chunk`; chunk size comes from `policy.config.chunk_size`). Saves to `results/<model>/act_checkpoint.json` and `act_latest.txt`. |
 | `phase_monitor.py` | `PhaseMonitor` — passive observer-inferred subtask trace for flat (no-language) policies, derived from physics state alone (`SubtaskTracker`, orange/plate positions). Used by `inference_flat_prompt.py` and `inference_act_flat_prompt.py` to produce per-episode subtask traces for policies that don't expose intent. |
-| `test_phase_monitor.py` | Unit tests for `PhaseMonitor` trace generation. |
+| `tests/test_phase_monitor.py` | Unit tests for `PhaseMonitor` trace generation. |
 
 ## Legacy / alternative entry points (do not modify without reason)
 
@@ -93,24 +104,26 @@ Moved to `legacy/` to keep root clean.
 
 ## Data pipeline scripts
 
-One-shot scripts for building and transforming the training dataset. Run from `isaac-inference/` on the desktop. Output goes to `synthetic_datasets/`.
+One-shot scripts (in `dataset_pipeline/`) for building and transforming the training dataset. They resolve `synthetic_datasets/` at the `isaac-inference/` root via `__file__`, so they can be run from anywhere (e.g. `python dataset_pipeline/merge_datasets.py …`). Output goes to `synthetic_datasets/`.
 
 | Script | Purpose |
 |--------|---------|
-| `merge_datasets.py` | Concatenate two or more LeRobot v3.0 datasets into one. Episode indices are shifted and task strings are unioned. Re-encodes video to h264 (faster decode on non-RTX-40 hardware). Writes `meta/stats.json` (scalar features recomputed from the merged data parquet; image features count-weighted-aggregated from the sources). |
-| `balance_dataset.py` | Create a balanced subset across the 9 subtask slots (3 oranges × Grasp / Pick up / Place). N = min episode count per bucket; total output = 9×N. HOME episodes excluded. |
-| `consolidate_dataset_videos.py` | Merge per-episode chunk files into one large file per camera. Eliminates torchcodec decoder re-init overhead at training time. Idempotent — safe to re-run. |
-| `fix_merged_lengths.py` | Repair per-episode length drift that can appear after `consolidate_dataset_videos.py`. Run if episode lengths in `meta/episodes.parquet` look inconsistent. |
-| `tail_split.py` | Properly "tail" a teleop-derived dataset by **appending** `N=20` freeze frames to every episode (inverse of `strip_lang_and_tail.py`). Drops `"Go back to start position"` episodes and reproduces `dataset_recorder.py`'s per-subtask freeze: GRASP / LIFT hold the last commanded gripper action (closing force), PLACE freezes fully (action = state). Clones the last video frame (ffmpeg `tpad`), reconciles clip lengths, consolidates, writes `stats.json`. Used to rebuild `Gal_split` → `Gal_split_tailed` before merging into `Gal-merged-tailed-auto`. |
-| `strip_lang_and_tail.py` | Produce a no-language-conditioning clone with the last 20 frozen frames of every episode removed. Hardcoded paths: `Gal-merged-tailed-auto` → `Gal-merged-tailed-auto-no-lang-no-home`. |
-| `plot_dataset_stats.py` | Plot task distribution and composition statistics for a synthetic dataset. |
+| `dataset_pipeline/merge_datasets.py` | Concatenate two or more LeRobot v3.0 datasets into one. Episode indices are shifted and task strings are unioned. Re-encodes video to h264 (faster decode on non-RTX-40 hardware). Writes `meta/stats.json` (scalar features recomputed from the merged data parquet; image features count-weighted-aggregated from the sources). |
+| `dataset_pipeline/balance_dataset.py` | Create a balanced subset across the 9 subtask slots (3 oranges × Grasp / Pick up / Place). N = min episode count per bucket; total output = 9×N. HOME episodes excluded. |
+| `dataset_pipeline/consolidate_dataset_videos.py` | Merge per-episode chunk files into one large file per camera. Eliminates torchcodec decoder re-init overhead at training time. Idempotent — safe to re-run. |
+| `dataset_pipeline/fix_merged_lengths.py` | Repair per-episode length drift that can appear after `consolidate_dataset_videos.py`. Run if episode lengths in `meta/episodes.parquet` look inconsistent. |
+| `dataset_pipeline/tail_split.py` | Properly "tail" a teleop-derived dataset by **appending** `N=20` freeze frames to every episode (inverse of `strip_lang_and_tail.py`). Drops `"Go back to start position"` episodes and reproduces `dataset_recorder.py`'s per-subtask freeze: GRASP / LIFT hold the last commanded gripper action (closing force), PLACE freezes fully (action = state). Clones the last video frame (ffmpeg `tpad`), reconciles clip lengths, consolidates, writes `stats.json`. Used to rebuild `Gal_split` → `Gal_split_tailed` before merging into `Gal-merged-tailed-auto`. |
+| `dataset_pipeline/strip_lang_and_tail.py` | Produce a no-language-conditioning clone with the last 20 frozen frames of every episode removed. Hardcoded paths: `Gal-merged-tailed-auto` → `Gal-merged-tailed-auto-no-lang-no-home`. |
 
 ## Maintenance / one-shot utilities
 
+`maintenance/` holds diagnostic, repair, and plotting one-shots. The two eval-queue orchestrators stay at the root because they invoke the root entry points by bare filename via `remote.sh`.
+
 | Script | Purpose |
 |--------|---------|
-| `recover_episodes.py` | Repair corrupted episode parquet files. Originally written to fix `Gal-auto-subtasks2`. Run once as needed; not part of normal workflow. |
-| `debug_camera_drift.py` | Diagnostic: loads pick-orange env and runs 200 rapid resets, logging front camera world position before/after each `randomize_camera_uniform` call. Outputs `camera_drift_log_<hostname>.txt`. Run on both desktop and laptop to compare accumulation behaviour. |
+| `maintenance/recover_episodes.py` | Repair corrupted episode parquet files. Originally written to fix `Gal-auto-subtasks2`. Run once as needed; not part of normal workflow. |
+| `maintenance/debug_camera_drift.py` | Diagnostic: loads pick-orange env and runs 200 rapid resets, logging front camera world position before/after each `randomize_camera_uniform` call. Outputs `camera_drift_log_<hostname>.txt`. Run on both desktop and laptop to compare accumulation behaviour. |
+| `maintenance/plot_dataset_stats.py` | Plot task distribution and composition statistics for a synthetic dataset. |
 | `overnight_eval_queue.py` | Preflight checks and tmux-based queue for running multiple seeded eval jobs overnight. Launches shards sequentially with stall detection and restart logic. |
 | `rerun_gal_split_nolang_correct_prompt.py` | One-shot rerun of the `Gal_split_nolang` flat eval in 3 shards with the corrected prompt ("Place the orange into plate"). Run once to produce the final result for that model. |
 
@@ -165,7 +178,7 @@ reconstruction). Monotask has no subtask timeout (no per-subtask budget).
 (fixing a bug where truncated episodes recorded post-auto-reset positions). These
 are logging-only changes — control flow is unchanged, so a seeded rerun
 reproduces identical trajectories with the richer fields. See
-`EVAL_LOGGING_REWRITE.md`. **The current committed checkpoints predate this and
+`docs/EVAL_LOGGING_REWRITE.md`. **The current committed checkpoints predate this and
 must be re-run to populate the new fields.**
 
 ## Gitignored paths

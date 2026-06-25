@@ -35,7 +35,7 @@ from consolidate_dataset_videos import consolidate, push_to_hub
 
 
 THIS_DIR = Path(__file__).parent
-SYNTH_DIR = THIS_DIR / "synthetic_datasets"
+SYNTH_DIR = THIS_DIR.parent / "synthetic_datasets"
 
 
 # ── source resolution ─────────────────────────────────────────────────────────
