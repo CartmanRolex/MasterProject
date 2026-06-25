@@ -70,6 +70,37 @@ def composition(data, sub):
     return succ, drop, tmo, n, raw, timeout_but_placed
 
 
+def grasp_composition(data):
+    """GRASP has no drop/slip: an attempt either secures an orange (success, including
+    wrong-orange grabs -- obedience is analysed separately) or never acquires one
+    (timeout). Truncations and reconstruction artefacts (env_truncated, episode_ended,
+    retargeted, ...) are excluded from the denominator. Trustworthy only for the
+    orchestrated (subtask) models; the monotask offline reconstruction over-segments the
+    grasp search (median ~9 segments/episode), so it has no per-attempt grasp rate."""
+    succ = tmo = 0
+    raw = Counter()
+    timeout_but_placed = 0
+    for e in data["episodes"]:
+        for a in e["subtask_attempts"]:
+            if a.get("subtask") != "GRASP":
+                continue
+            res, fr = a.get("result"), a.get("failure_reason")
+            placed = a.get("target_in_plate_end")  # geometric ground truth
+            # geometric override: if the target orange ended in the plate, the grasp
+            # really worked, even when the orchestrator logged a timeout/failure.
+            if res == "success" or placed is True:
+                succ += 1
+                if res != "success":
+                    timeout_but_placed += 1
+                elif fr:
+                    raw[f"success:{fr}"] += 1   # wrong-orange grabs (an orange was secured)
+            elif res == "timeout" or fr == "timeout":
+                tmo += 1; raw["timeout"] += 1
+            else:
+                raw[fr or res] += 1         # env_truncated / episode_ended / retargeted -> excluded
+    return succ, tmo, succ + tmo, raw, timeout_but_placed
+
+
 def geometry(data, sub, key):
     """mean/median of metrics[key] for success vs the subtask's drop/slip (flat only)."""
     ok, bad = [], []
@@ -92,6 +123,13 @@ def geometry(data, sub, key):
 def analyse(ds, form, subdir, fname):
     data = json.load(open(RESULTS / subdir / fname))
     print(f"\n##### {ds} {form}  ({subdir}) #####")
+    if form == "subtask":
+        sg, tg, ng, graw, gtbp = grasp_composition(data)
+        print(f"  GRASP genuine n={ng:3d} | success(acquired) {pct(sg,ng)}  "
+              f"timeout {pct(tg,ng)}   [timeout-but-placed reclassified as success: {gtbp}]")
+        print(f"        raw (excluded/other): {dict(graw)}")
+    else:
+        print("  GRASP : not measured per-attempt (monotask offline reconstruction over-segments the search)")
     for sub in ("LIFT", "PLACE"):
         succ, drop, tmo, n, raw, tbp = composition(data, sub)
         dlabel = "drop" if sub == "LIFT" else "slip"
