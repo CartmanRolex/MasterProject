@@ -71,7 +71,9 @@ Runtime code stays at the `isaac-inference/` root; one-shot and support scripts 
 - `dataset_pipeline/` — one-shot dataset build/transform scripts (run any of them with `python dataset_pipeline/<script>.py`; they resolve `synthetic_datasets/` at the root via `__file__`).
 - `maintenance/` — diagnostic / repair / plotting one-shots.
 - `tests/` — unit tests (add the root to `sys.path` via the shim at the top).
-- `docs/` — reference notes (`commands.txt`, `EVAL_LOGGING_REWRITE.md`).
+- `docs/` — reference notes (`commands.txt`, `EVAL_LOGGING_REWRITE.md`, and
+  **`DATA_DICTIONARY.md`** — the source of truth for what every dataset/model name means;
+  consult it before interpreting any `Gal-*` / `Gal_split*` artifact).
 - Unchanged data/output dirs: `results/`, `logs/`, `eval_seeds/`, `legacy/`, `synthetic_datasets/`.
 
 ## Key files (current work)
@@ -114,6 +116,7 @@ One-shot scripts (in `dataset_pipeline/`) for building and transforming the trai
 | `dataset_pipeline/fix_merged_lengths.py` | Repair per-episode length drift that can appear after `consolidate_dataset_videos.py`. Run if episode lengths in `meta/episodes.parquet` look inconsistent. |
 | `dataset_pipeline/tail_split.py` | Properly "tail" a teleop-derived dataset by **appending** `N=20` freeze frames to every episode (inverse of `strip_lang_and_tail.py`). Drops `"Go back to start position"` episodes and reproduces `dataset_recorder.py`'s per-subtask freeze: GRASP / LIFT hold the last commanded gripper action (closing force), PLACE freezes fully (action = state). Clones the last video frame (ffmpeg `tpad`), reconciles clip lengths, consolidates, writes `stats.json`. Used to rebuild `Gal_split` → `Gal_split_tailed` before merging into `Gal-merged-tailed-auto`. |
 | `dataset_pipeline/strip_lang_and_tail.py` | Produce a no-language-conditioning clone with the last 20 frozen frames of every episode removed. Hardcoded paths: `Gal-merged-tailed-auto` → `Gal-merged-tailed-auto-no-lang-no-home`. |
+| `dataset_pipeline/strip_tail.py` | Tail-only variant of the above: removes the 20 frozen tail frames per episode but **keeps the language labels**. Reads the HF-cache copy of `Gal_split_tailed`, writes `synthetic_datasets/Gal_split_notail` (846 eps, 87 966 frames). Used to train `Gal-pick-orange-notailCH20` for the tail-free ablation. |
 
 ## Maintenance / one-shot utilities
 
