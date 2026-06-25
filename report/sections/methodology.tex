@@ -41,8 +41,8 @@ Fine-tuning is \textbf{parameter-efficient}: the vision encoder and the language
         % inputs
         \node[io] (front) {Front\\camera};
         \node[io, below=4mm of front] (wrist) {Wrist\\camera};
-        \node[io, below=8mm of wrist] (state) {Joint state\\$q\in\mathbb{R}^{6}$};
-        \node[io, below=8mm of state] (prompt) {Language\\prompt};
+        \node[io, below=8mm of wrist] (prompt) {Language\\prompt};
+        \node[io, below=8mm of prompt] (state) {Joint state\\$q\in\mathbb{R}^{6}$};
 
         % encoders
         \node[frozen, right=12mm of $(front)!0.5!(wrist)$] (venc) {Vision\\encoder};
@@ -59,6 +59,13 @@ Fine-tuning is \textbf{parameter-efficient}: the vision encoder and the language
         \node[io, right=12mm of expert] (act) {Action chunk\\$a_{t:t+20}\in\mathbb{R}^{20\times 6}$};
         \node[io, above=6mm of expert] (noise) {noise $+$ time};
 
+        % VLM grouping: vision encoder + token embedding + language model
+        \begin{scope}[on background layer]
+            \node[draw=blue!55!black, dashed, rounded corners, fill=blue!4, inner sep=3.5mm,
+                  fit=(venc)(emb)(vlm),
+                  label={[blue!55!black, font=\footnotesize\bfseries]above:VLM (SmolVLM2)}] (vlmbox) {};
+        \end{scope}
+
         % arrows
         \draw[arr] (front.east) -- (venc.west);
         \draw[arr] (wrist.east) -- (venc.west);
@@ -71,11 +78,7 @@ Fine-tuning is \textbf{parameter-efficient}: the vision encoder and the language
         \draw[arr] (noise.south) -- (expert.north);
         \draw[arr] (expert.east) -- (act.west);
 
-        % legend
-        \node[frozen, below=10mm of vlm, minimum height=5mm, xshift=-2mm] (lf) {};
-        \node[right=1.5mm of lf, font=\footnotesize] (lft) {frozen (pretrained, not updated)};
-        \node[trained, right=6mm of lft, minimum height=5mm] (lt) {};
-        \node[right=1.5mm of lt, font=\footnotesize] {trained (fine-tuned)};
+        % (blue = frozen, orange = trained; explained in the caption)
     \end{tikzpicture}
     \caption{SmolVLA architecture and the fine-tuning scheme used for every model in this report. The vision encoder and the language model together form the pretrained VLM (SmolVLM2); both are frozen (blue), and only the action expert and state projection are trained (orange). The unfreezing ablation of \cref{subsec:finetuning} additionally trains the language model, leaving the vision encoder frozen.}
     \label{fig:smolvla_finetune}
