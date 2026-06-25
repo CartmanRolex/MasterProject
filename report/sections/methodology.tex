@@ -50,7 +50,7 @@ Fine-tuning is \textbf{parameter-efficient}: the vision encoder and the language
         \node[trained, right=12mm of state] (sproj) {State\\projection};
 
         % backbone
-        \node[frozen, right=14mm of venc, minimum height=24mm] (vlm) {VLM backbone\\\footnotesize(16-layer LM)};
+        \node[frozen, right=14mm of venc, minimum height=24mm] (vlm) {Language model\\\footnotesize(16-layer LM)};
 
         % expert
         \node[trained, right=16mm of vlm, minimum height=30mm] (expert) {Action\\expert\\\footnotesize(flow matching)};
@@ -77,7 +77,7 @@ Fine-tuning is \textbf{parameter-efficient}: the vision encoder and the language
         \node[trained, right=6mm of lft, minimum height=5mm] (lt) {};
         \node[right=1.5mm of lt, font=\footnotesize] {trained (fine-tuned)};
     \end{tikzpicture}
-    \caption{SmolVLA architecture and the fine-tuning scheme used for every model in this report. The pretrained vision encoder and language backbone are frozen (blue); only the action expert and the state projection are trained (orange). The backbone-unfreezing ablation of \cref{subsec:finetuning} additionally trains the VLM backbone.}
+    \caption{SmolVLA architecture and the fine-tuning scheme used for every model in this report. The vision encoder and the language model together form the pretrained VLM (SmolVLM2); both are frozen (blue), and only the action expert and state projection are trained (orange). The unfreezing ablation of \cref{subsec:finetuning} additionally trains the language model, leaving the vision encoder frozen.}
     \label{fig:smolvla_finetune}
 \end{figure}
 
