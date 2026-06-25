@@ -18,7 +18,7 @@ At every step the policy observes the same fixed inputs: the six SO-101 joint st
         \includegraphics[width=\textwidth]{environment_plate_closeup.png}
         \caption{Wrist-camera view during a place.}
     \end{subfigure}
-    \caption{Simulated pick-and-place environment used for evaluation. The SO-101 arm must move three oranges into the plate while operating from camera observations and simulator state.}
+    \caption{Simulated SO-101 pick-and-place scene: three oranges to be placed in the plate.}
     \label{fig:environment}
 \end{figure}
 
@@ -80,7 +80,7 @@ Fine-tuning is \textbf{parameter-efficient}: the vision encoder and the language
 
         % (blue = frozen, orange = trained; explained in the caption)
     \end{tikzpicture}
-    \caption{SmolVLA architecture and the fine-tuning scheme used for every model in this report. The vision encoder and the language model together form the pretrained VLM (SmolVLM2); both are frozen (blue), and only the action expert and state projection are trained (orange). The unfreezing ablation of \cref{subsec:finetuning} additionally trains the language model, leaving the vision encoder frozen.}
+    \caption{SmolVLA architecture and fine-tuning scheme. The vision encoder and language model form the pretrained VLM (SmolVLM2); blue = frozen, orange = trained, so only the action expert and state projection are updated. The ablation of \cref{subsec:finetuning} additionally unfreezes the language model.}
     \label{fig:smolvla_finetune}
 \end{figure}
 
@@ -143,7 +143,7 @@ The orchestrator is a finite-state controller that wraps the VLA and issues only
 \begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{orchestrator_decision_flow.pdf}
-    \caption{Decision logic of the orchestrated evaluator. The VLA is queried only for manipulation subtasks; target selection, local retries, target redirection, and the home-pose reset are handled by the controller.}
+    \caption{Decision logic of the orchestrator. The VLA runs only the manipulation subtasks; target selection, retries, redirection, and the home-pose reset are handled by the controller.}
     \label{fig:orchestrator_flow}
 \end{figure}
 

@@ -12,7 +12,7 @@ Every completed run uses the same 100-scene reference seed set (\texttt{pick\_or
 \begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{orange_outcome_distribution.pdf}
-    \caption{Final plate occupancy across evaluated task formulations. Completed bars use the same 100 seeded initial conditions. Bar segments are percentages of evaluation episodes ending with 0, 1, 2, or 3 oranges in the plate; \textit{mean} is average final oranges in plate out of three. Bars are grouped by training dataset and labelled by task formulation.}
+    \caption{Final plate occupancy per model on the shared 100 seeded episodes: the share ending with 0--3 oranges placed, with the mean above each bar.}
     \label{fig:orange_outcome_distribution}
 \end{figure}
 
@@ -30,7 +30,7 @@ Every completed run uses the same 100-scene reference seed set (\texttt{pick\_or
 \begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{failure_modes.pdf}
-    \caption{Per-subtask outcome composition for the two orchestrated (subtask) models: each genuine GRASP / LIFT / PLACE attempt split into success, physical drop/slip, and timeout (a timed-out attempt whose orange is nonetheless in the plate counts as success). GRASP cannot drop or slip --- it either secures an orange or times out. Monotask models are omitted: without the orchestrator their per-subtask outcomes are reconstructed offline and the grasp search over-segments, leaving no trustworthy per-attempt grasp rate; their slip signatures are reported in \cref{tab:failure_geometry}.}
+    \caption{Outcome composition of genuine GRASP / LIFT / PLACE attempts for the two subtask models. Monotask models lack clean per-attempt grasp telemetry and are omitted; their slip geometry is in \cref{tab:failure_geometry}.}
     \label{fig:failure_modes}
 \end{figure}
 
@@ -41,7 +41,7 @@ Every completed run uses the same 100-scene reference seed set (\texttt{pick\_or
 \begin{table}[H]
     \centering
     \small
-    \caption{Failure geometry of the \textbf{monotask} policies (median over attempts; the subtask checkpoints do not log per-attempt geometry). \emph{Place release dist.}\ is the orange's horizontal distance from the plate centre when released --- a slip lets go over the rim. \emph{Lift height gain} is how far a held orange rose before it was lost --- a drop never really leaves the table. These unguarded modes surface only in the monotask: the subtask orchestrator gates LIFT on a force-confirmed grasp.}
+    \caption{Monotask failure geometry (median over attempts): a slipped place releases the orange far from the plate centre, over the rim; a failed lift barely clears the table. Subtask checkpoints log no per-attempt geometry.}
     \label{tab:failure_geometry}
     \begin{tabular}{lcccc}
         \toprule
@@ -63,7 +63,7 @@ Every completed run uses the same 100-scene reference seed set (\texttt{pick\_or
 \begin{table}[H]
     \centering
     \small
-    \caption{Level-2 (task) recovery after a physical setback (LIFT drop or PLACE slip), measured identically for both formulations from simulator state. \emph{Score recovery}: of episodes with at least one setback, the fraction whose placed count rose after the first setback. \emph{Different-orange recovery}: of setbacks with at least one other orange still unplaced, the fraction followed by a successful placement of a different orange. Denominators differ because the subtask policy suffers far fewer setbacks.}
+    \caption{Level-2 (task) recovery after a setback (LIFT drop or PLACE slip), measured identically for both formulations. Denominators differ because the subtask policy suffers far fewer setbacks.}
     \label{tab:task_recovery}
     \begin{tabular}{llcc}
         \toprule
@@ -90,7 +90,7 @@ Only the orchestrated runs name their target by spatial label (``Grasp \emph{<po
 \begin{table}[H]
     \centering
     \small
-    \caption{Prevalence of positional grasp instructions in the training data: number of GRASP episodes per label, by source. ``Other'' aggregates the rarely used top left, top middle, and bottom middle labels.}
+    \caption{Training GRASP episodes per positional label, by source. ``Other'' aggregates the rare top-left, top-middle, and bottom-middle labels.}
     \label{tab:label_prevalence}
     \begin{tabular}{lccc}
         \toprule
@@ -113,7 +113,7 @@ Only the orchestrated runs name their target by spatial label (``Grasp \emph{<po
 \begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{grasp_obedience_confusion.pdf}
-    \caption{Grasp-obedience confusion matrices for the two subtask models, with all three oranges on the table (top) and one already placed (bottom). Rows are the requested position, columns the position actually grasped (by orange identity). \textbf{Green} diagonal cells are obeyed grasps and \textbf{red} off-diagonal cells are misgrabs, each shaded by its share of the row; the per-row obeyed rate and count, and the per-panel overall rate, are printed alongside. Labels reflect the scene at grasp time. The 2-placed state (one orange left, trivially obeyed) and two single-sample requests are omitted.}
+    \caption{Grasp-obedience confusion matrices for the two subtask models: three oranges present (top), one already placed (bottom). Rows are the requested position, columns the grasped one (by identity); \textbf{green} = obeyed, \textbf{red} = misgrab. The trivial two-placed state and single-sample requests are omitted.}
     \label{fig:grasp_confusion}
 \end{figure}
 
