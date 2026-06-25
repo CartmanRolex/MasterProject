@@ -1,3 +1,44 @@
+% ============================================================
+%  Vision-language-action models / generalist policies
+% ============================================================
+@article{brohan2023rt2,
+  title   = {{RT-2}: Vision-Language-Action Models Transfer Web Knowledge to Robotic Control},
+  author  = {Brohan, Anthony and others},
+  journal = {arXiv preprint arXiv:2307.15818},
+  year    = {2023}
+}
+
+@article{octo2024,
+  title   = {Octo: An Open-Source Generalist Robot Policy},
+  author  = {{Octo Model Team}},
+  journal = {arXiv preprint arXiv:2405.12213},
+  year    = {2024}
+}
+
+@article{kim2024openvla,
+  title   = {{OpenVLA}: An Open-Source Vision-Language-Action Model},
+  author  = {Kim, Moo Jin and Pertsch, Karl and Karamcheti, Siddharth and others},
+  journal = {arXiv preprint arXiv:2406.09246},
+  year    = {2024}
+}
+
+@article{black2024pi0,
+  title   = {{$\pi_0$}: A Vision-Language-Action Flow Model for General Robot Control},
+  author  = {Black, Kevin and Brown, Noah and Driess, Danny and others},
+  journal = {arXiv preprint arXiv:2410.24164},
+  year    = {2024}
+}
+
+@article{shukor2025smolvla,
+  title   = {{SmolVLA}: A Vision-Language-Action Model for Affordable and Efficient Robotics},
+  author  = {Shukor, Mustafa and Aubakirova, Dana and Capuano, Francesco and others},
+  journal = {arXiv preprint arXiv:2506.01844},
+  year    = {2025}
+}
+
+% ============================================================
+%  Imitation learning and its failure modes
+% ============================================================
 @article{zhao2023act,
   title   = {Learning Fine-Grained Bimanual Manipulation with Low-Cost Hardware},
   author  = {Zhao, Tony Z. and Kumar, Vikash and Levine, Sergey and Finn, Chelsea},
@@ -5,16 +46,133 @@
   year    = {2023}
 }
 
-@misc{smolvla2024,
-  title  = {SmolVLA: A Vision-Language-Action Model for Affordable and Efficient Robotics},
-  author = {HuggingFace},
-  year   = {2024},
-  howpublished = {\url{https://huggingface.co/blog/smolvla}}
+@article{chi2023diffusion,
+  title   = {Diffusion Policy: Visuomotor Policy Learning via Action Diffusion},
+  author  = {Chi, Cheng and Feng, Siyuan and Du, Yilun and Xu, Zhenjia and Cousineau, Eric and Burchfiel, Benjamin and Song, Shuran},
+  journal = {arXiv preprint arXiv:2303.04137},
+  year    = {2023}
+}
+
+@inproceedings{ross2011dagger,
+  title     = {A Reduction of Imitation Learning and Structured Prediction to No-Regret Online Learning},
+  author    = {Ross, St{\'e}phane and Gordon, Geoffrey J. and Bagnell, J. Andrew},
+  booktitle = {Proceedings of the International Conference on Artificial Intelligence and Statistics (AISTATS)},
+  year      = {2011}
+}
+
+@article{spencer2021feedback,
+  title   = {Feedback in Imitation Learning: The Three Regimes of Covariate Shift},
+  author  = {Spencer, Jonathan and Choudhury, Sanjiban and Venkatraman, Arun and Ziebart, Brian and Bagnell, J. Andrew},
+  journal = {arXiv preprint arXiv:2102.02872},
+  year    = {2021}
+}
+
+@inproceedings{foster2024horizon,
+  title     = {Is Behavior Cloning All You Need? Understanding Horizon in Imitation Learning},
+  author    = {Foster, Dylan J. and Block, Adam and Misra, Dipendra},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year      = {2024}
+}
+
+% ============================================================
+%  Decomposition and language hierarchies
+% ============================================================
+@article{belkhale2024rth,
+  title   = {{RT-H}: Action Hierarchies Using Language},
+  author  = {Belkhale, Suneel and Ding, Tianli and Xiao, Ted and Sermanet, Pierre and Vuong, Quon and Tompson, Jonathan and Chebotar, Yevgen and Dwibedi, Debidatta and Sadigh, Dorsa},
+  journal = {arXiv preprint arXiv:2403.01823},
+  year    = {2024}
+}
+
+@article{ahn2022saycan,
+  title   = {Do As I Can, Not As I Say: Grounding Language in Robotic Affordances},
+  author  = {Ahn, Michael and Brohan, Anthony and Brown, Noah and others},
+  journal = {arXiv preprint arXiv:2204.01691},
+  year    = {2022}
+}
+
+@article{huang2022inner,
+  title   = {Inner Monologue: Embodied Reasoning through Planning with Language Models},
+  author  = {Huang, Wenlong and Xia, Fei and Xiao, Ted and others},
+  journal = {arXiv preprint arXiv:2207.05608},
+  year    = {2022}
+}
+
+@article{liang2022cap,
+  title   = {Code as Policies: Language Model Programs for Embodied Control},
+  author  = {Liang, Jacky and Huang, Wenlong and Xia, Fei and Xu, Peng and Hausman, Karol and Ichter, Brian and Florence, Pete and Zeng, Andy},
+  journal = {arXiv preprint arXiv:2209.07753},
+  year    = {2022}
+}
+
+% ============================================================
+%  Failure detection and recovery
+% ============================================================
+@inproceedings{dai2024racer,
+  title     = {{RACER}: Rich Language-Guided Failure Recovery Policies for Imitation Learning},
+  author    = {Dai, Yinpei and Lee, Jayjun and Fazeli, Nima and Chai, Joyce},
+  booktitle = {IEEE International Conference on Robotics and Automation (ICRA)},
+  year      = {2025}
+}
+
+@inproceedings{gu2025safe,
+  title     = {{SAFE}: Multitask Failure Detection for Vision-Language-Action Models},
+  author    = {Gu, Qiao and Ju, Yuanliang and Sun, Shengxiang and Gilitschenski, Igor and Nishimura, Haruki and Itkina, Masha and Shkurti, Florian},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year      = {2025}
+}
+
+@article{zhou2024codeasmonitor,
+  title   = {Code-as-Monitor: Constraint-aware Visual Programming for Reactive and Proactive Robotic Failure Detection},
+  author  = {Zhou, Enshen and Su, Qi and Chi, Cheng and others},
+  journal = {arXiv preprint arXiv:2412.04455},
+  year    = {2024}
+}
+
+@inproceedings{liu2023reflect,
+  title     = {{REFLECT}: Summarizing Robot Experiences for Failure Explanation and Correction},
+  author    = {Liu, Zeyi and Bahety, Arpit and Song, Shuran},
+  booktitle = {Conference on Robot Learning (CoRL)},
+  year      = {2023}
+}
+
+@inproceedings{agia2024sentinel,
+  title     = {Unpacking Failure Modes of Generative Policies: Runtime Monitoring of Consistency and Progress},
+  author    = {Agia, Christopher and Sinha, Rohan and Yang, Jingyun and Cao, Zi-ang and Antonova, Rika and Pavone, Marco and Bohg, Jeannette},
+  booktitle = {Conference on Robot Learning (CoRL)},
+  year      = {2024}
+}
+
+% ============================================================
+%  Self-improvement from autonomous data
+% ============================================================
+@inproceedings{peters2007rwr,
+  title     = {Reinforcement Learning by Reward-Weighted Regression for Operational Space Control},
+  author    = {Peters, Jan and Schaal, Stefan},
+  booktitle = {International Conference on Machine Learning (ICML)},
+  year      = {2007}
+}
+
+@article{sharma2023selfimproving,
+  title   = {Self-Improving Robots: End-to-End Autonomous Visuomotor Reinforcement Learning},
+  author  = {Sharma, Archit and Ahmed, Ahmed M. and Ahmad, Rehaan and Finn, Chelsea},
+  journal = {arXiv preprint arXiv:2303.01488},
+  year    = {2023}
+}
+
+% ============================================================
+%  Platform / simulation
+% ============================================================
+@article{mittal2023orbit,
+  title   = {Orbit: A Unified Simulation Framework for Interactive Robot Learning Environments},
+  author  = {Mittal, Mayank and Yu, Calvin and Yu, Qinxi and others},
+  journal = {arXiv preprint arXiv:2301.04195},
+  year    = {2023}
 }
 
 @misc{lerobot2024,
-  title  = {LeRobot: Making AI for Robotics More Accessible},
-  author = {HuggingFace},
-  year   = {2024},
+  title        = {{LeRobot}: State-of-the-Art Machine Learning for Real-World Robotics in {PyTorch}},
+  author       = {Cadene, Remi and Alibert, Simon and Soare, Alexander and Gallouedec, Quentin and Zouitine, Adil and Wolf, Thomas},
+  year         = {2024},
   howpublished = {\url{https://github.com/huggingface/lerobot}}
 }
