@@ -47,9 +47,14 @@ classification, spatial resets, and target selection.
 - "Phantom grasp" = gripper closed on air; detected via gripper force.
 
 ## Key finding to preserve in writing
-VLA language conditioning is spatially context-dependent. Target
-switching fails when the gripper is near a non-target orange. This
-motivates the scripted spatial reset.
+Target-switching via language is bounded by dataset coverage, not an intrinsic
+VLA property. The policy only learned the language-to-target choice from high,
+far-from-the-oranges configurations (seen at episode start and just after a
+placement); grasps were collected one target at a time, so from states near an
+orange it never saw a redirection branch and ignores a new prompt there. The
+scripted spatial reset reproduces such a high/far configuration as a pragmatic
+workaround (it also keeps the shared monotask data free of instruction-following
+episodes). Do not write this up as a headline discovery.
 
 ---
 
