@@ -8,12 +8,15 @@ PhaseMonitor (`geometry_trace`, schema v4) and derives, with tunable thresholds:
   * Distinct oranges TRIED / episode -- fills the `pending` cells in experiments.tex.
   * Fixation -- distribution of distinct oranges engaged per episode (1 = fixates on a
     single orange and burns the episode; >1 = it does move on), and the share of
-    engaged frames spent on the single most-engaged orange.
-  * Closest approach per orange -- min grip-axis distance reached, with step + closure.
+    centering time spent on the single most-engaged orange.
+  * Closest grip-axis approach per orange.
 
-"Engaged" = the orange is the nearest unplaced one to the grip axis AND within
-ENGAGE_M of it; an orange counts as "tried" once it accrues >= MIN_ENGAGED_FRAMES
-such frames. Thresholds live here, so refining the definition needs no eval rerun.
+"Tried" = the policy *sustained-centers* the grip axis on an orange: the orange is the
+nearest unplaced one AND within CENTER_M of the grip axis for >= MIN_CENTER_FRAMES
+*consecutive* recorded frames. Plain proximity is NOT enough -- the oranges sit ~10 cm
+apart, so the gripper passes within ~1 cm of all three while working one; only a
+sustained centred run marks a genuine attempt. Thresholds live here, so refining the
+definition needs no eval rerun.
 
   python compute_grasp_intent.py
 """
@@ -33,9 +36,10 @@ MODELS = [
     ("Teleop+Auto", "Gal-merged-tailed-auto-no-lang-no-home", "flat_checkpoint.json"),
 ]
 
-# --- Tunable definitions (no rerun needed to change these) -------------------
-ENGAGE_M = 0.06            # grip-axis distance (m) under which the policy is "aiming" at an orange
-MIN_ENGAGED_FRAMES = 3     # recorded frames an orange must accrue to count as "tried"
+# --- Tunable definitions (no eval rerun needed to change these) --------------
+CENTER_M = 0.02           # grip-axis distance (m) under which the policy is "centred" on an orange
+MIN_CENTER_FRAMES = 5     # consecutive recorded frames centred -> a genuine attempt
+                          # (with TELEMETRY_EVERY_STEPS=10, 5 frames ~= 50 sim steps ~= 0.8 s)
 
 
 def episodes(data):
@@ -43,20 +47,44 @@ def episodes(data):
     return list(eps.values()) if isinstance(eps, dict) else eps
 
 
-def per_frame_engaged(frame):
-    """Return (name, axis_dist) of the nearest unplaced orange within ENGAGE_M, else None."""
+def orange_cols(columns):
+    """Map orange name -> (axis_dist_idx, in_plate_idx) from the columnar header."""
+    out = {}
+    for i, c in enumerate(columns):
+        if c.endswith(":axis_dist"):
+            out.setdefault(c[:-len(":axis_dist")], {})["axis"] = i
+        elif c.endswith(":in_plate"):
+            out.setdefault(c[:-len(":in_plate")], {})["plate"] = i
+    return out
+
+
+def nearest_unplaced(row, ocols):
+    """(name, axis_dist) of the nearest not-in-plate orange in this row, or None."""
     best = None
-    for name, o in frame.get("oranges", {}).items():
-        if o.get("in_plate"):
+    for name, idx in ocols.items():
+        if row[idx["plate"]]:
             continue
-        d = o.get("axis_dist")
-        if d is None:
-            continue
+        d = row[idx["axis"]]
         if best is None or d < best[1]:
             best = (name, d)
-    if best is not None and best[1] < ENGAGE_M:
-        return best
-    return None
+    return best
+
+
+def centering(rows, ocols):
+    """Per-orange: total centred frames, max consecutive centred run."""
+    total = defaultdict(int)
+    maxrun = defaultdict(int)
+    cur, run = None, 0
+    for row in rows:
+        nb = nearest_unplaced(row, ocols)
+        if nb and nb[1] < CENTER_M:
+            total[nb[0]] += 1
+            run = run + 1 if nb[0] == cur else 1
+            cur = nb[0]
+            maxrun[cur] = max(maxrun[cur], run)
+        else:
+            cur, run = None, 0
+    return total, maxrun
 
 
 def analyse(ds, subdir, fname):
@@ -69,43 +97,34 @@ def analyse(ds, subdir, fname):
     eps = episodes(data)
 
     tried_per_ep = []
-    distinct_hist = defaultdict(int)     # distinct oranges tried -> #episodes
+    distinct_hist = defaultdict(int)
     dominant_shares = []
-    closest_by_orange = defaultdict(list)
+    closest_all = []
     no_trace = 0
 
     for e in eps:
-        trace = (e.get("geometry_trace") or {})
-        frames = trace.get("frames")
-        if not frames:
+        gt = e.get("geometry_trace") or {}
+        rows = gt.get("rows")
+        if not rows:
             no_trace += 1
             continue
-
-        engaged_frames = defaultdict(int)
-        closest = {}  # name -> (min_axis_dist, step, gripper_pos)
-        for f in frames:
-            eng = per_frame_engaged(f)
-            if eng is not None:
-                engaged_frames[eng[0]] += 1
-            for name, o in f.get("oranges", {}).items():
-                d = o.get("axis_dist")
-                if d is None:
-                    continue
-                if name not in closest or d < closest[name][0]:
-                    closest[name] = (d, f.get("step"), f.get("gripper_pos"))
-
-        tried = [n for n, c in engaged_frames.items() if c >= MIN_ENGAGED_FRAMES]
+        ocols = orange_cols(gt.get("columns", []))
+        total, maxrun = centering(rows, ocols)
+        tried = [n for n, r in maxrun.items() if r >= MIN_CENTER_FRAMES]
         tried_per_ep.append(len(tried))
         distinct_hist[len(tried)] += 1
-        total_eng = sum(engaged_frames[n] for n in tried)
-        if total_eng:
-            dominant_shares.append(max(engaged_frames[n] for n in tried) / total_eng)
-        for n, (d, _s, _g) in closest.items():
-            closest_by_orange[n].append(d)
+        tot = sum(total[n] for n in tried)
+        if tot:
+            dominant_shares.append(max(total[n] for n in tried) / tot)
+        closest = {}
+        for row in rows:
+            for n, idx in ocols.items():
+                closest[n] = min(closest.get(n, 9.0), row[idx["axis"]])
+        closest_all.extend(closest.values())
 
     n_used = len(tried_per_ep)
     if not n_used:
-        print(f"  no geometry_trace in any episode (rerun eval with schema v4 to populate)")
+        print("  no geometry_trace in any episode (rerun eval with schema v4 to populate)")
         return
 
     print(f"  episodes with trace:                {n_used}/{len(eps)}"
@@ -115,11 +134,10 @@ def analyse(ds, subdir, fname):
     dist = "  ".join(f"{k}:{distinct_hist[k]}" for k in sorted(distinct_hist))
     print(f"  fixation (distinct tried -> #eps):  {dist}")
     if dominant_shares:
-        print(f"  share of engaged time on top orange: {100*st.mean(dominant_shares):.1f}%")
-    closest_all = [d for v in closest_by_orange.values() for d in v]
+        print(f"  share of centred time on top orange: {100*st.mean(dominant_shares):.1f}%")
     if closest_all:
-        print(f"  median closest grip-axis approach:  {st.median(closest_all)*100:.1f} cm"
-              f"   (ENGAGE_M={ENGAGE_M*100:.0f} cm, MIN_FRAMES={MIN_ENGAGED_FRAMES})")
+        print(f"  median closest grip-axis approach:  {st.median(closest_all)*100:.1f} cm")
+    print(f"  [CENTER_M={CENTER_M*100:.0f} cm, MIN_CENTER_FRAMES={MIN_CENTER_FRAMES}]")
 
 
 if __name__ == "__main__":

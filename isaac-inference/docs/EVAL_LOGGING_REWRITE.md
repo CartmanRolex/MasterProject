@@ -128,47 +128,59 @@ lift / place / timeout) becomes **offline post-processing** — a future idea is
 change, never an eval rerun.
 
 - `PhaseMonitor.__init__` reads env knobs: `TELEMETRY_TRACE` (default on),
-  `TELEMETRY_EVERY_STEPS` (default 3, downsample), `TELEMETRY_PROXIMITY_M`
+  `TELEMETRY_EVERY_STEPS` (default 10, downsample), `TELEMETRY_PROXIMITY_M`
   (default 0.20 m, gate).
 - `reset()` adds `self.geometry_trace = []`.
 - `_record_geometry(...)` (called at the top of `update()`, reusing the tuple
-  `_get_env_data` already returns) appends one rounded frame, **downsampled** by
-  `every_steps` and **gated** to frames where some unplaced orange's grip-axis distance
-  is `< proximity_m` **or** phase ≠ SEARCHING (far idle-search carries no aim info).
+  `_get_env_data` already returns) appends one rounded **columnar row**, **downsampled**
+  by `every_steps` and **gated** to frames where some unplaced orange's grip-axis
+  distance is `< proximity_m` **or** phase ≠ SEARCHING (far idle-search carries no aim).
 - `build_record()` emits a top-level `"geometry_trace"` key, which flows into the
   episode record via `inference_flat_prompt.py`'s `record.update(phase_debug)` — **no
   change to `inference_flat_prompt.py`**.
 
-### Per-frame fields
+### Columnar format (compact — arrays, not per-frame keyed dicts)
 ```
-{
-  "step", "phase",
-  "gripper_tip":[x,y,z], "jaw_tip":[x,y,z],     # grip axis -> any distance recomputable
-  "gripper_pos",                                  # closure (joint value)
-  "grip_force_n", "jaw_force_n",                  # raw per-tip contact force on the grip axis
-  "plate":[x,y,z], "plate_quat":[w,x,y,z],
-  "oranges": { name: {pos:[x,y,z], axis_dist, tip_dist, grip_axis_t, height_gain, in_plate} }
+"geometry_trace": {
+  "schema_version": 4, "format": "columnar", "every_steps", "proximity_m",
+  "columns": ["step","phase","gripper_tip_x","gripper_tip_y","gripper_tip_z",
+              "gripper_pos","grip_force_n","jaw_force_n",
+              "<Oi>:axis_dist","<Oi>:tip_dist","<Oi>:height_gain","<Oi>:in_plate", ...],
+  "rows": [ [<one value per column>], ... ]   # one row per recorded frame
 }
 ```
-Raw positions/forces are the source of truth; distances are stored as convenience.
+`axis_dist` = orange COM distance to the grip-axis segment; `tip_dist` = min tip→COM
+distance; raw per-tip forces + closure let "held"/grasp be re-derived; `in_plate` from
+the tilt-aware plate volume. Columnar (no repeated keys) keeps it ~158 bytes/row.
 
 ## Offline consumer
-`report/scripts/compute_grasp_intent.py` reads `geometry_trace` and prints, with
-**tunable** thresholds (`ENGAGE_M`, `MIN_ENGAGED_FRAMES`): distinct oranges **tried**/ep
-(fills the `pending` cells in `experiments.tex`), **fixation** (distinct-engaged
-distribution + share of engaged time on the top orange), and closest grip-axis approach.
-Degrades gracefully (reports "no geometry_trace") on pre-v4 checkpoints.
+`report/scripts/compute_grasp_intent.py` reads the columnar `geometry_trace` and prints,
+with **tunable** thresholds (`CENTER_M`, `MIN_CENTER_FRAMES`): distinct oranges
+**tried**/ep, **fixation** (distinct-centred distribution + share of centred time on the
+top orange), and closest grip-axis approach. "Tried" = an orange is the nearest unplaced
+one AND within `CENTER_M` of the grip axis for ≥ `MIN_CENTER_FRAMES` **consecutive**
+recorded frames (sustained centring — plain proximity over-counts because the oranges
+are clustered ~10 cm apart). Degrades gracefully on pre-v4 checkpoints.
 
 ## Size
-Gated+downsampled+rounded; ~hundreds of frames/episode at the default gate (the smoke
-run with the gate *disabled* was ~99 frames per 300-step episode → ~0.19 MB/episode).
-Expect roughly +5–10 MB per 100-episode model with the default gate.
+Columnar + downsampled (`every_steps`=10) + rounded ≈ **~8 MB per 100-episode model**
+(~490 rows/episode, ~158 bytes/row). The proximity gate barely reduces frame count (the
+arm hovers among the clustered oranges almost the whole episode); downsampling is the
+effective lever.
 
 ## Scope / caveats
-Monotask only (subtask runs already name their target). The subtask force-confirmed
-grasp / "held" metrics keep their existing documented caveat — not changed here.
+- Monotask only (subtask runs already name their target). The subtask force-confirmed
+  grasp / "held" metrics keep their existing documented caveat — not changed here.
+- **Prompt:** the monotask reference evals use `INSTRUCTION="Place the orange into plate"`
+  (the flat eval's *default* is the old `"Grab orange and place into plate"` — wrong).
+- **Reproducibility:** logging-only, so this change does not alter trajectories; but the
+  full rollout is **not** bit-reproducible across runs (GPU/PhysX float nondeterminism —
+  init is reproducible, the 5000-step rollout is not). A rerun is a fresh sample, not a
+  replay of the committed episodes — so refreshing one monotask number means refreshing
+  the whole monotask row from the same run.
 
 ## After verifying
-Re-run the seeded monotask evals to populate `geometry_trace` (committed checkpoints
-predate v4), then fill the `pending` cells in `experiments.tex` and the fixation caveat
-in `results.tex` from `compute_grasp_intent.py`.
+Re-run the seeded monotask evals (with the correct prompt) to populate `geometry_trace`
+and **refresh all monotask numbers** from the new run, then fill the `pending` cells in
+`experiments.tex` and the fixation caveat in `results.tex` from `compute_grasp_intent.py`
++ `compute_grasp_chain.py`.

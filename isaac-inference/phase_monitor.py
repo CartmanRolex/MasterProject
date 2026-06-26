@@ -61,7 +61,7 @@ class PhaseMonitor:
         # thresholds — no eval rerun needed. Gated to frames near an orange (where aim
         # is knowable) and downsampled to keep checkpoint.json small.
         self.telemetry_enabled = _env_flag("TELEMETRY_TRACE", True)
-        self.telemetry_every_steps = max(1, _env_int("TELEMETRY_EVERY_STEPS", 3))
+        self.telemetry_every_steps = max(1, _env_int("TELEMETRY_EVERY_STEPS", 10))
         self.telemetry_proximity_m = _env_float("TELEMETRY_PROXIMITY_M", 0.20)
         self.reset()
 
@@ -155,6 +155,10 @@ class PhaseMonitor:
             reason=end_reason,
             oranges_in_plate=int(oranges_in_plate),
         )
+        geom_cols = ["step", "phase", "gripper_tip_x", "gripper_tip_y", "gripper_tip_z",
+                     "gripper_pos", "grip_force_n", "jaw_force_n"]
+        for _n in self.tracker.orange_names:
+            geom_cols += [f"{_n}:axis_dist", f"{_n}:tip_dist", f"{_n}:height_gain", f"{_n}:in_plate"]
         return {
             "episode_summary": {
                 "episode": int(episode),
@@ -187,9 +191,9 @@ class PhaseMonitor:
                 "enabled": self.telemetry_enabled,
                 "every_steps": self.telemetry_every_steps,
                 "proximity_m": self.telemetry_proximity_m,
-                "fields": "per-orange axis_dist/tip_dist from raw gripper_tip,jaw_tip; "
-                          "raw per-tip forces + closure; in_plate from tilt-aware plate volume",
-                "frames": self.geometry_trace,
+                "format": "columnar",
+                "columns": geom_cols,
+                "rows": self.geometry_trace,
             },
         }
 
@@ -654,12 +658,15 @@ class PhaseMonitor:
         }
 
     def _record_geometry(self, step_count, gripper_tip, jaw_tip, gripper_pos, gf, jf, plate_pos, orange_positions):
-        """Append one raw-geometry frame (schema v4) for offline grasp-intent analysis.
+        """Append one columnar raw-geometry row (schema v4) for offline grasp-intent.
 
-        Logging-only. Stores raw positions + per-tip contact forces so any distance,
-        "held", grasp/lift/place or timeout definition can be recomputed offline.
-        Downsampled (telemetry_every_steps) and gated to frames near an orange while
-        searching (telemetry_proximity_m), since aim is only knowable when close.
+        Logging-only. Stores the gripper tip, closure, raw per-tip contact forces and,
+        per orange (in tracker.orange_names order), grip-axis & tip distances, height
+        gain and in_plate — so "which orange", "held", grasp/lift/place and timeouts can
+        be recomputed offline with tunable thresholds. Rows are plain arrays whose
+        meaning is given by geometry_trace["columns"] (set in build_record), which is
+        far smaller than per-frame keyed dicts. Downsampled (telemetry_every_steps) and
+        gated to frames near an orange while searching (telemetry_proximity_m).
         """
         if not self.telemetry_enabled or step_count % self.telemetry_every_steps != 0:
             return
@@ -671,9 +678,12 @@ class PhaseMonitor:
         jaw_force = abs(torch.dot(jf.to(axis_unit.device), axis_unit).item())
 
         scene_oranges = (self._scene_now or {}).get("oranges", {})
-        oranges = {}
+        gx, gy, gz = self._vec(gripper_tip)
+        row = [int(step_count), self.current_phase, gx, gy, gz,
+               round(float(gripper_pos), 5), round(float(grip_force), 5), round(float(jaw_force), 5)]
         min_axis_unplaced = float("inf")
-        for name, opos in orange_positions.items():
+        for name in self.tracker.orange_names:
+            opos = orange_positions[name]
             t_raw = torch.dot(opos - gripper_tip, axis).item() / (axis_sq + 1e-8)
             t_clamped = max(0.0, min(1.0, t_raw))
             proj = gripper_tip + t_clamped * axis
@@ -682,14 +692,8 @@ class PhaseMonitor:
             initial_z = self.initial_orange_z.get(name, opos[2].item())
             height_gain = opos[2].item() - initial_z
             in_plate = bool(scene_oranges.get(name, {}).get("in_plate", False))
-            oranges[name] = {
-                "pos": self._vec(opos),
-                "axis_dist": round(float(axis_dist), 5),
-                "tip_dist": round(float(tip_dist), 5),
-                "grip_axis_t": round(float(t_raw), 5),
-                "height_gain": round(float(height_gain), 5),
-                "in_plate": in_plate,
-            }
+            row += [round(float(axis_dist), 5), round(float(tip_dist), 5),
+                    round(float(height_gain), 5), int(in_plate)]
             if not in_plate and name not in self.placed_oranges:
                 min_axis_unplaced = min(min_axis_unplaced, axis_dist)
 
@@ -698,18 +702,7 @@ class PhaseMonitor:
         if self.current_phase == "SEARCHING" and min_axis_unplaced >= self.telemetry_proximity_m:
             return
 
-        self.geometry_trace.append({
-            "step": int(step_count),
-            "phase": self.current_phase,
-            "gripper_tip": self._vec(gripper_tip),
-            "jaw_tip": self._vec(jaw_tip),
-            "gripper_pos": round(float(gripper_pos), 5),
-            "grip_force_n": round(float(grip_force), 5),
-            "jaw_force_n": round(float(jaw_force), 5),
-            "plate": self._vec(plate_pos),
-            "plate_quat": self._vec(self.tracker._plate_quat) if self.tracker._plate_quat is not None else None,
-            "oranges": oranges,
-        })
+        self.geometry_trace.append(row)
 
     def _grasp_candidate(self, gripper_tip, jaw_tip, orange_positions, gf, jf):
         axis = jaw_tip - gripper_tip
