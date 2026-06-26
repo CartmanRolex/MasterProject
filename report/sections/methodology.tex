@@ -156,6 +156,7 @@ The orchestrator is a finite-state controller that wraps the VLA and issues only
 The monotask formulation has no such structure: the policy runs end-to-end under one global prompt within a single 5000-step budget, with no checkpoints and no per-subtask timeout. The same three failure modes occur but are never detected or acted on online. For a common footing, the analysis in \cref{sec:experiments} reconstructs the same physical events for monotask runs offline from privileged state (inferring the worked target from the layout), so grasp, lift, and place outcomes are readable for both formulations even though only the orchestrated one observes them online.
 
 \subsection{Autonomous Data Generation}
+\label{subsec:autonomous}
 
 Early evaluation of the Teleop subtask model identified GRASP as the dominant bottleneck: lifting and placing were reliable once an orange was held, but the policy could not acquire certain oranges at all, depending on their randomly initialised position. Recovery therefore ran mainly through \textbf{Level-2} redirection --- abandoning an ungraspable orange for a reachable one --- rather than \textbf{Level-1} retries, which follow only the rarer post-grasp slip. One hypothesis was a \emph{coverage} gap: the policy generalised poorly across orange positions and simply needed more grasp data. Because teleoperation is slow to scale, the orchestrated system was used to generate that data automatically. (Whether more data helps is tested in \cref{sec:experiments}; it does not.)
 
