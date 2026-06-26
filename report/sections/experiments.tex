@@ -55,36 +55,34 @@ Final plate occupancy for every model on the shared 100-seed set (5000-step budg
 \subsection{Target Obedience in the Subtask Policies}
 \label{sec:obedience}
 
-Only the orchestrated runs name their target by spatial label (``Grasp \emph{<position>} orange''), making it possible to ask whether the policy grasps the orange it was \emph{told} to --- a question monotask runs cannot pose. A grasp is \textbf{obeyed} when the gripper closes on the requested orange (matched by identity, not position label), counted over grasps that engage an orange; any other engaged grasp is a \textbf{misgrab}. Obedience is reported by \textbf{scene state} (oranges already placed at grasp time), since resolving a referent depends on how many distractors remain.
+Only the orchestrated runs name their target by spatial label (``Grasp \emph{<position>} orange''), so only they can be asked whether the policy grasps the orange it was \emph{told} to. A grasp is \textbf{obeyed} when the gripper closes on the requested orange (matched by identity) and a \textbf{misgrab} otherwise. About \textbf{70\%} of engaged grasps are obeyed, and the rate rises as oranges are placed and fewer distractors remain.
 
-\paragraph{The instructions are dominated by one referent.} The table below counts training GRASP episodes per label: \emph{right} alone is almost half, with \emph{middle} and \emph{left} next and diagonal labels rare (``other'' aggregates the rare top-left, top-middle, bottom-middle); the Auto episodes only deepened this skew. This sets up a clean test: \textbf{if obedience were limited by exposure, the most common labels should be obeyed best.}
+\textbf{Grounding, not coverage.} Training is dominated by one referent --- \emph{right} alone is almost half the GRASP episodes, and the Auto data only deepened the skew. If obedience were limited by \emph{exposure}, the most frequent labels would be obeyed best; the opposite holds. \emph{Right} is the most-trained label yet the \emph{worst} obeyed (43\%), while the rare \emph{left} and \emph{top right} are the best (96--97\%). More examples of a referent thus do not buy obedience: the bottleneck is \emph{grounding} the instruction to the scene, not coverage.
 
 \begin{table}[H]
     \centering
     \small
-    \begin{tabular}{lccc}
+    \begin{tabular}{lcccc}
         \toprule
-        Position & Teleop & Auto & Combined \\
+        & \multicolumn{3}{c}{Training episodes} & \\
+        \cmidrule(lr){2-4}
+        Position & Teleop & Auto & Combined & Obeyed \\
         \midrule
-        top right    & 25  & 4   & 29  \\
-        left         & 34  & 11  & 45  \\
-        middle       & 74  & 48  & 122 \\
-        right        & 135 & 74  & 209 \\
-        bottom right & 15  & 1   & 16  \\
-        other        & 7   & 5   & 12  \\
+        right        & 135 & 74  & 209 & 43\% \\
+        middle       & 74  & 48  & 122 & 80\% \\
+        left         & 34  & 11  & 45  & 97\% \\
+        top right    & 25  & 4   & 29  & 96\% \\
+        bottom right & 15  & 1   & 16  & 58\% \\
+        other        & 7   & 5   & 12  & --- \\
         \midrule
-        Total        & 290 & 143 & 433 \\
+        Total        & 290 & 143 & 433 & \\
         \bottomrule
     \end{tabular}
 \end{table}
 
-\paragraph{Obedience improves as the scene simplifies.} The confusion matrices below report, per model and scene state (three oranges present, top; one already placed, bottom), how often each requested position was obeyed (\textbf{green} diagonal) and where misses landed (\textbf{red}); rows are the requested position, columns the grasped one by identity. Roughly three in four engaged grasps reach the requested orange, and the rate climbs as oranges clear: lowest with all three present, higher once one is placed. \textbf{Fewer distractors make the referent easier to resolve.}
+\textbf{A systematic inward bias.} The misses behind this ordering are not random but systematically \emph{inward}: a missed request closes on the orange immediately toward the scene centre --- \emph{right} taken as \emph{middle}, \emph{middle} as \emph{left}, \emph{bottom right} as \emph{top right} --- a consistent short reach that most often costs the rightmost referent (figure below). It is genuine behaviour, not a logging artefact: the grasped orange is identified from contact and is a physically distinct one a few centimetres inward of the one requested. The VLA's positional conditioning is thus a spatially biased channel, not a clean target selector --- the context-dependence the scripted spatial reset works around.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{grasp_obedience_confusion.pdf}
 \end{figure}
-
-\paragraph{Misgrabs follow a systematic inward bias.} The errors are far from random: in every panel a missed request closes on the orange immediately \textbf{inward of} the intended one --- \emph{right} taken as \emph{middle}, \emph{middle} as \emph{left}, \emph{bottom right} as \emph{top right}. The extreme referents \emph{left} and \emph{top right} are thus obeyed most reliably, while \emph{right} is the worst-obeyed label in both models and scene states. This is real behaviour, not a logging artefact: the grasped orange is identified from contact, the requested one is verifiably the true rightmost, and the orange taken is a physically distinct one a few centimetres inward --- a genuine short reach in packed scenes.
-
-\paragraph{A grounding gap, not a coverage gap.} This ordering runs \emph{opposite} to training prevalence: the most frequent label \emph{right} is the worst obeyed, the sparse \emph{top right} among the best. \textbf{More examples do not buy better obedience} --- exactly what the Auto data shows, adding exposure without lifting it. The bottleneck is \emph{grounding} the instruction to the scene: the VLA's positional conditioning is a spatially biased channel, not a clean target selector --- the context-dependence the scripted spatial reset works around.
