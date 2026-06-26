@@ -16,9 +16,9 @@ Final plate occupancy for every model on the shared 100-seed set (5000-step budg
 
 \paragraph{Policy backbone.} \textbf{[Placeholder: interpretation of the ACT vs.\ SmolVLA baseline comparison to be finalised.]}
 
-\paragraph{Decomposition helps partial progress, not full-task completion.} On the same trajectories, the subtask formulation's benefit is in partial progress, not finishing all three. On Teleop it raises mean occupancy sharply (1.11 to 1.77) while leaving full-task success flat (18\% to 20\%): checkpoints convert empty and one-orange episodes into two-orange ones, rarely into three. On Teleop+Auto the monotask model is in fact stronger on both metrics (mean 1.50 vs.\ 1.42, full-task 26\% vs.\ 13\%). Decomposition thus secures more oranges on average on Teleop but does not raise full-task completion.
+\paragraph{Decomposition helps partial progress more than full-task completion.} On the same trajectories, the subtask formulation's benefit is mainly in partial progress. On Teleop it raises mean occupancy sharply (1.02 to 1.77) while raising full-task success only modestly (14\% to 20\%): checkpoints convert empty and one-orange episodes into two-orange ones, rarely into three. On Teleop+Auto the picture is mixed --- the monotask model is ahead on full-task success (18\% vs.\ 13\%) but behind on mean occupancy (1.29 vs.\ 1.42). Decomposition thus raises mean occupancy on Teleop, but its effect on full-task completion is small and inconsistent across sources.
 
-\paragraph{Subtasking rarely fails completely.} The clearest advantage is on the weakest outcome --- an episode with no orange placed. The subtask models almost always place at least one (97\% of Teleop episodes, 84\% on Teleop+Auto), whereas the monotask models leave many empty (only 57\% and 73\% reach one). Target redirection is the likely reason: a monotask policy can fixate on one hard-to-grasp orange and burn the episode, while the controller detects the repeated GRASP timeout and redirects to another. The decomposed formulation thus rarely fails totally, even when it does not complete the task.
+\paragraph{Subtasking rarely fails completely.} The clearest advantage is on the weakest outcome --- an episode with no orange placed. The subtask models almost always place at least one (97\% of Teleop episodes, 84\% on Teleop+Auto), whereas the monotask models leave far more empty (only 56\% and 64\% reach one). Target redirection is the likely reason --- but not because the monotask fixates on a single orange: it actually approaches about two distinct oranges per episode (\cref{sec:failure_modes}), yet, lacking a deliberate give-up-and-redirect, it often exhausts the budget without securing any, while the controller detects a repeated GRASP timeout and redirects to another reachable orange. The decomposed formulation thus rarely fails totally, even when it does not complete the task.
 
 \paragraph{Aggregating autonomous data did not help.} Adding the Auto episodes to Teleop regressed the subtask model on both metrics (full-task 20\% to 13\%, mean 1.77 to 1.42). In-distribution successful subtasks were thus not sufficient to improve full-task behaviour; the subtask-level analysis below isolates what degraded.
 
@@ -34,7 +34,7 @@ Final plate occupancy for every model on the shared 100-seed set (5000-step budg
 
 \textbf{Local retry rarely decides a placement.} Re-grasping the \emph{same} orange after a slip --- the orchestrator's \textbf{Level-1} recovery --- is seldom what lands an orange: only 12 of the 186 secured-and-placed oranges took more than one grasp.
 
-\textbf{The orchestrator tries more oranges than it secures.} It attempts about \textbf{2.7} distinct oranges per episode against the $\sim$2 it ever secures: \textbf{Level-2} redirection, giving up on a hard orange to try another. The end-to-end policy cannot switch targets this way.
+\textbf{The orchestrator tries more oranges than it secures.} It attempts about \textbf{2.7} distinct oranges per episode against the $\sim$2 it ever secures: \textbf{Level-2} redirection, giving up on a hard orange to try another. The end-to-end policy reaches a similar count only \emph{incidentally} --- about \textbf{2.0--2.2} distinct oranges per episode (monotask ``Oranges tried'' column above, recovered from per-step grip-axis proximity) --- so the gap is not that it never approaches a second orange, but that it does so without a deliberate give-up-and-switch and ends an episode empty far more often (36--44\% vs.\ 3--16\%).
 
 \begin{table}[H]
     \centering
@@ -43,10 +43,10 @@ Final plate occupancy for every model on the shared 100-seed set (5000-step budg
         \toprule
         Training set & Formulation & Grasp success & Secured/ep & Place once secured & Oranges tried \\
         \midrule
-        Teleop      & Monotask & --- & 1.4 & 77\% & \emph{pending} \\
+        Teleop      & Monotask & --- & 1.3 & 79\% & 2.2 \\
         Teleop      & Subtask  & 38\% & 2.1 & 87\% & 2.7 \\
         \midrule
-        Teleop+Auto & Monotask & --- & 1.7 & 87\% & \emph{pending} \\
+        Teleop+Auto & Monotask & --- & 1.5 & 86\% & 2.0 \\
         Teleop+Auto & Subtask  & 37\% & 1.9 & 73\% & 2.8 \\
         \bottomrule
     \end{tabular}
