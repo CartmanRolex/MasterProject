@@ -19,8 +19,24 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from compute_failure_modes import RESULTS, composition, grasp_composition
+from compute_failure_modes import RESULTS, composition
 from plot_lib import PdfFigure
+
+
+def grasp_strict(data):
+    """Force-confirmed grasp: an attempt either secures the orange (result success) or
+    times out. No geometric override -- matches tab:grasp_chain's grasp-success rate."""
+    s = t = 0
+    eps = data["episodes"].values() if isinstance(data["episodes"], dict) else data["episodes"]
+    for e in eps:
+        for a in e["subtask_attempts"]:
+            if a.get("subtask") != "GRASP":
+                continue
+            if a.get("result") == "success":
+                s += 1
+            elif a.get("result") == "timeout":
+                t += 1
+    return s, t
 
 OUTPUT_PDF = Path(__file__).resolve().parents[1] / "figures" / "failure_modes.pdf"
 
@@ -37,7 +53,8 @@ LEGEND = [("success", GREEN), ("drop / slip", ORANGE), ("timeout", GRAY)]
 
 def rows_for(data):
     """[(subtask, n, [(pct, color), ...]), ...] in GRASP, LIFT, PLACE order."""
-    sg, tg, ng, _, _ = grasp_composition(data)
+    sg, tg = grasp_strict(data)
+    ng = sg + tg
     out = [("GRASP", ng, [(100 * sg / ng, GREEN), (100 * tg / ng, GRAY)])]
     for sub in ("LIFT", "PLACE"):
         succ, drop, tmo, n, _, _ = composition(data, sub)
