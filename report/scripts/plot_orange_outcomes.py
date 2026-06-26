@@ -16,64 +16,56 @@ ROOT_DIR = REPORT_DIR.parent
 OUTPUT_PDF = REPORT_DIR / "figures" / "orange_outcome_distribution.pdf"
 
 
+def _r(subdir, fname):
+    return ROOT_DIR / "isaac-inference" / "results" / subdir / fname
+
+
+# Grouped by model family (source x formulation); within a family the bars are the
+# training-recipe variants (frozen / unfrozen-VLM / tail-free). Keep same-group entries
+# consecutive — the figure groups consecutive rows that share `group`.
 RESULT_FILES = [
-    ResultFile(
-        label="ACT\nLightwheelAI\nBaseline\nmonotask",
-        description="ACT on the LightwheelAI Baseline dataset (execute chunk size 20)",
-        path=ROOT_DIR / "isaac-inference" / "results" / "ACT-pick-orange-chunk20" / "act_latest.txt",
-        dataset="LightwheelAI Baseline",
-        policy="ACT",
-        mode="monotask",
-        tag="LW",
-    ),
-    ResultFile(
-        label="SmolVLA\nLightwheelAI\nBaseline\nmonotask",
-        description="SmolVLA on the LightwheelAI Baseline dataset",
-        path=ROOT_DIR / "isaac-inference" / "results" / "pick-orange-mimic" / "flat_latest.txt",
-        dataset="LightwheelAI Baseline",
-        policy="SmolVLA",
-        mode="monotask",
-        tag="LW",
-    ),
-    ResultFile(
-        label="SmolVLA\nTeleop\nmonotask",
-        description="SmolVLA monotask model trained on the teleoperated dataset",
-        path=ROOT_DIR / "isaac-inference" / "results" / "Gal_split_nolang" / "flat_latest.txt",
-        dataset="Teleop",
-        policy="SmolVLA",
-        mode="monotask",
-        tag="T",
-    ),
-    ResultFile(
-        label="SmolVLA\nTeleop\nsubtasks",
-        description="SmolVLA subtask model trained on the teleoperated dataset",
-        path=ROOT_DIR / "isaac-inference" / "results" / "Gal-pick-orange-tailedCH20" / "latest.txt",
-        dataset="Teleop",
-        policy="SmolVLA",
-        mode="subtasks",
-        tag="T",
-    ),
-    ResultFile(
-        label="SmolVLA\nTeleop+Auto\nmonotask",
-        description=(
-            "SmolVLA monotask fair-comparison model trained from the Teleop+Auto "
-            "dataset with a fixed full-task prompt"
-        ),
-        path=ROOT_DIR / "isaac-inference" / "results" / "Gal-merged-tailed-auto-no-lang-no-home" / "flat_latest.txt",
-        dataset="Teleop+Auto",
-        policy="SmolVLA",
-        mode="monotask",
-        tag="T+A",
-    ),
-    ResultFile(
-        label="SmolVLA\nTeleop+Auto\nsubtasks",
-        description="SmolVLA subtask model trained on teleoperated data merged with automated data generation",
-        path=ROOT_DIR / "isaac-inference" / "results" / "Gal-merged-tailed-auto" / "latest.txt",
-        dataset="Teleop+Auto",
-        policy="SmolVLA",
-        mode="subtasks",
-        tag="T+A",
-    ),
+    # --- LightwheelAI baseline (two policy backbones, frozen) ---
+    ResultFile(label="ACT", description="ACT on the LightwheelAI Baseline (chunk 20)",
+               path=_r("ACT-pick-orange-chunk20", "act_latest.txt"),
+               policy="ACT", mode="monotask", group="LightwheelAI\nbaseline", variant="ACT"),
+    ResultFile(label="SmolVLA", description="SmolVLA on the LightwheelAI Baseline",
+               path=_r("pick-orange-mimic", "flat_latest.txt"),
+               policy="SmolVLA", mode="monotask", group="LightwheelAI\nbaseline", variant="SmolVLA"),
+
+    # --- Teleop monotask: frozen vs unfrozen ---
+    ResultFile(label="Teleop monotask frozen", description="SmolVLA Teleop monotask (frozen)",
+               path=_r("Gal_split_nolang", "flat_latest.txt"),
+               policy="SmolVLA", mode="monotask", group="Teleop\nmonotask", variant="frozen"),
+    ResultFile(label="Teleop monotask unfrozen", description="SmolVLA Teleop monotask (unfrozen VLM)",
+               path=_r("Gal_split_nolang-unfrozen-vlm", "flat_latest.txt"),
+               policy="SmolVLA", mode="monotask", group="Teleop\nmonotask", variant="unfrozen"),
+
+    # --- Teleop subtask: frozen vs unfrozen vs tail-free ---
+    ResultFile(label="Teleop subtask frozen", description="SmolVLA Teleop subtask (frozen)",
+               path=_r("Gal-pick-orange-tailedCH20", "latest.txt"),
+               policy="SmolVLA", mode="subtasks", group="Teleop\nsubtask", variant="frozen"),
+    ResultFile(label="Teleop subtask unfrozen", description="SmolVLA Teleop subtask (unfrozen VLM)",
+               path=_r("Gal-pick-orange-tailedCH20-unfrozen-vlm", "latest.txt"),
+               policy="SmolVLA", mode="subtasks", group="Teleop\nsubtask", variant="unfrozen"),
+    ResultFile(label="Teleop subtask no-tail", description="SmolVLA Teleop subtask (tail-free, frozen)",
+               path=_r("Gal-pick-orange-notailCH20", "latest.txt"),
+               policy="SmolVLA", mode="subtasks", group="Teleop\nsubtask", variant="no-tail"),
+
+    # --- Teleop+Auto monotask: frozen vs unfrozen ---
+    ResultFile(label="Teleop+Auto monotask frozen", description="SmolVLA Teleop+Auto monotask (frozen)",
+               path=_r("Gal-merged-tailed-auto-no-lang-no-home", "flat_latest.txt"),
+               policy="SmolVLA", mode="monotask", group="Teleop+Auto\nmonotask", variant="frozen"),
+    ResultFile(label="Teleop+Auto monotask unfrozen", description="SmolVLA Teleop+Auto monotask (unfrozen VLM)",
+               path=_r("Gal-merged-tailed-auto-no-lang-no-home-unfrozen-vlm", "flat_latest.txt"),
+               policy="SmolVLA", mode="monotask", group="Teleop+Auto\nmonotask", variant="unfrozen"),
+
+    # --- Teleop+Auto subtask: frozen vs unfrozen ---
+    ResultFile(label="Teleop+Auto subtask frozen", description="SmolVLA Teleop+Auto subtask (frozen)",
+               path=_r("Gal-merged-tailed-auto", "latest.txt"),
+               policy="SmolVLA", mode="subtasks", group="Teleop+Auto\nsubtask", variant="frozen"),
+    ResultFile(label="Teleop+Auto subtask unfrozen", description="SmolVLA Teleop+Auto subtask (unfrozen VLM)",
+               path=_r("Gal-merged-tailed-auto-unfrozen-vlm", "latest.txt"),
+               policy="SmolVLA", mode="subtasks", group="Teleop+Auto\nsubtask", variant="unfrozen"),
 ]
 
 
