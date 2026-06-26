@@ -24,61 +24,35 @@ Every completed run uses the same 100-scene reference seed set (\texttt{pick\_or
 
 \paragraph{Aggregating autonomous data did not help.} Adding the Auto episodes to Teleop regressed the subtask model on both metrics (full-task 20\% to 13\%, mean 1.77 to 1.42). In-distribution successful subtasks were thus not sufficient to improve full-task behaviour; the subtask-level analysis below isolates what degraded.
 
-\subsection{Where Failures Occur}
+\subsection{The Grasp Bottleneck}
 \label{sec:failure_modes}
 
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=\textwidth]{failure_modes.pdf}
-    \caption{Outcome composition of genuine GRASP / LIFT / PLACE attempts for the two subtask models. Monotask models lack clean per-attempt grasp telemetry and are omitted; their slip geometry is in \cref{tab:failure_geometry}.}
-    \label{fig:failure_modes}
-\end{figure}
-
-\textbf{GRASP is the bottleneck.} \Cref{fig:failure_modes} tells the same story for both subtask models: only about \textbf{41\%} of grasp attempts secure an orange and the rest time out without acquiring one, whereas everything downstream of a secured grasp succeeds 80--92\% of the time. A grasp counts as success if it secures \emph{any} orange --- including timed-out attempts whose target nonetheless ends in the plate (a geometric correction over the orchestrator's flag) and wrong-orange grabs, whose obedience is examined in \cref{sec:obedience}. Explicit monitoring cannot place an orange the policy never grasps, so grasping caps full-task success.
-
-\textbf{The gate buys the reliable lift and place --- at the cost of one new failure.} Because the orchestrator enters LIFT only after a \emph{force-confirmed} grasp, the policy is never asked to lift or place from a marginal grasp. The monotask has no such gate, and its failures carry a clean physical signature (\cref{tab:failure_geometry}): a failed lift gains only 3--4\,mm before the orange is lost (against about \SI{70}{mm} for a success), and a failed place releases it 0.16--0.21\,m from the plate centre, over the \emph{rim} (against \SI{0.04}{m}). These immediate slips from never-solid grasps are exactly the regime the gate removes, and the Teleop monotask in particular struggles even to start, placing into an empty plate only 58\% of the time. The gate's own cost is the \textbf{tail-freeze timeout} visible on Teleop+Auto, whose lift and place time out about 10\% of the time \emph{while still holding a secure orange} --- a policy trained to idle at each boundary sometimes idles instead of finishing (\cref{sec:discussion}).
+\textbf{The wall is the grasp.} For the orchestrated (subtask) models --- the only ones whose grasp attempts are real, budgeted events rather than a heuristic reconstruction --- only about \textbf{37\%} of grasp attempts secure an orange (\Cref{tab:grasp_chain}); the rest time out without acquiring one. Everything \emph{downstream} of a secured grasp is reliable: once an orange is held it reaches the plate \textbf{83\%} of the time on Teleop, and almost always on the first try (of the placed oranges, 166 needed a single grasp and only 11 a re-grasp after a slip). The cap on full-task success is therefore upstream, at acquiring the orange at all: explicit monitoring cannot place an orange the policy never grasps.
 
 \begin{table}[H]
     \centering
     \small
-    \caption{Monotask failure geometry (median over attempts): a slipped place releases the orange far from the plate centre, over the rim; a failed lift barely clears the table. Subtask checkpoints log no per-attempt geometry.}
-    \label{tab:failure_geometry}
-    \begin{tabular}{lcccc}
+    \caption{The grasp$\rightarrow$place chain, from privileged physics. \emph{Grasp success} (secured grasps / grasp attempts) is reported only for the subtask models, whose attempts are real orchestrator-issued events; the monotask trace reconstructs grasps heuristically (the target is re-inferred every few frames), so it has no trustworthy grasp rate. \emph{Secured oranges/ep} and \emph{place once secured} count only force-confirmed grasps and final positions, and are reliable for both formulations.}
+    \label{tab:grasp_chain}
+    \begin{tabular}{llccc}
         \toprule
-        & \multicolumn{2}{c}{Place release dist.\ (m)} & \multicolumn{2}{c}{Lift height gain (m)} \\
-        \cmidrule(lr){2-3}\cmidrule(lr){4-5}
-        Training set & success & slip & success & drop \\
+        Training set & Formulation & Grasp success & Secured oranges/ep & Place once secured \\
         \midrule
-        Teleop      & 0.04 & 0.16 & 0.067 & 0.004 \\
-        Teleop+Auto & 0.04 & 0.21 & 0.074 & 0.003 \\
+        Teleop      & Monotask & --- & 2.0 & 55\% \\
+        Teleop      & Subtask  & 38\% & 2.1 & 83\% \\
+        \midrule
+        Teleop+Auto & Monotask & --- & 2.0 & 76\% \\
+        Teleop+Auto & Subtask  & 37\% & 1.9 & 73\% \\
         \bottomrule
     \end{tabular}
 \end{table}
 
-\subsection{Task-Level Recovery}
-\label{sec:task_recovery}
+\subsection{What the Decomposition Buys --- and What We Cannot Yet Say}
+\label{sec:formulation}
 
-\textbf{Level-2 (task) recovery} (\cref{subsec:orchestrator}) is the formulation-fair view, since the monotask has no fixed target for a \textbf{Level-1} same-orange retry to aim at. After a setback --- a LIFT drop or PLACE slip, read identically from simulator state --- does the system keep scoring by placing \emph{some} orange? \Cref{tab:task_recovery} reports \emph{score recovery} (of episodes with a setback, the fraction whose placed count later rose) and the stricter \emph{different-orange recovery} (of setbacks with another orange still free, the fraction followed by placing a \emph{different} one). The 5000-step budget is shared, so exhaustion is symmetric.
+The downstream gap is where the formulations diverge. On \textbf{Teleop} the subtask model converts a secured grasp into a placement far more often than its monotask twin (\textbf{83\% vs.\ 55\%}, \Cref{tab:grasp_chain}): the orchestrator lifts only after a force-confirmed grasp, so it rarely commits to a marginal hold, whereas the end-to-end policy lifts from grasps that then slip. On \textbf{Teleop+Auto} this advantage disappears (73\% vs.\ 76\%) --- the same regression that adding Auto data produces in the full-task metrics (\cref{fig:orange_outcome_distribution}).
 
-\begin{table}[H]
-    \centering
-    \small
-    \caption{Level-2 (task) recovery after a setback (LIFT drop or PLACE slip), measured identically for both formulations. Denominators differ because the subtask policy suffers far fewer setbacks.}
-    \label{tab:task_recovery}
-    \begin{tabular}{llcc}
-        \toprule
-        Training set & Formulation & Score recovery & Different-orange recovery \\
-        \midrule
-        Teleop      & Monotask & 35.5\% (27/76) & 23.1\% (28/121) \\
-        Teleop      & Subtask  & 73.5\% (25/34) & 60.0\% (18/30)  \\
-        \midrule
-        Teleop+Auto & Monotask & 53.7\% (22/41) & 35.1\% (20/57)  \\
-        Teleop+Auto & Subtask  & 42.9\% (18/42) & 28.0\% (14/50)  \\
-        \bottomrule
-    \end{tabular}
-\end{table}
-
-\paragraph{Level-2 is where the orchestrator's advantage is real --- and where Auto data erodes it.} On Teleop the subtask formulation suffers far fewer setbacks (34 vs.\ 76 episodes) and recovers from them far more often: it keeps scoring in 73.5\% of episodes against 35.5\% for monotask, and reaches a \emph{different} orange after 60.0\% of setbacks against 23.1\%. This is the mechanism behind ``rarely fails completely'' (\cref{fig:orange_outcome_distribution}): Level-2 redirection turns dead-ends into progress the end-to-end policy, prone to fixating, does not make. The pattern reverses on Teleop+Auto, where the subtask model recovers \emph{less} often on both views (42.9\% vs.\ 53.7\%; 28.0\% vs.\ 35.1\%) --- the full-task regression now visible at the recovery level: the added data weakened exactly the task-level robustness the orchestrator exists to provide.
+\textbf{What we cannot yet show.} The intuition that the end-to-end policy ``gets stuck'' on one orange while the orchestrator redirects to another is \emph{not} borne out by what we can currently measure: both formulations secure about \emph{two} distinct oranges per episode (\Cref{tab:grasp_chain}), so the monotask is not simply failing to reach the others --- it secures them and loses them downstream. Demonstrating genuine fixation --- the gripper dwelling next to one orange without ever closing on it --- needs per-step gripper--orange proximity, which the current logs do not record. Quantifying it is the first item of the improved evaluation discussed in \cref{sec:discussion}.
 
 \subsection{Target Obedience in the Subtask Policies}
 \label{sec:obedience}
