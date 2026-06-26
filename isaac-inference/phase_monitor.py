@@ -38,8 +38,11 @@ class PhaseMonitor:
 
     TRACE_SOURCE = "flat_observed_physics"
     # v3: per-attempt scene_start/scene_end geometry + target_in_plate_end, and
-    # per-orange in_plate on the final scene.
-    SCHEMA_VERSION = 3
+    #     per-orange in_plate on the final scene.
+    # v4: per-step raw geometry_trace (gripper/jaw tips, per-orange axis/tip distances,
+    #     raw per-tip contact forces, closure, in_plate) for offline grasp-intent
+    #     analysis; gated + downsampled. Logging-only — trajectories unchanged.
+    SCHEMA_VERSION = 4
 
     def __init__(self, model_id=None):
         self.model_id = model_id
@@ -52,6 +55,14 @@ class PhaseMonitor:
         self.lift_start_height_threshold = _env_float("PHASE_LIFT_START_HEIGHT_M", 0.02)
         # Consecutive frames above that threshold (gripper closed) before the lift is considered started.
         self.lift_start_frames = max(1, _env_int("PHASE_LIFT_START_FRAMES", 3))
+        # Per-step raw geometry telemetry (schema v4). Logging-only: persists the raw
+        # gripper/orange geometry + contact forces so grasp intent ("which orange"),
+        # "held", grasp/lift/place and timeouts can be recomputed offline with tunable
+        # thresholds — no eval rerun needed. Gated to frames near an orange (where aim
+        # is knowable) and downsampled to keep checkpoint.json small.
+        self.telemetry_enabled = _env_flag("TELEMETRY_TRACE", True)
+        self.telemetry_every_steps = max(1, _env_int("TELEMETRY_EVERY_STEPS", 10))
+        self.telemetry_proximity_m = _env_float("TELEMETRY_PROXIMITY_M", 0.20)
         self.reset()
 
     def reset(self):
@@ -82,6 +93,7 @@ class PhaseMonitor:
         self._attempt_id = 0
         self._live_active = False
         self._scene_now = None        # latest geometric snapshot (scene_geometry dict)
+        self.geometry_trace = []      # per-step raw geometry frames (schema v4)
 
     def warm_up(self, env):
         _, _, _, _, _, plate_pos, orange_positions = self.tracker._get_env_data(env)
@@ -104,6 +116,7 @@ class PhaseMonitor:
         self._scene_now = scene_geometry(
             {"plate": plate_pos, "plate_quat": t._plate_quat, **orange_positions}
         )
+        self._record_geometry(step_count, gripper_tip, jaw_tip, gripper_pos, gf, jf, plate_pos, orange_positions)
 
         self._check_placed_bounce(episode, step_count, plate_pos, orange_positions)
         if self.current_phase == "SEARCHING":
@@ -142,6 +155,10 @@ class PhaseMonitor:
             reason=end_reason,
             oranges_in_plate=int(oranges_in_plate),
         )
+        geom_cols = ["step", "phase", "gripper_tip_x", "gripper_tip_y", "gripper_tip_z",
+                     "gripper_pos", "grip_force_n", "jaw_force_n"]
+        for _n in self.tracker.orange_names:
+            geom_cols += [f"{_n}:axis_dist", f"{_n}:tip_dist", f"{_n}:height_gain", f"{_n}:in_plate"]
         return {
             "episode_summary": {
                 "episode": int(episode),
@@ -168,6 +185,15 @@ class PhaseMonitor:
                 "placed_oranges_observed": sorted(self.placed_oranges),
                 "events": self.events,
                 "summary": self._debug_summary(),
+            },
+            "geometry_trace": {
+                "schema_version": self.SCHEMA_VERSION,
+                "enabled": self.telemetry_enabled,
+                "every_steps": self.telemetry_every_steps,
+                "proximity_m": self.telemetry_proximity_m,
+                "format": "columnar",
+                "columns": geom_cols,
+                "rows": self.geometry_trace,
             },
         }
 
@@ -630,6 +656,53 @@ class PhaseMonitor:
             "failure_counts": failures,
             "event_count": len(self.events),
         }
+
+    def _record_geometry(self, step_count, gripper_tip, jaw_tip, gripper_pos, gf, jf, plate_pos, orange_positions):
+        """Append one columnar raw-geometry row (schema v4) for offline grasp-intent.
+
+        Logging-only. Stores the gripper tip, closure, raw per-tip contact forces and,
+        per orange (in tracker.orange_names order), grip-axis & tip distances, height
+        gain and in_plate — so "which orange", "held", grasp/lift/place and timeouts can
+        be recomputed offline with tunable thresholds. Rows are plain arrays whose
+        meaning is given by geometry_trace["columns"] (set in build_record), which is
+        far smaller than per-frame keyed dicts. Downsampled (telemetry_every_steps) and
+        gated to frames near an orange while searching (telemetry_proximity_m).
+        """
+        if not self.telemetry_enabled or step_count % self.telemetry_every_steps != 0:
+            return
+
+        axis = jaw_tip - gripper_tip
+        axis_sq = torch.dot(axis, axis).item()
+        axis_unit = axis / (axis_sq ** 0.5 + 1e-8)
+        grip_force = abs(torch.dot(gf.to(axis_unit.device), axis_unit).item())
+        jaw_force = abs(torch.dot(jf.to(axis_unit.device), axis_unit).item())
+
+        scene_oranges = (self._scene_now or {}).get("oranges", {})
+        gx, gy, gz = self._vec(gripper_tip)
+        row = [int(step_count), self.current_phase, gx, gy, gz,
+               round(float(gripper_pos), 5), round(float(grip_force), 5), round(float(jaw_force), 5)]
+        min_axis_unplaced = float("inf")
+        for name in self.tracker.orange_names:
+            opos = orange_positions[name]
+            t_raw = torch.dot(opos - gripper_tip, axis).item() / (axis_sq + 1e-8)
+            t_clamped = max(0.0, min(1.0, t_raw))
+            proj = gripper_tip + t_clamped * axis
+            axis_dist = (opos - proj).norm().item()
+            _, tip_dist = self.tracker._is_orange_held(opos)
+            initial_z = self.initial_orange_z.get(name, opos[2].item())
+            height_gain = opos[2].item() - initial_z
+            in_plate = bool(scene_oranges.get(name, {}).get("in_plate", False))
+            row += [round(float(axis_dist), 5), round(float(tip_dist), 5),
+                    round(float(height_gain), 5), int(in_plate)]
+            if not in_plate and name not in self.placed_oranges:
+                min_axis_unplaced = min(min_axis_unplaced, axis_dist)
+
+        # Proximity gate: drop far idle-search frames (no aim information). Manipulation
+        # frames (non-SEARCHING) are always kept.
+        if self.current_phase == "SEARCHING" and min_axis_unplaced >= self.telemetry_proximity_m:
+            return
+
+        self.geometry_trace.append(row)
 
     def _grasp_candidate(self, gripper_tip, jaw_tip, orange_positions, gf, jf):
         axis = jaw_tip - gripper_tip
