@@ -94,7 +94,7 @@ Runtime code stays at the `isaac-inference/` root; one-shot and support scripts 
 | `inference_privileged_grasp.py` | Privileged grasp policy — uses DLS (Damped Least Squares) IK to position the gripper above each orange's exact XY from Isaac privileged state. Fully scripted/geometric; no VLA. |
 | `inference_flat_prompt.py` | Flat single-instruction SmolVLA eval — one fixed prompt ("Place the orange into plate"), no subtask sequencing. Used to evaluate the no-lang-no-home model variant. |
 | `inference_act_flat_prompt.py` | ACT policy eval — same flat single-instruction structure as `inference_flat_prompt.py` but uses `ACTPolicy` with chunked action execution (`predict_action_chunk`; chunk size comes from `policy.config.chunk_size`). Saves to `results/<model>/act_checkpoint.json` and `act_latest.txt`. |
-| `phase_monitor.py` | `PhaseMonitor` — passive observer-inferred subtask trace for flat (no-language) policies, derived from physics state alone (`SubtaskTracker`, orange/plate positions). Used by `inference_flat_prompt.py` and `inference_act_flat_prompt.py` to produce per-episode subtask traces for policies that don't expose intent. |
+| `phase_monitor.py` | `PhaseMonitor` — passive observer-inferred subtask trace for flat (no-language) policies, derived from physics state alone (`SubtaskTracker`, orange/plate positions). Used by `inference_flat_prompt.py` and `inference_act_flat_prompt.py` to produce per-episode subtask traces for policies that don't expose intent. Also emits a per-step `geometry_trace` (schema v4): raw gripper/orange geometry + contact forces, gated/downsampled, for offline grasp-intent analysis (`report/scripts/compute_grasp_intent.py`). |
 | `tests/test_phase_monitor.py` | Unit tests for `PhaseMonitor` trace generation. |
 
 ## Legacy / alternative entry points (do not modify without reason)
@@ -188,6 +188,16 @@ are logging-only changes — control flow is unchanged, so a seeded rerun
 reproduces identical trajectories with the richer fields. See
 `docs/EVAL_LOGGING_REWRITE.md`. **The current committed checkpoints predate this and
 must be re-run to populate the new fields.**
+
+**Per-step geometry trace (schema: `PhaseMonitor` v4, monotask only).** Each flat
+episode record now also carries a `geometry_trace`: a downsampled, proximity-gated
+per-step log of raw gripper/jaw-tip and orange positions, per-orange grip-axis & tip
+distances, gripper closure, and raw per-tip contact forces. This makes the monotask
+grasp target ("which orange"), single-orange fixation, and the held/grasp/timeout
+labels recomputable offline with tunable thresholds — no eval rerun. Gating knobs:
+`TELEMETRY_TRACE` / `TELEMETRY_EVERY_STEPS` / `TELEMETRY_PROXIMITY_M`. Consumed by
+`report/scripts/compute_grasp_intent.py`. Logging-only (reproduction verified — init
+oranges+camera identical). Subtask runs are unchanged (their target is already known).
 
 ## Gitignored paths
 - `${data}/` — Isaac Sim NvStreamer `.etli` streaming logs (auto-generated)

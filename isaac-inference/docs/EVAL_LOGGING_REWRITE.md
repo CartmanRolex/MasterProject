@@ -106,3 +106,69 @@ Constraints agreed with the user:
 - Then the report scripts (`report/scripts/compute_place_success.py`, the lift
   analysis) can read `target_in_plate_end` / `final_scene[...].in_plate` directly
   with no post-processing — ping the laptop agent to rewrite them against v2/v3.
+
+---
+
+# Schema v4 — per-step `geometry_trace` (monotask / `PhaseMonitor` only)
+
+**Status: implemented + smoke-tested on the desktop. Logging-only — verified a
+seeded rerun reproduces identical initial scenes (oranges+camera, max|Δ|=0).**
+
+## Why
+The monotask (flat) policy names no target, so "which orange is it trying to grasp"
+was unanswerable from the checkpoint (the live `PhaseMonitor` target flickers — it is
+re-guessed every ~10 frames). The report left **"Oranges tried" = pending** and could
+not test single-orange **fixation**. More generally, several monotask labels were
+heuristic and not robust: the `argmax`-of-contact-bodies force grasp confirmation, the
+proximity-based "held" (tip within 8 cm), and the arbitrary per-subtask timeout budgets.
+
+## What was added (`phase_monitor.py`, `SCHEMA_VERSION` 3 → 4)
+A per-step **raw** geometry trace, so every classification (target / held / grasp /
+lift / place / timeout) becomes **offline post-processing** — a future idea is a script
+change, never an eval rerun.
+
+- `PhaseMonitor.__init__` reads env knobs: `TELEMETRY_TRACE` (default on),
+  `TELEMETRY_EVERY_STEPS` (default 3, downsample), `TELEMETRY_PROXIMITY_M`
+  (default 0.20 m, gate).
+- `reset()` adds `self.geometry_trace = []`.
+- `_record_geometry(...)` (called at the top of `update()`, reusing the tuple
+  `_get_env_data` already returns) appends one rounded frame, **downsampled** by
+  `every_steps` and **gated** to frames where some unplaced orange's grip-axis distance
+  is `< proximity_m` **or** phase ≠ SEARCHING (far idle-search carries no aim info).
+- `build_record()` emits a top-level `"geometry_trace"` key, which flows into the
+  episode record via `inference_flat_prompt.py`'s `record.update(phase_debug)` — **no
+  change to `inference_flat_prompt.py`**.
+
+### Per-frame fields
+```
+{
+  "step", "phase",
+  "gripper_tip":[x,y,z], "jaw_tip":[x,y,z],     # grip axis -> any distance recomputable
+  "gripper_pos",                                  # closure (joint value)
+  "grip_force_n", "jaw_force_n",                  # raw per-tip contact force on the grip axis
+  "plate":[x,y,z], "plate_quat":[w,x,y,z],
+  "oranges": { name: {pos:[x,y,z], axis_dist, tip_dist, grip_axis_t, height_gain, in_plate} }
+}
+```
+Raw positions/forces are the source of truth; distances are stored as convenience.
+
+## Offline consumer
+`report/scripts/compute_grasp_intent.py` reads `geometry_trace` and prints, with
+**tunable** thresholds (`ENGAGE_M`, `MIN_ENGAGED_FRAMES`): distinct oranges **tried**/ep
+(fills the `pending` cells in `experiments.tex`), **fixation** (distinct-engaged
+distribution + share of engaged time on the top orange), and closest grip-axis approach.
+Degrades gracefully (reports "no geometry_trace") on pre-v4 checkpoints.
+
+## Size
+Gated+downsampled+rounded; ~hundreds of frames/episode at the default gate (the smoke
+run with the gate *disabled* was ~99 frames per 300-step episode → ~0.19 MB/episode).
+Expect roughly +5–10 MB per 100-episode model with the default gate.
+
+## Scope / caveats
+Monotask only (subtask runs already name their target). The subtask force-confirmed
+grasp / "held" metrics keep their existing documented caveat — not changed here.
+
+## After verifying
+Re-run the seeded monotask evals to populate `geometry_trace` (committed checkpoints
+predate v4), then fill the `pending` cells in `experiments.tex` and the fixation caveat
+in `results.tex` from `compute_grasp_intent.py`.
