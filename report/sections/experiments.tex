@@ -55,34 +55,13 @@ Final plate occupancy for every model on the shared 100-seed set (5000-step budg
 \subsection{Target Obedience in the Subtask Policies}
 \label{sec:obedience}
 
-Only the orchestrated runs name their target by spatial label (``Grasp \emph{<position>} orange''), so only they can be asked whether the policy grasps the orange it was \emph{told} to. A grasp is \textbf{obeyed} when the gripper closes on the requested orange (matched by identity) and a \textbf{misgrab} otherwise. About \textbf{70\%} of engaged grasps are obeyed, and the rate rises as oranges are placed and fewer distractors remain.
+Only the orchestrated runs name their target by spatial label (``Grasp \emph{<position>} orange''), so only they can be asked whether the policy grasps the orange it was \emph{told} to. A grasp is \textbf{obeyed} when the gripper closes on the requested orange (matched by identity) and a \textbf{misgrab} otherwise. The policy follows the instruction only about \textbf{two-thirds} of the time on Teleop (67\%) and three-quarters on Teleop+Auto (73\%), per the confusion matrices below.
 
-\textbf{Grounding, not coverage.} Training is dominated by one referent --- \emph{right} alone is almost half the GRASP episodes, and the Auto data only deepened the skew. If obedience were limited by \emph{exposure}, the most frequent labels would be obeyed best; the opposite holds. \emph{Right} is the most-trained label yet the \emph{worst} obeyed (43\%), while the rare \emph{left} and \emph{top right} are the best (96--97\%). More examples of a referent thus do not buy obedience: the bottleneck is \emph{grounding} the instruction to the scene, not coverage.
-
-\begin{table}[H]
-    \centering
-    \small
-    \begin{tabular}{lcccc}
-        \toprule
-        & \multicolumn{3}{c}{Training episodes} & \\
-        \cmidrule(lr){2-4}
-        Position & Teleop & Auto & Combined & Obeyed \\
-        \midrule
-        right        & 135 & 74  & 209 & 43\% \\
-        middle       & 74  & 48  & 122 & 80\% \\
-        left         & 34  & 11  & 45  & 97\% \\
-        top right    & 25  & 4   & 29  & 96\% \\
-        bottom right & 15  & 1   & 16  & 58\% \\
-        other        & 7   & 5   & 12  & --- \\
-        \midrule
-        Total        & 290 & 143 & 433 & \\
-        \bottomrule
-    \end{tabular}
-\end{table}
-
-\textbf{A systematic inward bias.} The misses behind this ordering are not random but systematically \emph{inward}: a missed request closes on the orange immediately toward the scene centre --- \emph{right} taken as \emph{middle}, \emph{middle} as \emph{left}, \emph{bottom right} as \emph{top right} --- a consistent short reach that most often costs the rightmost referent (figure below). It is genuine behaviour, not a logging artefact: the grasped orange is identified from contact and is a physically distinct one a few centimetres inward of the one requested. The VLA's positional conditioning is thus a spatially biased channel, not a clean target selector --- the context-dependence the scripted spatial reset works around.
+\textbf{The misses are systematically leftward.} They are not random: on the dominant left--right axis a missed request lands on the orange just to the \emph{left} of the one asked for --- \emph{right} taken as \emph{middle}, \emph{middle} as \emph{left} --- toward the side where the plate sits and the placed oranges accumulate. So \emph{right} is by far the worst-followed label (41\% on Teleop, 47\% on Teleop+Auto), while the leftmost and upper referents are almost always obeyed (96--97\%). It is genuine behaviour, not a logging artefact: the grasped orange is identified from contact, a physically distinct one a few centimetres to the side of the one requested.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{grasp_obedience_confusion.pdf}
 \end{figure}
+
+\textbf{The weakest instruction is the one the task needs most.} Because the plate is on the left, each placement leaves the cleared oranges there and pushes the remaining targets rightward: the share of \emph{right} requests climbs from 19\% with all three oranges present, to 43\% after one placement, to 96\% after two. The policy is therefore least reliable in exactly the configuration the task keeps producing --- so changing target safely relies on the scripted spatial reset, not on the language instruction alone.
