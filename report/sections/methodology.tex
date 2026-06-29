@@ -90,13 +90,8 @@ Fine-tuning is \textbf{parameter-efficient}: the vision encoder and the language
 
 A separate ablation \textbf{unfreezes the language backbone}, training the 16-layer transformer jointly with the action expert (the vision encoder stays frozen). This raises the trainable count from \num{100}M to \num{316}M (about 70\%) and lets the backbone adapt to the robot domain rather than reusing web-pretrained features, at the cost of a heavier optimisation more prone to overfitting a single dataset. Each of the four formulations is trained in both the frozen and the unfrozen variant and evaluated under the identical protocol, so any difference is attributable to the unfreezing alone; the effect is mixed across formulations and is examined in \cref{sec:discussion}.
 
-\subsection{LightwheelAI Baseline}
-
-The first setting treats the task as a single full-task imitation problem. The \textbf{LightwheelAI Baseline} is the 60-episode \texttt{leisaac-pick-orange-mimic-v0} dataset published by LightwheelAI (developers of the upstream \texttt{leisaac} library this project builds on), the official reference for the task. Each of its 60 demonstrations covers the full three-orange sequence and is unsegmented --- not split into subtasks, with the policy expected to execute the whole task end-to-end.
-
-Two policy classes are compared: ACT~\cite{zhao2023act}, an action-chunking transformer, and SmolVLA. Both are trained from the same 60-demonstration source under a single fixed instruction, so the comparison isolates the policy backbone rather than language conditioning. \textbf{[Placeholder: motivation for the ACT vs.\ SmolVLA comparison to be finalised.]} SmolVLA is used throughout the rest of the work. This experiment also establishes a performance ceiling for the \textbf{monotask} formulation --- the whole task run end-to-end under one prompt, without subtask checkpoints --- contrasted throughout with the orchestrated \textbf{subtask} formulation: if even the stronger policy cannot solve the task reliably here, the limit is unlikely to be the low-level policy's expressiveness alone, motivating the decomposition introduced next.
-
 \subsection{Subtask Decomposition}
+\label{subsec:decomposition}
 
 Detecting and responding to intermediate failures requires knowing when a behaviour has ended and whether it succeeded. The full task is therefore reformulated as a sequence of subtasks --- grasping a selected orange, lifting it, and placing it --- creating explicit checkpoints where the expected physical outcome can be verified before committing to the next step.
 
@@ -127,16 +122,7 @@ Targeted grasp prompts use relative spatial labels from the current layout: left
 
 At each checkpoint the outcome --- success or a physical failure mode --- is read from privileged state rather than inferred from the policy; the precise definitions, shared by both formulations, are given in \cref{subsec:failure_taxonomy}.
 
-An intermediate attempt sliced the LightwheelAI Baseline into subtask segments, but its demonstrations always follow the same object order, so target identity is entangled with progress through the fixed sequence rather than tied to the instruction. This motivated collecting a custom dataset.
-
-\subsection{Teleop Dataset Construction}
-\label{subsec:teleop}
-
-A custom teleoperated dataset, referred to as \textbf{Teleop}, was collected to support orchestrated execution, with the SO-101 arm driven by hand through an Xbox gamepad controller. Each episode is a single successful subtask annotated with its instruction, such as ``Grasp left orange'', ``Grasp top right orange'', ``Pick it up'', or ``Place it into plate''. The pick order is randomised across episodes, which breaks the fixed-order correlation of the baseline and forces the policy to associate a relative-position instruction with the specified orange rather than inferring the target from task progress. The dataset used for the evaluated subtask model contains 846 such episodes.
-
-The teleoperated motions are markedly slower than the baseline: precise fast control is hard with the gamepad, so the operator moved deliberately. The trajectories therefore differ from the LightwheelAI Baseline in velocity profile, not only in subtask-level segmentation.
-
-A key design choice is \textbf{tailing}: every episode is extended with 20 terminal freeze frames (one action chunk), repeating the final observation and state and converting the command into a hold once the subtask completes. This teaches the policy to \textbf{stay idle at a subtask boundary} instead of flowing into the next phase, which serves three roles. It lets a manually-driven operator pause and think while the arm holds its pose and keeps its grasp instead of drifting or dropping the orange. More importantly, it makes the policy robust to an orchestrator that does not advance instantaneously --- e.g.\ a higher-latency external vision-based controller --- since it holds rather than drifts while waiting. And because a finished subtask manifests as the arm coming to rest, the tail gives a natural completion signal a higher-level controller can detect. The resulting SmolVLA model is thus a subtask executor: on reaching a terminal configuration it settles and waits rather than continuing to act.
+An intermediate attempt sliced the LightwheelAI Baseline (\cref{subsec:baseline}) into subtask segments, but its demonstrations always follow the same object order, so target identity is entangled with progress through the fixed sequence rather than tied to the instruction. This motivated collecting the custom Teleop dataset (\cref{subsec:teleop}).
 
 \subsection{Orchestrator and Failure Modes}
 \label{subsec:orchestrator}
@@ -159,7 +145,30 @@ The orchestrator is a finite-state controller that wraps the VLA and issues only
 
 The monotask formulation has no such structure: the policy runs end-to-end under one global prompt within a single 5000-step budget, with no checkpoints and no per-subtask timeout. The same three failure modes occur but are never detected or acted on online. For a common footing, the analysis in \cref{sec:experiments} reconstructs the same physical events for monotask runs offline from privileged state (inferring the worked target from the layout), so grasp, lift, and place outcomes are readable for both formulations even though only the orchestrated one observes them online.
 
-\subsection{Autonomous Data Generation}
+\subsection{Datasets}
+\label{subsec:datasets}
+
+This work draws on three data sources: a public full-task baseline, a custom teleoperated subtask set, and an autonomously generated set. Each is described in turn, followed by their combined composition and the matched monotask data used for the controlled comparison.
+
+\subsubsection{LightwheelAI Baseline}
+\label{subsec:baseline}
+
+The first setting treats the task as a single full-task imitation problem. The \textbf{LightwheelAI Baseline} is the 60-episode \texttt{leisaac-pick-orange-mimic-v0} dataset published by LightwheelAI (developers of the upstream \texttt{leisaac} library this project builds on), the official reference for the task. Each of its 60 demonstrations covers the full three-orange sequence and is unsegmented --- not split into subtasks, with the policy expected to execute the whole task end-to-end.
+
+Two policy classes are compared: ACT~\cite{zhao2023act}, an action-chunking transformer, and SmolVLA. Both are trained from the same 60-demonstration source under a single fixed instruction, so the comparison isolates the policy backbone rather than language conditioning. \textbf{[Placeholder: motivation for the ACT vs.\ SmolVLA comparison to be finalised.]} SmolVLA is used throughout the rest of the work. This experiment also establishes a performance ceiling for the \textbf{monotask} formulation --- the whole task run end-to-end under one prompt, without subtask checkpoints --- contrasted throughout with the orchestrated \textbf{subtask} formulation: if even the stronger policy cannot solve the task reliably here, the limit is unlikely to be the low-level policy's expressiveness alone, motivating the subtask decomposition (\cref{subsec:decomposition}).
+
+\subsubsection{Teleoperation}
+\label{subsec:teleop}
+
+A custom teleoperated dataset, referred to as \textbf{Teleop}, was collected to support orchestrated execution, with the SO-101 arm driven by hand through an Xbox gamepad controller. Each episode is a single successful subtask annotated with its instruction, such as ``Grasp left orange'', ``Grasp top right orange'', ``Pick it up'', or ``Place it into plate''. The pick order is randomised across episodes, which breaks the fixed-order correlation of the baseline and forces the policy to associate a relative-position instruction with the specified orange rather than inferring the target from task progress. The dataset used for the evaluated subtask model contains 846 such episodes.
+
+The teleoperated motions are markedly slower than the baseline: precise fast control is hard with the gamepad, so the operator moved deliberately. The trajectories therefore differ from the LightwheelAI Baseline in velocity profile, not only in subtask-level segmentation.
+
+A key design choice is \textbf{tailing}: every episode is extended with 20 terminal freeze frames (one action chunk), repeating the final observation and state and converting the command into a hold once the subtask completes. This teaches the policy to \textbf{stay idle at a subtask boundary} instead of flowing into the next phase, which serves three roles. It lets a manually-driven operator pause and think while the arm holds its pose and keeps its grasp instead of drifting or dropping the orange. More importantly, it makes the policy robust to an orchestrator that does not advance instantaneously --- e.g.\ a higher-latency external vision-based controller --- since it holds rather than drifts while waiting. And because a finished subtask manifests as the arm coming to rest, the tail gives a natural completion signal a higher-level controller can detect. The resulting SmolVLA model is thus a subtask executor: on reaching a terminal configuration it settles and waits rather than continuing to act.
+
+\textbf{Alternative interface: Meta Quest 3 (not adopted).} Before settling on the gamepad, teleoperation through Meta Quest 3 hand tracking was explored in the hope of faster, more natural demonstrations: the operator's hand pose was streamed over WebXR to drive the gripper, with a pinch closing it. It was ultimately dropped because it did not produce better data. The obstacle is kinematic --- the SO-101 has only five actuated arm joints, one short of the six degrees of freedom needed to set the gripper's position \emph{and} orientation independently, so the arm cannot track a full 6-DOF hand pose. The attempted workaround (removing shoulder-pan from the inverse kinematics and down-weighting orientation so the remaining joints could still translate) made control less intuitive rather than more, so the gamepad pipeline was used for all collected data.
+
+\subsubsection{Autonomous Data Generation}
 \label{subsec:autonomous}
 
 Early evaluation of the Teleop subtask model identified GRASP as the dominant bottleneck: lifting and placing were reliable once an orange was held, but the policy could not acquire certain oranges at all, depending on their randomly initialised position. Recovery therefore ran mainly through \textbf{Level-2} redirection --- abandoning an ungraspable orange for a reachable one --- rather than \textbf{Level-1} retries, which follow only the rarer post-grasp slip. One hypothesis was a \emph{coverage} gap: the policy generalised poorly across orange positions and simply needed more grasp data. Because teleoperation is slow to scale, the orchestrated system was used to generate that data automatically. (Whether more data helps is tested in \cref{sec:experiments}; it does not.)
@@ -170,7 +179,7 @@ Early evaluation of the Teleop subtask model identified GRASP as the dominant bo
 
 The retained episodes are balanced by scene state --- equalising start-of-episode scenes against those with one or two oranges already placed --- so the set does not over-represent early scenes. The 414 retained Auto episodes were merged with the 846 Teleop episodes into \textbf{Teleop+Auto} (1260 episodes), used to train the Teleop+Auto subtask model.
 
-\subsection{Dataset Composition}
+\subsubsection{Dataset Composition}
 
 The data is organised as subtask episodes, roughly balanced across the three subtasks, so merging Teleop and Auto raises volume without skewing the mix. \Cref{fig:dataset_composition} shows the per-subtask distribution of episode lengths by source (frames at 30\,fps, including the 20-frame terminal hold).
 
@@ -183,7 +192,7 @@ The data is organised as subtask episodes, roughly balanced across the three sub
 
 Two features are relevant to later results. GRASP dominates the length budget --- two to three times longer than LIFT or PLACE, with by far the heaviest tail --- because it includes the variable search-and-approach phase before contact. The Auto episodes are shorter and less dispersed than their Teleop counterparts, consistent with being drawn from the policy's own visited states rather than human demonstration.
 
-\subsection{Monotask Fair Comparison}
+\subsubsection{Monotask Fair Comparison}
 
 A subtask model differs from the LightwheelAI Baseline in both training distribution and formulation, so that comparison cannot isolate subtasking. Each subtask model is therefore paired with a \textbf{monotask} counterpart trained on the \emph{same} trajectories: per-subtask instructions replaced by the single fixed prompt ``Place the orange into plate'', freeze tails removed, run end-to-end without the orchestrator's checkpoints. The pair sees identical demonstrations and differs only in framing, at both training and execution time; every run uses the same 5000-step budget.
 
