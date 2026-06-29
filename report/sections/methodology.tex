@@ -90,7 +90,7 @@ Fine-tuning is \textbf{parameter-efficient}: the vision encoder and the language
 
 A separate ablation \textbf{unfreezes the language backbone}, training the 16-layer transformer jointly with the action expert (the vision encoder stays frozen). This raises the trainable count from \num{100}M to \num{316}M (about 70\%) and lets the backbone adapt to the robot domain rather than reusing web-pretrained features, at the cost of a heavier optimisation more prone to overfitting a single dataset. Each of the four formulations is trained in both the frozen and the unfrozen variant and evaluated under the identical protocol, so any difference is attributable to the unfreezing alone; the effect is mixed across formulations and is examined in \cref{sec:discussion}.
 
-\subsection{Subtask Decomposition}
+\subsection{Task Decomposition}
 \label{subsec:decomposition}
 
 Detecting and responding to intermediate failures requires knowing when a behaviour has ended and whether it succeeded. The full task is therefore reformulated as a sequence of subtasks --- grasping a selected orange, lifting it, and placing it --- creating explicit checkpoints where the expected physical outcome can be verified before committing to the next step.
@@ -122,7 +122,7 @@ Targeted grasp prompts use relative spatial labels from the current layout: left
 
 At each checkpoint the outcome --- success or a physical failure mode --- is read from privileged state rather than inferred from the policy; the precise definitions, shared by both formulations, are given in \cref{subsec:failure_taxonomy}.
 
-An intermediate attempt sliced the LightwheelAI Baseline (\cref{subsec:baseline}) into subtask segments, but its demonstrations always follow the same object order, so target identity is entangled with progress through the fixed sequence rather than tied to the instruction. This motivated collecting the custom Teleop dataset (\cref{subsec:teleop}).
+Reusing the public baseline for subtask training proved unworkable, motivating the purpose-built Teleop dataset (\cref{subsec:teleop}).
 
 \subsection{Orchestrator and Failure Modes}
 \label{subsec:orchestrator}
@@ -150,17 +150,17 @@ The monotask formulation has no such structure: the policy runs end-to-end under
 
 This work draws on three data sources: a public full-task baseline, a custom teleoperated subtask set, and an autonomously generated set. Each is described in turn, followed by their combined composition and the matched monotask data used for the controlled comparison.
 
-\subsubsection{LightwheelAI Baseline}
+\subsubsection{Public Baseline Dataset}
 \label{subsec:baseline}
 
-The first setting treats the task as a single full-task imitation problem. The \textbf{LightwheelAI Baseline} is the 60-episode \texttt{leisaac-pick-orange-mimic-v0} dataset published by LightwheelAI (developers of the upstream \texttt{leisaac} library this project builds on), the official reference for the task. Each of its 60 demonstrations covers the full three-orange sequence and is unsegmented --- not split into subtasks, with the policy expected to execute the whole task end-to-end.
+The starting point is an off-the-shelf public dataset, used as a baseline precisely because it is clean and openly available rather than collected by us. The \textbf{LightwheelAI Baseline} is \texttt{leisaac-pick-orange-mimic-v0}, the 60-episode reference released on the LeRobot Hub by LightwheelAI (developers of the upstream \texttt{leisaac} library this project builds on). Its demonstrations are smooth and each covers the full three-orange sequence end-to-end, unsegmented --- not split into subtasks, with the policy expected to execute the whole task at once.
 
 Two policy classes are compared: ACT~\cite{zhao2023act}, an action-chunking transformer, and SmolVLA. Both are trained from the same 60-demonstration source under a single fixed instruction, so the comparison isolates the policy backbone rather than language conditioning. \textbf{[Placeholder: motivation for the ACT vs.\ SmolVLA comparison to be finalised.]} SmolVLA is used throughout the rest of the work. This experiment also establishes a performance ceiling for the \textbf{monotask} formulation --- the whole task run end-to-end under one prompt, without subtask checkpoints --- contrasted throughout with the orchestrated \textbf{subtask} formulation: if even the stronger policy cannot solve the task reliably here, the limit is unlikely to be the low-level policy's expressiveness alone, motivating the subtask decomposition (\cref{subsec:decomposition}).
 
 \subsubsection{Teleoperation}
 \label{subsec:teleop}
 
-A custom teleoperated dataset, referred to as \textbf{Teleop}, was collected to support orchestrated execution, with the SO-101 arm driven by hand through an Xbox gamepad controller. Each episode is a single successful subtask annotated with its instruction, such as ``Grasp left orange'', ``Grasp top right orange'', ``Pick it up'', or ``Place it into plate''. The pick order is randomised across episodes, which breaks the fixed-order correlation of the baseline and forces the policy to associate a relative-position instruction with the specified orange rather than inferring the target from task progress. The dataset used for the evaluated subtask model contains 846 such episodes.
+\textbf{Teleop} is a custom teleoperated dataset built to make language conditioning learnable. The public baseline always picks the oranges in the same order, so a policy trained on it can solve the task from state alone and never has to read the instruction --- it never sees the same configuration require a different orange depending on the prompt. Teleop breaks this by \textbf{randomising the pick order}: each episode is one successful subtask, driven by hand through an Xbox gamepad and annotated with its instruction (``Grasp left orange'', ``Grasp top right orange'', ``Pick it up'', ``Place it into plate''), so a relative-position prompt --- not task progress --- fixes the target. The dataset used for the evaluated subtask model contains 846 such episodes.
 
 The teleoperated motions are markedly slower than the baseline: precise fast control is hard with the gamepad, so the operator moved deliberately. The trajectories therefore differ from the LightwheelAI Baseline in velocity profile, not only in subtask-level segmentation.
 
@@ -171,11 +171,11 @@ A key design choice is \textbf{tailing}: every episode is extended with 20 termi
 \subsubsection{Autonomous Data Generation}
 \label{subsec:autonomous}
 
-Early evaluation of the Teleop subtask model identified GRASP as the dominant bottleneck: lifting and placing were reliable once an orange was held, but the policy could not acquire certain oranges at all, depending on their randomly initialised position. Recovery therefore ran mainly through \textbf{Level-2} redirection --- abandoning an ungraspable orange for a reachable one --- rather than \textbf{Level-1} retries, which follow only the rarer post-grasp slip. One hypothesis was a \emph{coverage} gap: the policy generalised poorly across orange positions and simply needed more grasp data. Because teleoperation is slow to scale, the orchestrated system was used to generate that data automatically. (Whether more data helps is tested in \cref{sec:experiments}; it does not.)
+GRASP is the bottleneck: once an orange is held, lifting and placing are reliable, but the policy fails to acquire certain oranges depending on their random position, so recovery runs mostly through \textbf{Level-2} redirection. The natural hypothesis is a \emph{coverage} gap --- too little grasp data --- and because teleoperation is slow to scale, the orchestrated system generates more automatically. (\cref{sec:experiments} tests whether this helps; it does not.)
 
 \textbf{The loop.} A rollout contains both failed and successful subtasks; the system keeps the successful trajectories --- drawn from the policy's own execution distribution --- and discards the rest, yielding the \textbf{Auto} set. Target redirection is essential here: by pivoting to a different orange after a GRASP timeout instead of discarding the whole rollout, the system keeps harvesting successful subtasks from scenes that would otherwise be wasted.
 
-\textbf{A reinforcement-learning reading.} This filter-and-retrain loop is a minimal form of reinforcement learning: the orchestrator's privileged success check is a sparse binary reward, and fine-tuning on the kept trajectories is reward-weighted behavioural cloning with the success indicator as the weight. With a single bit per subtask it does no within-trajectory credit assignment and runs for a single update round --- the crudest policy improvement from self-generated experience, chosen precisely because it reuses the existing pipeline unchanged and tests whether the cheapest possible data loop helps before any more elaborate scheme is justified.
+This filter-and-retrain loop is a minimal, single-round form of reinforcement learning --- reward-weighted behavioural cloning with the orchestrator's binary success check as a sparse reward --- chosen because it reuses the existing pipeline unchanged and tests whether the cheapest possible data loop helps.
 
 The retained episodes are balanced by scene state --- equalising start-of-episode scenes against those with one or two oranges already placed --- so the set does not over-represent early scenes. The 414 retained Auto episodes were merged with the 846 Teleop episodes into \textbf{Teleop+Auto} (1260 episodes), used to train the Teleop+Auto subtask model.
 
@@ -192,7 +192,7 @@ The data is organised as subtask episodes, roughly balanced across the three sub
 
 Two features are relevant to later results. GRASP dominates the length budget --- two to three times longer than LIFT or PLACE, with by far the heaviest tail --- because it includes the variable search-and-approach phase before contact. The Auto episodes are shorter and less dispersed than their Teleop counterparts, consistent with being drawn from the policy's own visited states rather than human demonstration.
 
-\subsubsection{Monotask Fair Comparison}
+\subsubsection{Matched Monotask Comparison}
 
 A subtask model differs from the LightwheelAI Baseline in both training distribution and formulation, so that comparison cannot isolate subtasking. Each subtask model is therefore paired with a \textbf{monotask} counterpart trained on the \emph{same} trajectories: per-subtask instructions replaced by the single fixed prompt ``Place the orange into plate'', freeze tails removed, run end-to-end without the orchestrator's checkpoints. The pair sees identical demonstrations and differs only in framing, at both training and execution time; every run uses the same 5000-step budget.
 

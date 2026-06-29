@@ -2,3 +2,83 @@
 \textbf{[Placeholder abstract --- to be written once the report is finalised.]} This project investigates whether decomposing a long-horizon robotic manipulation task into language-conditioned subtasks, sequenced by an orchestrator that monitors outcomes and recovers from failures at two levels --- retrying the same sub-goal and redirecting to an alternative orange to preserve task progress --- improves robustness over running a single policy end-to-end. The study is carried out on a simulated pick-and-place task and compares teleoperated and autonomously augmented training data across monotask and orchestrated subtask formulations. A full summary of the method and findings will be added here.
 
 \end{abstract}
+
+\begin{figure}[H]
+    \centering
+    \resizebox{\textwidth}{!}{%
+    \begin{tikzpicture}[
+        font=\small, >=Latex, node distance=10mm,
+        stage/.style={draw, thick, rounded corners=3pt, align=center,
+                      minimum height=12mm, inner sep=4pt},
+        data/.style={stage, draw=teal!60!black, fill=teal!10},
+        model/.style={stage, draw=orange!85!black, fill=orange!16},
+        orchs/.style={stage, draw=blue!60!black, fill=blue!10},
+        env/.style={stage, draw=black!55, fill=black!7},
+        srcbox/.style={draw, rounded corners=2pt, draw=teal!55!black, fill=teal!5,
+                       align=center, font=\footnotesize, minimum height=8mm, text width=20mm, inner sep=2pt},
+        group/.style={draw, dashed, rounded corners=4pt, inner sep=3.4mm},
+        arr/.style={->, thick, draw=black!70},
+        loop/.style={->, thick, draw=teal!55!black, dashed},
+        gamepad/.pic={
+            \draw[fill=teal!22, draw=teal!65!black, line width=0.5pt, line join=round]
+                (-0.5,0.08)
+                .. controls (-0.5,0.24) and (-0.34,0.26) .. (-0.18,0.26)
+                -- (0.18,0.26)
+                .. controls (0.34,0.26) and (0.5,0.24) .. (0.5,0.08)
+                -- (0.5,-0.10)
+                .. controls (0.5,-0.34) and (0.30,-0.36) .. (0.18,-0.22)
+                .. controls (0.07,-0.10) and (-0.07,-0.10) .. (-0.18,-0.22)
+                .. controls (-0.30,-0.36) and (-0.5,-0.34) .. (-0.5,-0.10)
+                -- cycle;
+            \fill[white] (-0.34,-0.03) rectangle (-0.18,0.03);
+            \fill[white] (-0.29,-0.08) rectangle (-0.23,0.08);
+            \fill[white] (0.26,0.07) circle (0.025);
+            \fill[white] (0.26,-0.07) circle (0.025);
+            \fill[white] (0.19,0.0) circle (0.025);
+            \fill[white] (0.33,0.0) circle (0.025);
+        },
+    ]
+        % --- LeRobot group: datasets feed fine-tuning ---
+        \node[data] (data) {\textbf{Datasets}\\\footnotesize Teleop\,$+$\,Auto};
+        \node[model, right=of data] (train) {\textbf{SmolVLA}\\\footnotesize fine-tuning};
+
+        % --- Isaac Sim group: orchestrator prompts the policy; policy drives the robot ---
+        \node[model, right=26mm of train] (vla) {\textbf{SmolVLA}\\\footnotesize policy};
+        \node[env, right=16mm of vla] (robot) {\textbf{Simulated}\\\textbf{robot}};
+        \coordinate (vrmid) at ($(vla)!0.5!(robot)$);
+        \node[orchs, above=9mm of vrmid] (orch) {\textbf{Orchestrator}\\\footnotesize GRASP / LIFT / PLACE};
+
+        % --- data sources (left of the dataset stage) ---
+        \node[srcbox] (base) [left=13mm of data, yshift=-5mm] {LightwheelAI baseline};
+        \node[srcbox] (tele) [above=4mm of base] {Teleoperation};
+        \pic[scale=0.72] at ([yshift=6mm]tele.north) {gamepad};
+
+        % --- framework / environment grouping ---
+        \begin{scope}[on background layer]
+            \node[group, draw=black!45, fill=black!3, fit=(data)(train),
+                  label={[font=\footnotesize\bfseries, black!55]above:LeRobot}] {};
+            \node[group, draw=green!45!black, fill=green!5, fit=(vla)(robot)(orch),
+                  label={[font=\footnotesize\bfseries, green!45!black]above:Isaac Sim --- evaluation / inference}] (isim) {};
+        \end{scope}
+
+        % --- arrows ---
+        \draw[arr] (tele.east) -- (data.west);
+        \draw[arr] (base.east) -- (data.west);
+        \draw[arr] (data) -- (train);
+        \draw[arr] (train.east) -- node[above, font=\scriptsize, align=center]{fine-tuned\\policy} (vla.west);
+
+        % orchestrator -> policy -> robot -> orchestrator (inside Isaac Sim)
+        \draw[arr] (orch) -- node[midway, fill=white, inner sep=0.6pt, font=\scriptsize]{prompt} (vla);
+        \draw[arr] (vla) -- node[midway, below, font=\scriptsize]{actions} (robot);
+        \draw[arr] (robot) -- node[midway, fill=white, inner sep=0.6pt, font=\scriptsize]{state} (orch);
+
+        % --- autonomous-data feedback loop ---
+        \draw[loop] (isim.south) -- ++(0,-0.7) -| (data.south);
+        \node[font=\footnotesize, text=teal!45!black, align=center]
+            at ($(data.south)!0.5!(isim.south)+(0,-0.35)$)
+            {successful subtask rollouts \;(autonomous \emph{Auto} data)};
+    \end{tikzpicture}%
+    }
+    \caption{Overview of the project pipeline.}
+    \label{fig:pipeline}
+\end{figure}

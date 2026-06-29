@@ -5,7 +5,7 @@ This section compares task formulations and training sources. Recall the dataset
 
 Every completed run uses the same 100-scene reference seed set (\texttt{pick\_orange\_reference\_100\_v1}) in the same order; the randomised quantities are the top-camera pose and the orange positions. Differences between models are therefore attributable to policy and formulation rather than to easier or harder sampled scenes.
 
-\subsection{Full-Task Outcomes Across Formulations}
+\subsection{Overall Performance}
 
 Final plate occupancy for every model on the shared 100-seed set (5000-step budget) is shown below, via two metrics: the \emph{full-task success rate} (fraction of episodes placing all three oranges) and the \emph{mean final occupancy} (average oranges placed out of three, crediting partial progress). Bars are grouped by training source and, within the two custom sources, by formulation (\emph{monotask} end-to-end vs.\ orchestrated \emph{subtask}).
 
@@ -22,7 +22,11 @@ Final plate occupancy for every model on the shared 100-seed set (5000-step budg
 
 \paragraph{Aggregating autonomous data did not help.} Adding the Auto episodes to Teleop regressed the subtask model on both metrics (full-task 20\% to 13\%, mean 1.77 to 1.42). In-distribution successful subtasks were thus not sufficient to improve full-task behaviour; the subtask-level analysis below isolates what degraded.
 
-\subsection{The Grasp Bottleneck}
+\subsection{Failure Analysis}
+
+The overview above reports \emph{what} each model achieves; this section digs into \emph{why} --- where execution breaks down and which step caps performance.
+
+\subsubsection{The Grasp Bottleneck}
 \label{sec:failure_modes}
 
 \textbf{The wall is the grasp.} For the orchestrated (subtask) models --- the only ones whose grasp attempts are real, budgeted events rather than a heuristic reconstruction --- only about \textbf{37\%} of grasp attempts secure an orange; the rest time out without acquiring one. Everything downstream is reliable: lift and place each succeed 80--92\% of the time, so once an orange is held it reaches the plate \textbf{87\%} of the time on Teleop. The cap on full-task success is upstream, at acquiring the orange at all. (\emph{Secured} below is a force-confirmed grasp for the subtask models and, for the monotask ones --- which lift without force-gating --- a lift.)
@@ -52,7 +56,7 @@ Final plate occupancy for every model on the shared 100-seed set (5000-step budg
     \end{tabular}
 \end{table}
 
-\subsection{Target Obedience in the Subtask Policies}
+\subsubsection{Target Obedience in the Subtask Policies}
 \label{sec:obedience}
 
 Only the orchestrated runs name their target by spatial label (``Grasp \emph{<position>} orange''), so only they can be asked whether the policy grasps the orange it was \emph{told} to. A grasp is \textbf{obeyed} when the gripper closes on the requested orange (matched by identity) and a \textbf{misgrab} otherwise. The policy follows the instruction only about \textbf{two-thirds} of the time on Teleop (67\%) and three-quarters on Teleop+Auto (73\%), per the confusion matrices below.
