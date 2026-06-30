@@ -42,7 +42,7 @@ MODELS = [
 ]
 # Fixed column order shared by every panel so they read consistently.
 COLS = ["left", "middle", "right", "top right", "bottom right"]
-SHORT = {"left": "left", "middle": "mid", "right": "right", "top right": "t.R", "bottom right": "b.R"}
+SHORT = {"left": "Left", "middle": "Mid", "right": "Right", "top right": "T.R", "bottom right": "B.R"}
 
 # classify_orange_positions constants (see eval_utils.py): x primary, both inverts on, 3 cm tol.
 TOL = 0.03
@@ -163,7 +163,7 @@ def draw_panel(fig: PdfFigure, x0: float, top: float, state_label: str, conf: di
                 fig.text(cx + CW / 2, cy + CH / 2 - 3.5, str(v), 9.5, "center",
                          rgb=(1, 1, 1) if light else INK, bold=on_diag)
         # row label + obeyed rate
-        fig.text(grid_left - 7, cy + CH / 2 - 1, r, 8.6, "right", bold=True, rgb=INK)
+        fig.text(grid_left - 7, cy + CH / 2 - 1, r.capitalize(), 8.6, "right", bold=True, rgb=INK)
         fig.text(grid_left - 7, cy + CH / 2 - 10, f"{100 * conf[r][r] / total:.0f}% obeyed  (n={total})", 6.3, "right", rgb=MUTE)
 
     # thin gridlines + frame
@@ -189,15 +189,16 @@ def main() -> None:
     grid_w = LABEL_W + len(COLS) * CW
     col_x = [44, 44 + grid_w + 60]
     center = [col_x[0] + LABEL_W + len(COLS) * CW / 2, col_x[1] + LABEL_W + len(COLS) * CW / 2]
+    content_cx = (col_x[0] + col_x[1] + grid_w) / 2  # centre titles on the panel grid
 
-    fig.text(fig.width / 2, fig.height - 28, "Which orange is grasped vs. which was requested", 15, "center", bold=True, rgb=INK)
-    fig.text(fig.width / 2, fig.height - 45,
+    fig.text(content_cx, fig.height - 28, "Which orange is grasped vs. which was requested", 15, "center", bold=True, rgb=INK)
+    fig.text(content_cx, fig.height - 45,
              "Rows: requested position.   Columns: position grasped.   Cell shade = share of that row.   Scene states 0--1 pooled.",
              8.8, "center", rgb=MUTE)
 
     # column super-headers: frozen vs unfrozen-VLM language backbone
-    fig.text(center[0], fig.height - 67, "frozen language backbone", 11.5, "center", bold=True, rgb=INK)
-    fig.text(center[1], fig.height - 67, "unfrozen-VLM", 11.5, "center", bold=True, rgb=INK)
+    fig.text(center[0], fig.height - 67, "Frozen language backbone", 11.5, "center", bold=True, rgb=INK)
+    fig.text(center[1], fig.height - 67, "Unfrozen-VLM", 11.5, "center", bold=True, rgb=INK)
 
     row_top = [fig.height - 92, fig.height - 300]
     for i, (disp, subdir, fname) in enumerate(MODELS):
@@ -205,8 +206,8 @@ def main() -> None:
         source = "Teleop+Auto" if disp.startswith("Teleop+Auto") else "Teleop"
         draw_panel(fig, col_x[c], row_top[r], source, confusion(subdir, fname, (0, 1)))
 
-    swatch(fig, col_x[0], 30, OBEY_TARGET, "obeyed (grasped the requested orange)")
-    swatch(fig, col_x[0] + 250, 30, MISS_TARGET, "misgrab (grasped a different orange)")
+    swatch(fig, col_x[0], 30, OBEY_TARGET, "Obeyed (grasped the requested orange)")
+    swatch(fig, col_x[0] + 250, 30, MISS_TARGET, "Misgrab (grasped a different orange)")
     fig.save(OUT)
     print(f"wrote {OUT}")
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from plot_lib import ResultFile, draw_grouped_figure, parse_result
+from plot_lib import ResultFile, draw_figure, parse_result
 
 
 REPORT_DIR = Path(__file__).resolve().parents[1]
@@ -36,7 +36,7 @@ RESULT_FILES = [
 
 def main() -> None:
     results = [(result_file, parse_result(result_file)) for result_file in RESULT_FILES]
-    draw_grouped_figure(results, OUTPUT_PDF, bar_w=60)
+    draw_figure(results, OUTPUT_PDF, bar_w=90)
 
     print(f"Wrote {OUTPUT_PDF}")
     for result_file, parsed in results:

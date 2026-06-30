@@ -93,6 +93,15 @@ def pct_label(value: float) -> str:
     return f"{value:.1f}%"
 
 
+def cap(text: str) -> str:
+    """Capitalise the first character only, leaving the rest intact.
+
+    Unlike ``str.capitalize`` this preserves proper-noun and acronym casing
+    (e.g. ``SmolVLA``, ``LightwheelAI``, ``ACT``) while still fixing labels
+    that forgot their leading capital (``frozen`` -> ``Frozen``)."""
+    return text[:1].upper() + text[1:] if text else text
+
+
 def pdf_escape(text: str) -> str:
     return text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
 
@@ -222,9 +231,10 @@ def draw_figure(
     plot_w = figure.width - left - right
     plot_h = figure.height - bottom - top
     x_step = plot_w / len(results)
+    plot_cx = left + plot_w / 2  # centre titles on the plot area, not the canvas
 
-    figure.text(figure.width / 2, figure.height - 26, "Final orange count per episode", 15, "center", bold=True)
-    figure.text(figure.width / 2, figure.height - 43, "Percentage of evaluated episodes", 10, "center", rgb=(0.25, 0.25, 0.25))
+    figure.text(plot_cx, figure.height - 26, "Final orange count per episode", 15, "center", bold=True)
+    figure.text(plot_cx, figure.height - 43, "Percentage of evaluated episodes", 10, "center", rgb=(0.25, 0.25, 0.25))
 
     figure.set_stroke((0.78, 0.78, 0.78), 0.6)
     for pct in [0, 25, 50, 75, 100]:
@@ -264,7 +274,7 @@ def draw_figure(
             figure.text(
                 x + bar_w / 2,
                 bottom - 19 - 11 * line_index,
-                label_line,
+                cap(label_line),
                 8.4 if is_policy else 7.4,
                 "center",
                 rgb=policy_rgb if is_policy else (0, 0, 0),
@@ -306,10 +316,11 @@ def draw_grouped_figure(
     group_widths = [len(g) * bar_w + (len(g) - 1) * bar_gap for _, g in groups]
     total_w = sum(group_widths) + group_gap * (len(groups) - 1)
     x_cursor = left + (plot_w - total_w) / 2
+    plot_cx = left + plot_w / 2  # centre titles on the plot area, not the canvas
 
-    figure.text(figure.width / 2, figure.height - 27, "Final orange count per episode", 15, "center", bold=True)
+    figure.text(plot_cx, figure.height - 27, "Final orange count per episode", 15, "center", bold=True)
     figure.text(
-        figure.width / 2,
+        plot_cx,
         figure.height - 44,
         "Bar height = % of the 100 seeded episodes ending with 0-3 oranges placed; value above each bar is the mean (/3). "
         "Within a family, bars are training recipes.",
@@ -363,7 +374,7 @@ def draw_grouped_figure(
                 figure.text(x + bar_w / 2, bottom + plot_h + 8, f"{parsed.mean:.2f}", 8.4, "center", rgb=(0.15, 0.15, 0.15), bold=True)
 
             # per-bar recipe/variant label
-            figure.text(x + bar_w / 2, bottom - 16, variant, 7.6, "center", rgb=variant_rgb, bold=True)
+            figure.text(x + bar_w / 2, bottom - 16, cap(variant), 7.6, "center", rgb=variant_rgb, bold=True)
 
         # family bracket + (possibly multi-line) label
         figure.set_stroke((0.33, 0.33, 0.33), 0.7)
@@ -371,7 +382,7 @@ def draw_grouped_figure(
         figure.line(group_start, bottom - 27, group_start, bottom - 33)
         figure.line(group_start + group_w, bottom - 27, group_start + group_w, bottom - 33)
         for li, gl in enumerate(key.split("\n")):
-            figure.text(group_center, bottom - 46 - 11 * li, gl, 8.6, "center", bold=True)
+            figure.text(group_center, bottom - 46 - 11 * li, cap(gl), 8.6, "center", bold=True)
 
         x_cursor += group_w + group_gap
 
@@ -384,10 +395,10 @@ def draw_grouped_figure(
         figure.text(legend_x + 14, legend_y + 2, f"{oranges}/3", 8.0)
         legend_x += 58
     legend_x += 18
-    figure.text(legend_x, legend_y + 2, "recipe:", 8.0, rgb=(0.2, 0.2, 0.2))
+    figure.text(legend_x, legend_y + 2, "Recipe:", 8.0, rgb=(0.2, 0.2, 0.2))
     legend_x += 44
     for variant in ("frozen", "unfrozen", "no-tail"):
-        figure.text(legend_x, legend_y + 2, variant, 8.0, rgb=VARIANT_COLORS[variant], bold=True)
+        figure.text(legend_x, legend_y + 2, cap(variant), 8.0, rgb=VARIANT_COLORS[variant], bold=True)
         legend_x += len(variant) * 8.0 * 0.56 + 16
 
     figure.save(output_path)

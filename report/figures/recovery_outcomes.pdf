@@ -15,12 +15,12 @@ endobj
 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
 endobj
 6 0 obj
-<< /Length 2350 >>
+<< /Length 2351 >>
 stream
 1.000 1.000 1.000 rg
 0.00 0.00 460.00 300.00 re f
 0.160 0.160 0.160 rg
-BT /F2 12.5 Tf 91.25 278.00 Td (Recovery after the first orange fails) Tj ET
+BT /F2 12.5 Tf 111.25 278.00 Td (Recovery after the first orange fails) Tj ET
 0.900 0.900 0.900 RG
 0.70 w
 54.00 56.00 m 446.00 56.00 l S
@@ -47,7 +47,7 @@ BT /F1 8.0 Tf 37.04 197.00 Td (75) Tj ET
 0.420 0.420 0.420 rg
 BT /F1 8.0 Tf 32.56 245.00 Td (100) Tj ET
 0.420 0.420 0.420 rg
-BT /F1 8.0 Tf 44.00 260.00 Td (episodes that placed a different orange \(%\)) Tj ET
+BT /F1 8.0 Tf 44.00 260.00 Td (Episodes that placed a different orange \(%\)) Tj ET
 0.300 0.300 0.300 RG
 1.00 w
 54.00 56.00 392.00 192.00 re S
@@ -59,7 +59,7 @@ BT /F1 8.0 Tf 44.00 260.00 Td (episodes that placed a different orange \(%\)) Tj
 0.160 0.160 0.160 rg
 BT /F2 10.0 Tf 110.00 113.33 Td (28%) Tj ET
 0.420 0.420 0.420 rg
-BT /F2 8.5 Tf 98.60 43.00 Td (monotask) Tj ET
+BT /F2 8.5 Tf 98.60 43.00 Td (Monotask) Tj ET
 0.420 0.420 0.420 rg
 BT /F1 7.0 Tf 109.20 33.00 Td (15/54) Tj ET
 0.270 0.550 0.720 rg
@@ -70,7 +70,7 @@ BT /F1 7.0 Tf 109.20 33.00 Td (15/54) Tj ET
 0.160 0.160 0.160 rg
 BT /F2 10.0 Tf 176.00 238.29 Td (93%) Tj ET
 0.420 0.420 0.420 rg
-BT /F2 8.5 Tf 167.15 43.00 Td (subtask) Tj ET
+BT /F2 8.5 Tf 167.15 43.00 Td (Subtask) Tj ET
 0.420 0.420 0.420 rg
 BT /F1 7.0 Tf 175.20 33.00 Td (39/42) Tj ET
 0.160 0.160 0.160 rg
@@ -83,7 +83,7 @@ BT /F2 10.0 Tf 134.00 18.00 Td (Teleop) Tj ET
 0.160 0.160 0.160 rg
 BT /F2 10.0 Tf 306.00 140.37 Td (42%) Tj ET
 0.420 0.420 0.420 rg
-BT /F2 8.5 Tf 294.60 43.00 Td (monotask) Tj ET
+BT /F2 8.5 Tf 294.60 43.00 Td (Monotask) Tj ET
 0.420 0.420 0.420 rg
 BT /F1 7.0 Tf 305.20 33.00 Td (18/43) Tj ET
 0.270 0.550 0.720 rg
@@ -94,7 +94,7 @@ BT /F1 7.0 Tf 305.20 33.00 Td (18/43) Tj ET
 0.160 0.160 0.160 rg
 BT /F2 10.0 Tf 372.00 190.56 Td (68%) Tj ET
 0.420 0.420 0.420 rg
-BT /F2 8.5 Tf 363.15 43.00 Td (subtask) Tj ET
+BT /F2 8.5 Tf 363.15 43.00 Td (Subtask) Tj ET
 0.420 0.420 0.420 rg
 BT /F1 7.0 Tf 371.20 33.00 Td (34/50) Tj ET
 0.160 0.160 0.160 rg
@@ -116,5 +116,5 @@ xref
 trailer
 << /Size 7 /Root 1 0 R >>
 startxref
-2798
+2799
 %%EOF

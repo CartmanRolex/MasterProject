@@ -20,7 +20,7 @@ stream
 1.000 1.000 1.000 rg
 0.00 0.00 470.00 300.00 re f
 0.160 0.160 0.160 rg
-BT /F2 12.5 Tf 47.50 278.00 Td (Subtask episode-length distribution by data source) Tj ET
+BT /F2 12.5 Tf 66.50 278.00 Td (Subtask episode-length distribution by data source) Tj ET
 0.900 0.900 0.900 RG
 0.70 w
 54.00 52.00 m 454.00 52.00 l S
@@ -57,7 +57,7 @@ BT /F1 8.0 Tf 32.56 214.00 Td (500) Tj ET
 0.420 0.420 0.420 rg
 BT /F1 8.0 Tf 32.56 247.00 Td (600) Tj ET
 0.420 0.420 0.420 rg
-BT /F1 8.0 Tf 24.00 256.00 Td (frames) Tj ET
+BT /F1 8.0 Tf 24.00 256.00 Td (Frames) Tj ET
 0.300 0.300 0.300 RG
 1.00 w
 54.00 52.00 400.00 198.00 re S
@@ -220,7 +220,7 @@ BT /F1 8.5 Tf 77.00 235.00 Td (Teleop) Tj ET
 0.160 0.160 0.160 rg
 BT /F1 8.5 Tf 155.00 235.00 Td (Auto) Tj ET
 0.420 0.420 0.420 rg
-BT /F1 7.2 Tf 222.00 235.00 Td (box: p25-p75   bar: median   dashed: mean   whisker: p5-p95) Tj ET
+BT /F1 7.2 Tf 222.00 235.00 Td (Box: p25-p75   Bar: median   Dashed: mean   Whisker: p5-p95) Tj ET
 endstream
 endobj
 xref

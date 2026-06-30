@@ -91,7 +91,7 @@ def main() -> None:
     fig.rect(0, 0, W, H)
 
     # Title.
-    fig.text(W / 2, H - 22, "Subtask episode-length distribution by data source",
+    fig.text((PLOT_L + PLOT_R) / 2, H - 22, "Subtask episode-length distribution by data source",
              12.5, "center", rgb=INK, bold=True)
 
     # Y gridlines + labels.
@@ -100,7 +100,7 @@ def main() -> None:
         fig.set_stroke(GRID, 0.7)
         fig.line(PLOT_L, yt, PLOT_R, yt)
         fig.text(PLOT_L - 8, yt - 3, str(tick), 8.0, "right", rgb=MUTED)
-    fig.text(PLOT_L - 30, PLOT_T + 6, "frames", 8.0, "left", rgb=MUTED)
+    fig.text(PLOT_L - 30, PLOT_T + 6, "Frames", 8.0, "left", rgb=MUTED)
 
     # Plot border.
     fig.set_stroke((0.30, 0.30, 0.30), 1.0)
@@ -129,7 +129,7 @@ def main() -> None:
         fig.rect(lx, ly, 12, 9, fill=False)
         fig.text(lx + 17, ly + 1, source, 8.5, "left", rgb=INK)
         lx += 78
-    fig.text(lx + 6, ly + 1, "box: p25-p75   bar: median   dashed: mean   whisker: p5-p95",
+    fig.text(lx + 6, ly + 1, "Box: p25-p75   Bar: median   Dashed: mean   Whisker: p5-p95",
              7.2, "left", rgb=MUTED)
 
     fig.save(OUTPUT_PDF)

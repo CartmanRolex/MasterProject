@@ -101,22 +101,24 @@ def main() -> None:
     ax.axis("off")
     ax.set_aspect("equal")
 
-    # Title block.
-    ax.text(W / 2, 678, "Orchestrator decision logic", ha="center", va="center",
+    # Title block. Centre on the diagram content (x: 58..996), not the canvas,
+    # whose right margin (4 px) is far smaller than its left margin (58 px).
+    content_cx = (58 + 996) / 2
+    ax.text(content_cx, 678, "Orchestrator decision logic", ha="center", va="center",
             fontsize=17, fontweight="bold", color=INK)
     ax.text(
-        W / 2, 656,
+        content_cx, 656,
         "The VLA executes only GRASP(target), LIFT and PLACE; the controller sequences prompts from privileged simulator state.",
         ha="center", va="center", fontsize=9.5, color=MUTED,
     )
 
     # Legend.
     legend = [
-        (CONTROLLER, "controller decision"),
-        (VLA, "prompted VLA task"),
-        (MOTION, "controller motion"),
-        (ROUTING, "retry routing"),
-        (TERMINAL, "terminal state"),
+        (CONTROLLER, "Controller decision"),
+        (VLA, "Prompted VLA task"),
+        (MOTION, "Controller motion"),
+        (ROUTING, "Retry routing"),
+        (TERMINAL, "Terminal state"),
     ]
     lx = 96
     for (fill, accent), text in legend:

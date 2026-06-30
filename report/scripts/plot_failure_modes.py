@@ -41,14 +41,14 @@ def grasp_strict(data):
 OUTPUT_PDF = Path(__file__).resolve().parents[1] / "figures" / "failure_modes.pdf"
 
 MODELS = [
-    ("Teleop subtask",      "Gal-pick-orange-tailedCH20", "checkpoint.json"),
-    ("Teleop+Auto subtask", "Gal-merged-tailed-auto",     "checkpoint.json"),
+    ("Teleop Subtask",      "Gal-pick-orange-tailedCH20", "checkpoint.json"),
+    ("Teleop+Auto Subtask", "Gal-merged-tailed-auto",     "checkpoint.json"),
 ]
 
 GREEN = (0.24, 0.55, 0.32)   # success
 ORANGE = (0.93, 0.56, 0.21)  # drop / slip
 GRAY = (0.50, 0.53, 0.57)    # timeout
-LEGEND = [("success", GREEN), ("drop / slip", ORANGE), ("timeout", GRAY)]
+LEGEND = [("Success", GREEN), ("Drop / slip", ORANGE), ("Timeout", GRAY)]
 
 
 def rows_for(data):

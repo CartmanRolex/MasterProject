@@ -130,13 +130,13 @@ def y_of(v):
 def main():
     fig = PdfFigure(width=W, height=H)
     fig.set_fill((1, 1, 1)); fig.rect(0, 0, W, H)
-    fig.text(W / 2, H - 22, "Recovery after the first orange fails", 12.5, "center", rgb=INK, bold=True)
+    fig.text((PL + PR) / 2, H - 22, "Recovery after the first orange fails", 12.5, "center", rgb=INK, bold=True)
 
     for tick in range(0, 101, 25):
         yt = y_of(tick)
         fig.set_stroke(GRID, 0.7); fig.line(PL, yt, PR, yt)
         fig.text(PL - 8, yt - 3, f"{tick}", 8.0, "right", rgb=MUTED)
-    fig.text(PL - 10, PT + 12, "episodes that placed a different orange (%)", 8.0, "left", rgb=MUTED)
+    fig.text(PL - 10, PT + 12, "Episodes that placed a different orange (%)", 8.0, "left", rgb=MUTED)
     fig.set_stroke((0.30, 0.30, 0.30), 1.0); fig.rect(PL, PB, PR - PL, PT - PB, fill=False)
 
     # two source groups, two bars (monotask, subtask) each
@@ -153,7 +153,7 @@ def main():
             fig.set_fill(FILL[form]); fig.rect(x, PB, BW, top - PB)
             fig.set_stroke(STROKE[form], 1.1); fig.rect(x, PB, BW, top - PB, fill=False)
             fig.text(cx, top + 4, f"{rate:.0f}%", 10.0, "center", rgb=INK, bold=True)
-            fig.text(cx, PB - 13, form, 8.5, "center", rgb=MUTED, bold=True)
+            fig.text(cx, PB - 13, form.capitalize(), 8.5, "center", rgb=MUTED, bold=True)
             fig.text(cx, PB - 23, f"{rec}/{ff}", 7.0, "center", rgb=MUTED)
         fig.text(gx, PB - 38, src, 10.0, "center", rgb=INK, bold=True)
         if gi:
