@@ -39,14 +39,14 @@ Long-horizon robotic manipulation fails not only when a single step fails, but w
         },
     ]
         % --- LeRobot group: datasets feed fine-tuning ---
-        \node[data] (data) {\textbf{Datasets}\\\footnotesize Teleop\,$+$\,Auto};
+        \node[data] (data) {\textbf{Datasets}};
         \node[model, right=of data] (train) {\textbf{SmolVLA}\\\footnotesize fine-tuning};
 
         % --- Isaac Sim group: orchestrator prompts the policy; policy drives the robot ---
         \node[model, right=26mm of train] (vla) {\textbf{SmolVLA}\\\footnotesize policy};
-        \node[env, right=16mm of vla] (robot) {\textbf{Simulated}\\\textbf{robot}};
+        \node[env, right=20mm of vla] (robot) {\textbf{Simulated}\\\textbf{robot}};
         \coordinate (vrmid) at ($(vla)!0.5!(robot)$);
-        \node[orchs, above=9mm of vrmid] (orch) {\textbf{Orchestrator}\\\footnotesize GRASP / LIFT / PLACE};
+        \node[orchs, above=16mm of vrmid] (orch) {\textbf{Orchestrator}\\\footnotesize GRASP / LIFT / PLACE};
 
         % --- data sources (left of the dataset stage) ---
         \node[srcbox] (base) [left=13mm of data, yshift=-5mm] {Public dataset\\{\scriptsize HuggingFace}};
@@ -58,7 +58,7 @@ Long-horizon robotic manipulation fails not only when a single step fails, but w
             \node[group, draw=black!45, fill=black!3, fit=(data)(train),
                   label={[font=\footnotesize\bfseries, black!55]above:LeRobot}] {};
             \node[group, draw=green!45!black, fill=green!5, fit=(vla)(robot)(orch),
-                  label={[font=\footnotesize\bfseries, green!45!black]above:Isaac Sim (LeIsaac) --- evaluation / inference}] (isim) {};
+                  label={[font=\footnotesize\bfseries, green!45!black]above:Isaac Sim (LeIsaac) --- inference}] (isim) {};
         \end{scope}
 
         % --- arrows ---
@@ -68,9 +68,9 @@ Long-horizon robotic manipulation fails not only when a single step fails, but w
         \draw[arr] (train.east) -- node[above, font=\scriptsize, align=center]{fine-tuned\\policy} (vla.west);
 
         % orchestrator -> policy -> robot -> orchestrator (inside Isaac Sim)
-        \draw[arr] (orch) -- node[midway, fill=white, inner sep=0.6pt, font=\scriptsize]{prompt} (vla);
-        \draw[arr] (vla) -- node[midway, below, font=\scriptsize]{actions} (robot);
-        \draw[arr] (robot) -- node[midway, fill=white, inner sep=0.6pt, font=\scriptsize]{state} (orch);
+        \draw[arr] (orch.south west) -- node[midway, left, font=\scriptsize]{prompt} (vla.north);
+        \draw[arr] (vla.east) -- node[midway, below, font=\scriptsize]{actions} (robot.west);
+        \draw[arr] (robot.north) -- node[midway, right, font=\scriptsize]{state} (orch.south east);
 
         % --- autonomous-data feedback loop ---
         \draw[loop] (isim.south) -- ++(0,-0.7) -| (data.south);
