@@ -26,10 +26,10 @@ Final plate occupancy for every model on the shared 100-seed set (5000-step budg
 
 The overview above reports \emph{what} each model achieves; this section digs into \emph{why} --- where execution breaks down and which step caps performance.
 
-\subsubsection{The Grasp Bottleneck}
+\subsubsection{Grasp Acquisition and Recovery Behaviour}
 \label{sec:failure_modes}
 
-\textbf{The wall is the grasp.} For the orchestrated (subtask) models --- the only ones whose grasp attempts are real, budgeted events rather than a heuristic reconstruction --- only about \textbf{37\%} of grasp attempts secure an orange; the rest time out without acquiring one. Everything downstream is reliable: lift and place each succeed 80--92\% of the time, so once an orange is held it reaches the plate \textbf{87\%} of the time on Teleop. The cap on full-task success is upstream, at acquiring the orange at all. (\emph{Secured} below is a force-confirmed grasp for the subtask models and, for the monotask ones --- which lift without force-gating --- a lift.)
+\textbf{Grasp acquisition is the limiting step.} For the orchestrated (subtask) models --- the only ones whose grasp attempts are real, budgeted events rather than a heuristic reconstruction --- only about \textbf{37\%} of grasp attempts secure an orange; the rest time out without acquiring one. Everything downstream is reliable: lift and place each succeed 80--92\% of the time, so once an orange is held it reaches the plate \textbf{87\%} of the time on Teleop. The cap on full-task success is upstream, at acquiring the orange at all. (\emph{Secured} below is a force-confirmed grasp for the subtask models and, for the monotask ones --- which lift without force-gating --- a lift.)
 
 \begin{figure}[H]
     \centering
