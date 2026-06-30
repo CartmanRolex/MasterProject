@@ -193,6 +193,7 @@ The data is organised as subtask episodes, roughly balanced across the three sub
 Two features are relevant to later results. GRASP dominates the length budget --- two to three times longer than LIFT or PLACE, with by far the heaviest tail --- because it includes the variable search-and-approach phase before contact. The Auto episodes are shorter and less dispersed than their Teleop counterparts, consistent with being drawn from the policy's own visited states rather than human demonstration.
 
 \subsubsection{Matched Monotask Comparison}
+\label{subsec:monotask}
 
 A subtask model differs from the LightwheelAI Baseline in both training distribution and formulation, so that comparison cannot isolate subtasking. Each subtask model is therefore paired with a \textbf{monotask} counterpart trained on the \emph{same} trajectories: per-subtask instructions replaced by the single fixed prompt ``Place the orange into plate'', freeze tails removed, run end-to-end without the orchestrator's checkpoints. The pair sees identical demonstrations and differs only in framing, at both training and execution time; every run uses the same 5000-step budget.
 
