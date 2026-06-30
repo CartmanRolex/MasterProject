@@ -32,9 +32,13 @@ from plot_lib import PdfFigure
 RESULTS = Path(__file__).resolve().parents[2] / "isaac-inference" / "results"
 OUT = Path(__file__).resolve().parents[1] / "figures" / "grasp_obedience_confusion.pdf"
 
+# Four subtask models in a 2x2 grid: rows = training source, columns = frozen vs
+# unfrozen-VLM. Scene states are pooled (0+1), so each model is one panel.
 MODELS = [
-    ("Teleop", "Gal-pick-orange-tailedCH20", "checkpoint.json"),
-    ("Teleop+Auto", "Gal-merged-tailed-auto", "checkpoint.json"),
+    ("Teleop frozen",        "Gal-pick-orange-tailedCH20",              "checkpoint.json"),
+    ("Teleop unfrozen-VLM",  "Gal-pick-orange-tailedCH20-unfrozen-vlm", "checkpoint.json"),
+    ("Teleop+Auto frozen",   "Gal-merged-tailed-auto",                  "checkpoint.json"),
+    ("Teleop+Auto unfrozen-VLM", "Gal-merged-tailed-auto-unfrozen-vlm", "checkpoint.json"),
 ]
 # Fixed column order shared by every panel so they read consistently.
 COLS = ["left", "middle", "right", "top right", "bottom right"]
@@ -91,14 +95,17 @@ def grasp_time_labels(episode: dict, attempt: dict) -> dict:
     return classify(scene)
 
 
-def confusion(subdir: str, fname: str, n_placed: int):
+def confusion(subdir: str, fname: str, n_placed):
+    """Requested-vs-grasped counts. n_placed: an int for one scene state, or an
+    iterable of states to pool (e.g. (0, 1))."""
+    states = (n_placed,) if isinstance(n_placed, int) else tuple(n_placed)
     data = json.load(open(RESULTS / subdir / fname))
     conf: dict[str, Counter] = defaultdict(Counter)
     for e in data["episodes"]:
         for a in e["subtask_attempts"]:
             if a.get("subtask") != "GRASP" or a.get("result") != "success":
                 continue
-            if a.get("n_placed_start") != n_placed:
+            if a.get("n_placed_start") not in states:
                 continue
             req = a["requested_label"]
             if a.get("target_match"):
@@ -181,21 +188,22 @@ def main() -> None:
     fig = PdfFigure(width=792, height=508)
     grid_w = LABEL_W + len(COLS) * CW
     col_x = [44, 44 + grid_w + 60]
-    center_l, center_r = col_x[0] + LABEL_W + len(COLS) * CW / 2, col_x[1] + LABEL_W + len(COLS) * CW / 2
+    center = [col_x[0] + LABEL_W + len(COLS) * CW / 2, col_x[1] + LABEL_W + len(COLS) * CW / 2]
 
     fig.text(fig.width / 2, fig.height - 28, "Which orange is grasped vs. which was requested", 15, "center", bold=True, rgb=INK)
-    fig.text(fig.width / 2, fig.height - 45, "Rows: requested position.   Columns: position actually grasped.   Cell shade = share of that row.",
+    fig.text(fig.width / 2, fig.height - 45,
+             "Rows: requested position.   Columns: position grasped.   Cell shade = share of that row.   Scene states 0--1 pooled.",
              8.8, "center", rgb=MUTE)
 
-    # model super-headers
-    for cx, (disp, _, _) in zip((center_l, center_r), MODELS):
-        fig.text(cx, fig.height - 72, disp, 12.0, "center", bold=True, rgb=INK)
+    # column super-headers: frozen vs unfrozen-VLM language backbone
+    fig.text(center[0], fig.height - 67, "frozen language backbone", 11.5, "center", bold=True, rgb=INK)
+    fig.text(center[1], fig.height - 67, "unfrozen-VLM", 11.5, "center", bold=True, rgb=INK)
 
     row_top = [fig.height - 92, fig.height - 300]
-    states = [(0, "All three oranges on the table"), (1, "One already placed (two remaining)")]
-    for ri, (n_placed, state_label) in enumerate(states):
-        for ci, (disp, subdir, fname) in enumerate(MODELS):
-            draw_panel(fig, col_x[ci], row_top[ri], state_label, confusion(subdir, fname, n_placed))
+    for i, (disp, subdir, fname) in enumerate(MODELS):
+        r, c = i // 2, i % 2
+        source = "Teleop+Auto" if disp.startswith("Teleop+Auto") else "Teleop"
+        draw_panel(fig, col_x[c], row_top[r], source, confusion(subdir, fname, (0, 1)))
 
     swatch(fig, col_x[0], 30, OBEY_TARGET, "obeyed (grasped the requested orange)")
     swatch(fig, col_x[0] + 250, 30, MISS_TARGET, "misgrab (grasped a different orange)")

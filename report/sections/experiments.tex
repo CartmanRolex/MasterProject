@@ -43,16 +43,14 @@ The overview above reports \emph{what} each model achieves; this section digs in
     \includegraphics[width=0.72\textwidth]{recovery_outcomes.pdf}
 \end{figure}
 
-\subsubsection{Target Obedience in the Subtask Policies}
+\subsubsection{Grasp Obedience}
 \label{sec:obedience}
 
-Only the orchestrated runs name their target by spatial label (``Grasp \emph{<position>} orange''), so only they can be asked whether the policy grasps the orange it was \emph{told} to. A grasp is \textbf{obeyed} when the gripper closes on the requested orange (matched by identity) and a \textbf{misgrab} otherwise. The policy follows the instruction only about \textbf{two-thirds} of the time on Teleop (67\%) and three-quarters on Teleop+Auto (73\%), per the confusion matrices below.
+Only the orchestrated runs name their target by spatial label (``Grasp \emph{<position>} orange''), so only they can be asked whether the policy grasps the orange it was \emph{told} to --- a grasp is \textbf{obeyed} when the gripper closes on the requested orange and a \textbf{misgrab} otherwise. The subtask policies obey only about \textbf{two-thirds to three-quarters} of the time (67--73\%), and \textbf{unfreezing the language backbone does not improve this} (67\% on both unfrozen variants): adapting the language model does not close the obedience gap.
 
-\textbf{The misses are systematically leftward.} They are not random: on the dominant left--right axis a missed request lands on the orange just to the \emph{left} of the one asked for --- \emph{right} taken as \emph{middle}, \emph{middle} as \emph{left} --- toward the side where the plate sits and the placed oranges accumulate. So \emph{right} is by far the worst-followed label (41\% on Teleop, 47\% on Teleop+Auto), while the leftmost and upper referents are almost always obeyed (96--97\%). It is genuine behaviour, not a logging artefact: the grasped orange is identified from contact, a physically distinct one a few centimetres to the side of the one requested.
+\textbf{The misses are systematically leftward.} On the dominant left--right axis a missed request lands on the orange just to the \emph{left} of the one asked for (\emph{right} taken as \emph{middle}, \emph{middle} as \emph{left}), toward the side where the plate sits. So \emph{right} is the worst-followed label (32--47\%), while the leftmost and upper referents are almost always obeyed (89--97\%). It is genuine behaviour, not a logging artefact: the grasped orange is identified from contact, a physically distinct one a few centimetres to the side of the one requested.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{grasp_obedience_confusion.pdf}
 \end{figure}
-
-\textbf{The weakest instruction is the one the task needs most.} Because the plate is on the left, each placement leaves the cleared oranges there and pushes the remaining targets rightward: the share of \emph{right} requests climbs from 19\% with all three oranges present, to 43\% after one placement, to 96\% after two. The policy is therefore least reliable in exactly the configuration the task keeps producing --- so changing target safely relies on the scripted spatial reset, not on the language instruction alone.
