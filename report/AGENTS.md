@@ -73,7 +73,7 @@ Sections in `report/`:
 - `experiments.tex` — draft; full 100-episode seeded eval results in place. §4 = `4.1 Overall Performance` then `4.2 Failure Analysis` (subsubsections: The Grasp Bottleneck `sec:failure_modes`, Target Obedience `sec:obedience`)
 - `results.tex` — draft; `\section{Discussion}` with `\subsection{Conclusion}` then `\subsection{Limitations}` (Conclusion first)
 - `conclusion.tex` — draft (empty)
-- `abstract.tex` — draft (write last); also holds the project-pipeline overview figure (`fig:pipeline`, inline TikZ) placed after `\end{abstract}` so it renders **before** the Introduction: sources (gamepad teleop + baseline) → **LeRobot** datasets/fine-tuning → **Isaac Sim** box where the orchestrator prompts the SmolVLA policy, the policy drives the simulated robot, and the robot returns state; plus the autonomous-data feedback loop
+- `abstract.tex` — full abstract written (no longer a placeholder); also holds the project-pipeline overview figure (`fig:pipeline`, inline TikZ) placed after `\end{abstract}` so it renders **before** the Introduction. Sources: `Teleoperation (LeIsaac / Isaac Sim)` and `Public dataset (HuggingFace)` → **LeRobot** group (datasets → SmolVLA fine-tuning) → **Isaac Sim (LeIsaac)** eval box where the orchestrator prompts the SmolVLA policy, the policy drives the simulated robot, and the robot returns state; plus the autonomous-data feedback loop. (Stack is accurate: teleop is collected in Isaac Sim/LeIsaac as HDF5 then converted to LeRobot format; lerobot does training/inference, not collection.)
 - `notes.md` — historical scratch pad; do not edit unless asked.
 - `THESIS_BRIEF.md` — local copy of the official EPFL thesis requirements (20-page cap, prescribed structure); Notion source URL inside.
 

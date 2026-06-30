@@ -1,5 +1,5 @@
 \begin{abstract}
-\textbf{[Placeholder abstract --- to be written once the report is finalised.]} This project investigates whether decomposing a long-horizon robotic manipulation task into language-conditioned subtasks, sequenced by an orchestrator that monitors outcomes and recovers from failures at two levels --- retrying the same sub-goal and redirecting to an alternative orange to preserve task progress --- improves robustness over running a single policy end-to-end. The study is carried out on a simulated pick-and-place task and compares teleoperated and autonomously augmented training data across monotask and orchestrated subtask formulations. A full summary of the method and findings will be added here.
+Long-horizon robotic manipulation fails not only when a single step fails, but when execution cannot recover afterwards: a learned policy may stagnate on an unreachable target or drift into states its training never covered. This project asks whether wrapping a Vision-Language-Action (VLA) policy in an execution-level recovery structure makes a long-horizon pick-and-place task more robust. In a simulated Isaac Sim task where an SO-101 arm must place three oranges into a plate, the task is decomposed into language-conditioned subtasks --- grasp, lift, place --- sequenced by a finite-state orchestrator that verifies each subtask's physical outcome and recovers at two levels: retrying the same orange, or redirecting to a different one to preserve task progress, enabled by a scripted spatial reset. A SmolVLA policy is fine-tuned as the subtask executor on a custom teleoperated dataset with randomised pick order, and the orchestrated system is reused to generate further training data autonomously. On a 100-episode seeded benchmark, decomposition makes the system rarely fail completely --- it almost always places at least one orange --- yet does not raise full-task completion: the binding constraint is grasp acquisition, which lies upstream of every checkpoint and is left untouched by both the recovery structure and the autonomous data. The work therefore localises the bottleneck to the subtask policy rather than the orchestration around it.
 
 \end{abstract}
 
@@ -15,7 +15,7 @@
         orchs/.style={stage, draw=blue!60!black, fill=blue!10},
         env/.style={stage, draw=black!55, fill=black!7},
         srcbox/.style={draw, rounded corners=2pt, draw=teal!55!black, fill=teal!5,
-                       align=center, font=\footnotesize, minimum height=8mm, text width=20mm, inner sep=2pt},
+                       align=center, font=\footnotesize, minimum height=9mm, text width=22mm, inner sep=2pt},
         group/.style={draw, dashed, rounded corners=4pt, inner sep=3.4mm},
         arr/.style={->, thick, draw=black!70},
         loop/.style={->, thick, draw=teal!55!black, dashed},
@@ -49,8 +49,8 @@
         \node[orchs, above=9mm of vrmid] (orch) {\textbf{Orchestrator}\\\footnotesize GRASP / LIFT / PLACE};
 
         % --- data sources (left of the dataset stage) ---
-        \node[srcbox] (base) [left=13mm of data, yshift=-5mm] {LightwheelAI baseline};
-        \node[srcbox] (tele) [above=4mm of base] {Teleoperation};
+        \node[srcbox] (base) [left=13mm of data, yshift=-5mm] {Public dataset\\{\scriptsize HuggingFace}};
+        \node[srcbox] (tele) [above=4mm of base] {Teleoperation\\{\scriptsize LeIsaac / Isaac Sim}};
         \pic[scale=0.72] at ([yshift=6mm]tele.north) {gamepad};
 
         % --- framework / environment grouping ---
@@ -58,7 +58,7 @@
             \node[group, draw=black!45, fill=black!3, fit=(data)(train),
                   label={[font=\footnotesize\bfseries, black!55]above:LeRobot}] {};
             \node[group, draw=green!45!black, fill=green!5, fit=(vla)(robot)(orch),
-                  label={[font=\footnotesize\bfseries, green!45!black]above:Isaac Sim --- evaluation / inference}] (isim) {};
+                  label={[font=\footnotesize\bfseries, green!45!black]above:Isaac Sim (LeIsaac) --- evaluation / inference}] (isim) {};
         \end{scope}
 
         % --- arrows ---
