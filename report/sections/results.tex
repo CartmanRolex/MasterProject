@@ -16,6 +16,7 @@
 This project frames recovery as an execution-level requirement for VLA manipulation and separates it into two levels --- sub-goal recovery by Level-1 local retry and task recovery by Level-2 redirection --- wrapped around a SmolVLA subtask executor, with a scripted spatial reset as the enabler that lets language switch targets. The realised value of decomposition is robustness against \emph{total} failure: redirection lets the system abandon an ungraspable orange and still score, so it rarely ends empty. It did not raise full-task completion, because the binding constraint --- reliably acquiring the \emph{requested} orange --- lies upstream of every checkpoint and is untouched by the surrounding structure; neither the recovery levels nor the autonomous data removes it.
 
 \subsection{Limitations}
+\label{subsec:limitations}
 
 \textbf{Privileged supervision and limited sampling.} Subtask outcomes are read from privileged simulator state, which a real deployment would have to replace with perception, and each evaluation covers only 100 seeded episodes, so the reported percentages are limited-sample estimates. The monolithic grasp trace is moreover reconstructed offline from that privileged state, so no monotask per-attempt grasp \emph{rate} is reported; per-step gripper--orange proximity logging recovers how many distinct oranges the policy approaches (\cref{sec:failure_modes}), but not a per-attempt rate.
 
@@ -29,9 +30,9 @@ The two levels of the system suggest two largely independent directions: making 
 
 \subsubsection{Subtask Execution}
 
-The most direct lever is the subtask policy itself --- the atomistic grasp, lift, and place behaviours the VLA must execute --- since the binding constraint, grasp acquisition, lies entirely within it. A more reliable grasp and target-selection policy is therefore the priority: through exploration-driven self-improvement such as online reinforcement fine-tuning of the flow policy, or targeted demonstrations on the worst targets, together with some complete, imperfect full-task trajectories.
+The binding constraint --- grasp acquisition --- lies within the atomistic subtask policy, so making that policy more capable is the priority, and this is largely a matter of data. More demonstrations and higher-quality ones would help directly: the SO-101's five actuated arm joints are one short of the six degrees of freedom a full end-effector pose requires, which made hand-tracked teleoperation unintuitive and ultimately unusable (\cref{subsec:teleop}), so a 6-DOF arm would make teleoperation natural enough to collect a larger, more diverse, and cleaner dataset.
 
-Better data is the complementary route. The SO-101's five actuated arm joints are one short of the six degrees of freedom a full end-effector pose requires, which made hand-tracked teleoperation unintuitive and ultimately unusable (\cref{subsec:teleop}); a 6-DOF arm would make teleoperation natural enough to collect larger, more diverse, and higher-quality demonstrations, directly attacking the data limitation behind the bottleneck.
+Quality also means \emph{coverage}. The data should deliberately include episodes that begin from states a normal run never reaches --- being told to grasp the right orange while already holding or hovering over another --- so the policy decorrelates its actions from apparent progress through the global task and obeys the instruction strictly instead of inferring the target from context (it currently follows the prompt only about two-thirds of the time, \cref{sec:obedience}). This is the from-any-state coverage the chronologically-ordered data lacks (\cref{subsec:limitations}); collecting it would make the policy a true from-any-state subtask executor and remove its reliance on the scripted spatial reset.
 
 \subsubsection{Orchestration}
 
