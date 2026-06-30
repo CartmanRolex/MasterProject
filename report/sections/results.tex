@@ -18,9 +18,15 @@ This project frames recovery as an execution-level requirement for VLA manipulat
 \subsection{Limitations}
 \label{subsec:limitations}
 
-\textbf{Privileged supervision and limited sampling.} Subtask outcomes are read from privileged simulator state, which a real deployment would have to replace with perception, and each evaluation covers only 100 seeded episodes, so the reported percentages are limited-sample estimates. The monolithic grasp trace is moreover reconstructed offline from that privileged state, so no monotask per-attempt grasp \emph{rate} is reported; per-step gripper--orange proximity logging recovers how many distinct oranges the policy approaches (\cref{sec:failure_modes}), but not a per-attempt rate.
+One interpretive limitation stands out before the specifics: no single factor can be cleanly credited with improving performance. Subtasking helps some models and hurts others, and unfreezing the language backbone is similarly mixed, so the comparisons here are suggestive rather than conclusive.
 
-\textbf{Hand-designed control.} The per-subtask step budgets and the finite-state machine itself are hand-set heuristics rather than optimised choices.
+\textbf{Privileged supervision.} Subtask outcomes are read from privileged simulator state, which a real deployment would have to replace with perception; the monotask grasp trace is likewise reconstructed offline from that state, so no monotask per-attempt grasp \emph{rate} is reported, only how many distinct oranges the policy approaches (\cref{sec:failure_modes}).
+
+\textbf{Limited sampling.} Each evaluation covers only 100 seeded episodes, so the reported percentages are limited-sample estimates and small differences may reflect sampling noise rather than a real effect.
+
+\textbf{An unoptimised orchestrator.} The per-subtask step budgets and the finite-state machine itself are hand-set heuristics rather than optimised choices.
+
+\textbf{Slow execution.} The teleoperated demonstrations were deliberately slow --- precise gamepad control demanded it (\cref{subsec:teleop}) --- so the policy inherited slow motions and each subtask consumes many simulation steps, which makes evaluation rollouts slow and the approach less suited to time-critical use.
 
 \textbf{Chronologically constrained subtask data.} The subtasks were collected as isolated fragments in their natural chronological order, and a subtask is never started from an arbitrary state --- for instance redirecting to a new orange while the gripper is still low and near another. A fully general atomistic policy would instead be trained to perform any subtask from any state, which would let it switch targets on its own and remove the need for the scripted spatial reset (\cref{subsec:failure_taxonomy}). This coverage was deliberately not collected so that the \emph{same} trajectories could serve the matched monotask comparison (\cref{subsec:monotask}): an end-to-end monotask run is only meaningful for chronologically ordered steps --- being on one orange and then leaving it for another makes no sense without checkpoints --- so from-arbitrary-state data would have broken that shared-dataset control. The cost is a less general policy that leans on the scripted reset and is not trained on complete, imperfect full-task trajectories, plausibly limiting long-horizon chaining and off-distribution robustness.
 
