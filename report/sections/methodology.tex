@@ -1,6 +1,9 @@
 \section{Methods}
 \label{sec:methods}
 
+\subsection{Task and Environment}
+\label{subsec:task}
+
 This work studies orchestrated manipulation in a simulated pick-and-place task. The robot is an SO-101 arm operating in an Isaac Sim kitchen scene. Each episode contains three oranges and a plate. The objective is to place all three oranges into the plate.
 
 At every step the policy observes the same fixed inputs: the six SO-101 joint states and two RGB streams (a fixed top camera and a wrist camera). From these alone it predicts the next chunk of joint actions; it has no access to object coordinates or any privileged simulator quantity. Privileged state (orange and plate poses, contact forces) is used \emph{only} by the orchestrator and the evaluation harness to judge whether a subtask achieved its physical outcome. Withholding it from the policy avoids confounding orchestration with visual state-estimation errors, while exposing it to the orchestrator means subtask success is measured directly rather than inferred from perception.
