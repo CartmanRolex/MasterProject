@@ -14,7 +14,7 @@ Final plate occupancy for every model on the shared 100-seed set (5000-step budg
     \includegraphics[width=\textwidth]{orange_outcome_distribution.pdf}
 \end{figure}
 
-\paragraph{Policy backbone.} \textbf{[Placeholder: interpretation of the ACT vs.\ SmolVLA baseline comparison to be finalised.]}
+\paragraph{Policy backbone.} On the LightwheelAI Baseline, run end-to-end under a single instruction, SmolVLA clearly outperforms ACT: it places all three oranges in 41\% of episodes against 13\% for ACT, averages 1.95 oranges against 0.92, and leaves only 9\% of episodes empty against 53\%. The compact vision-language backbone thus buys a large gain over the standard action-chunking baseline, so SmolVLA is adopted for the rest of the work. Yet 41\% is the highest full-task rate any single model reaches here: even the stronger backbone does not solve the task reliably, which motivates wrapping it in the subtask decomposition rather than scaling the policy alone.
 
 \paragraph{Decomposition helps partial progress more than full-task completion.} On the same trajectories, the subtask formulation's benefit is mainly in partial progress. On Teleop it raises mean occupancy sharply (1.02 to 1.77) while raising full-task success only modestly (14\% to 20\%): checkpoints convert empty and one-orange episodes into two-orange ones, rarely into three. On Teleop+Auto the picture is mixed --- the monotask model is ahead on full-task success (18\% vs.\ 13\%) but behind on mean occupancy (1.29 vs.\ 1.42). Decomposition thus raises mean occupancy on Teleop, but its effect on full-task completion is small and inconsistent across sources.
 
