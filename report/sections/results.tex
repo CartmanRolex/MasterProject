@@ -20,7 +20,7 @@ This project asked whether a pick-and-place robot becomes more reliable when a c
 \subsection{Limitations}
 \label{subsec:limitations}
 
-One interpretive limitation stands out before the specifics: no single factor can be cleanly credited with improving performance. Subtasking helps some models and hurts others, and unfreezing the language backbone is similarly mixed, so the comparisons here are suggestive rather than conclusive.
+Before the specifics, one point frames the rest: the system has many interacting design choices --- dataset composition, task formulation, which layers are fine-tuned, the per-subtask step budgets --- and only some are varied here. Isolating the effect of any single one would take more experiments than this study runs, so the comparisons are best read as trends: subtasking helps some models and hurts others, and unfreezing the language backbone is similarly mixed.
 
 \textbf{Privileged supervision.} Subtask outcomes are read from privileged simulator state, which a real deployment would have to replace with perception; the monotask grasp trace is reconstructed offline from that state, so its grasp attempts cannot be counted on the same footing as the orchestrated ones and no per-attempt monotask grasp \emph{rate} is reported.
 
