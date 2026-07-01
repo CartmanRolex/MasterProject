@@ -45,6 +45,10 @@ classification, spatial resets, and target selection.
 - "Subtask" = one of GRASP / LIFT / PLACE. HOME is a scripted primitive,
   not a subtask.
 - "Phantom grasp" = gripper closed on air; detected via gripper force.
+- **Report surface terms (unified):** the non-decomposed baseline is the
+  **monotask** formulation (never "monolithic"), and the spatial-reset enabler
+  is called the **home-pose reset** in the report prose (same mechanism as
+  "Spatial reset" above; code may still print "spatial reset").
 
 ## Key finding to preserve in writing
 Target-switching via language is bounded by dataset coverage, not an intrinsic
