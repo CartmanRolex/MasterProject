@@ -15,16 +15,16 @@ endobj
 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
 endobj
 6 0 obj
-<< /Length 16853 >>
+<< /Length 16845 >>
 stream
 0.160 0.170 0.200 rg
 BT /F2 15.0 Tf 194.50 480.00 Td (Which orange is grasped vs. which was requested) Tj ET
 0.420 0.440 0.480 rg
 BT /F1 8.8 Tf 120.18 463.00 Td (Rows: requested position.   Columns: position grasped.   Cell shade = share of that row.   Scene states 0--1 pooled.) Tj ET
 0.160 0.170 0.200 rg
-BT /F2 11.5 Tf 173.20 441.00 Td (Frozen language backbone) Tj ET
+BT /F2 11.5 Tf 187.00 441.00 Td (Standard fine-tuning) Tj ET
 0.160 0.170 0.200 rg
-BT /F2 11.5 Tf 606.60 441.00 Td (Unfrozen-VLM) Tj ET
+BT /F2 11.5 Tf 620.40 441.00 Td (LM-tuned) Tj ET
 0.950 0.950 0.970 rg
 44.00 418.00 332.00 15.00 re f
 0.160 0.170 0.200 rg
@@ -587,5 +587,5 @@ xref
 trailer
 << /Size 7 /Root 1 0 R >>
 startxref
-17302
+17294
 %%EOF

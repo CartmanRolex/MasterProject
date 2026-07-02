@@ -32,13 +32,13 @@ from plot_lib import PdfFigure
 RESULTS = Path(__file__).resolve().parents[2] / "isaac-inference" / "results"
 OUT = Path(__file__).resolve().parents[1] / "figures" / "grasp_obedience_confusion.pdf"
 
-# Four subtask models in a 2x2 grid: rows = training source, columns = frozen vs
-# unfrozen-VLM. Scene states are pooled (0+1), so each model is one panel.
+# Four subtask models in a 2x2 grid: rows = training source, columns = standard
+# fine-tuning vs LM-tuned. Scene states are pooled (0+1), so each model is one panel.
 MODELS = [
-    ("Teleop frozen",        "Gal-pick-orange-tailedCH20",              "checkpoint.json"),
-    ("Teleop unfrozen-VLM",  "Gal-pick-orange-tailedCH20-unfrozen-vlm", "checkpoint.json"),
-    ("Teleop+Auto frozen",   "Gal-merged-tailed-auto",                  "checkpoint.json"),
-    ("Teleop+Auto unfrozen-VLM", "Gal-merged-tailed-auto-unfrozen-vlm", "checkpoint.json"),
+    ("Teleop standard",      "Gal-pick-orange-tailedCH20",              "checkpoint.json"),
+    ("Teleop LM-tuned",      "Gal-pick-orange-tailedCH20-unfrozen-vlm", "checkpoint.json"),
+    ("Teleop+Auto standard", "Gal-merged-tailed-auto",                  "checkpoint.json"),
+    ("Teleop+Auto LM-tuned", "Gal-merged-tailed-auto-unfrozen-vlm",     "checkpoint.json"),
 ]
 # Fixed column order shared by every panel so they read consistently.
 COLS = ["left", "middle", "right", "top right", "bottom right"]
@@ -196,9 +196,9 @@ def main() -> None:
              "Rows: requested position.   Columns: position grasped.   Cell shade = share of that row.   Scene states 0--1 pooled.",
              8.8, "center", rgb=MUTE)
 
-    # column super-headers: frozen vs unfrozen-VLM language backbone
-    fig.text(center[0], fig.height - 67, "Frozen language backbone", 11.5, "center", bold=True, rgb=INK)
-    fig.text(center[1], fig.height - 67, "Unfrozen-VLM", 11.5, "center", bold=True, rgb=INK)
+    # column super-headers: standard fine-tuning vs LM-tuned
+    fig.text(center[0], fig.height - 67, "Standard fine-tuning", 11.5, "center", bold=True, rgb=INK)
+    fig.text(center[1], fig.height - 67, "LM-tuned", 11.5, "center", bold=True, rgb=INK)
 
     row_top = [fig.height - 92, fig.height - 300]
     for i, (disp, subdir, fname) in enumerate(MODELS):

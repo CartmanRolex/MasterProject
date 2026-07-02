@@ -20,10 +20,12 @@ POLICY_STROKES = {
     "ACT": (0.10, 0.28, 0.66),
     "SmolVLA": (0.58, 0.22, 0.10),
 }
-# Per-bar recipe/variant label colours (scanning aid; falls back to dark grey).
+# Per-bar variant label colours (scanning aid; falls back to dark grey).
+# "standard" = default fine-tuning (action expert + state projection only);
+# "LM-tuned" = the language model is trained as well.
 VARIANT_COLORS = {
-    "frozen":   (0.30, 0.30, 0.30),
-    "unfrozen": (0.80, 0.45, 0.10),
+    "standard": (0.30, 0.30, 0.30),
+    "LM-tuned": (0.80, 0.45, 0.10),
     "no-tail":  (0.13, 0.45, 0.55),
     "ACT":      (0.10, 0.28, 0.66),
     "SmolVLA":  (0.58, 0.22, 0.10),
@@ -323,7 +325,7 @@ def draw_grouped_figure(
     bar_w: int = 44,
     title: str = "Final orange count per episode",
     subtitle: str = "Number above each bar = mean oranges placed (/3).",
-    recipe_legend: tuple[str, ...] | None = ("frozen", "unfrozen", "no-tail"),
+    recipe_legend: tuple[str, ...] | None = ("standard", "LM-tuned", "no-tail"),
 ) -> None:
     figure = PdfFigure(width=920, height=512)
     left, right, bottom, top = 74, 34, 138, 96
@@ -418,8 +420,8 @@ def draw_grouped_figure(
         legend_x += 58
     if recipe_legend:
         legend_x += 18
-        figure.text(legend_x, legend_y + 2, "Recipe:", 8.0, rgb=(0.2, 0.2, 0.2))
-        legend_x += 44
+        figure.text(legend_x, legend_y + 2, "Fine-tuning:", 8.0, rgb=(0.2, 0.2, 0.2))
+        legend_x += 62
         for variant in recipe_legend:
             figure.text(legend_x, legend_y + 2, cap(variant), 8.0, rgb=VARIANT_COLORS[variant], bold=True)
             legend_x += len(variant) * 8.0 * 0.56 + 16

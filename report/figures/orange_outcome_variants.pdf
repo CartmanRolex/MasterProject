@@ -15,10 +15,10 @@ endobj
 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
 endobj
 6 0 obj
-<< /Length 8550 >>
+<< /Length 8559 >>
 stream
 0.000 0.000 0.000 rg
-BT /F2 15.0 Tf 268.50 485.00 Td (Final orange count - training-recipe variations) Tj ET
+BT /F2 15.0 Tf 295.50 485.00 Td (Final orange count - fine-tuning variants) Tj ET
 0.250 0.250 0.250 rg
 BT /F1 9.0 Tf 356.52 468.00 Td (Number above each bar = mean oranges placed \(/3\).) Tj ET
 0.840 0.840 0.820 RG
@@ -66,7 +66,7 @@ BT /F2 6.8 Tf 201.38 393.54 Td (14%) Tj ET
 0.150 0.150 0.150 rg
 BT /F2 8.4 Tf 197.42 424.00 Td (1.02) Tj ET
 0.300 0.300 0.300 rg
-BT /F2 7.6 Tf 193.82 122.00 Td (Frozen) Tj ET
+BT /F2 7.6 Tf 189.26 122.00 Td (Standard) Tj ET
 0.420 0.450 0.500 rg
 240.50 138.00 44.00 116.76 re f
 1.000 1.000 1.000 rg
@@ -89,7 +89,7 @@ BT /F2 6.8 Tf 258.42 400.49 Td (9%) Tj ET
 0.150 0.150 0.150 rg
 BT /F2 8.4 Tf 252.42 424.00 Td (0.92) Tj ET
 0.800 0.450 0.100 rg
-BT /F2 7.6 Tf 244.26 122.00 Td (Unfrozen) Tj ET
+BT /F2 7.6 Tf 244.26 122.00 Td (LM-tuned) Tj ET
 0.330 0.330 0.330 RG
 0.70 w
 185.50 108.00 m 284.50 108.00 l S
@@ -119,7 +119,7 @@ BT /F2 6.8 Tf 346.38 385.20 Td (20%) Tj ET
 0.150 0.150 0.150 rg
 BT /F2 8.4 Tf 342.42 424.00 Td (1.77) Tj ET
 0.300 0.300 0.300 rg
-BT /F2 7.6 Tf 338.82 122.00 Td (Frozen) Tj ET
+BT /F2 7.6 Tf 334.26 122.00 Td (Standard) Tj ET
 0.420 0.450 0.500 rg
 385.50 138.00 44.00 25.02 re f
 1.000 1.000 1.000 rg
@@ -142,7 +142,7 @@ BT /F2 6.8 Tf 401.38 367.13 Td (33%) Tj ET
 0.150 0.150 0.150 rg
 BT /F2 8.4 Tf 397.42 424.00 Td (1.88) Tj ET
 0.800 0.450 0.100 rg
-BT /F2 7.6 Tf 389.26 122.00 Td (Unfrozen) Tj ET
+BT /F2 7.6 Tf 389.26 122.00 Td (LM-tuned) Tj ET
 0.420 0.450 0.500 rg
 440.50 138.00 44.00 27.80 re f
 1.000 1.000 1.000 rg
@@ -197,7 +197,7 @@ BT /F2 6.8 Tf 546.38 387.98 Td (18%) Tj ET
 0.150 0.150 0.150 rg
 BT /F2 8.4 Tf 542.42 424.00 Td (1.29) Tj ET
 0.300 0.300 0.300 rg
-BT /F2 7.6 Tf 538.82 122.00 Td (Frozen) Tj ET
+BT /F2 7.6 Tf 534.26 122.00 Td (Standard) Tj ET
 0.420 0.450 0.500 rg
 585.50 138.00 44.00 55.60 re f
 1.000 1.000 1.000 rg
@@ -220,7 +220,7 @@ BT /F2 6.8 Tf 601.38 378.25 Td (25%) Tj ET
 0.150 0.150 0.150 rg
 BT /F2 8.4 Tf 597.42 424.00 Td (1.54) Tj ET
 0.800 0.450 0.100 rg
-BT /F2 7.6 Tf 589.26 122.00 Td (Unfrozen) Tj ET
+BT /F2 7.6 Tf 589.26 122.00 Td (LM-tuned) Tj ET
 0.330 0.330 0.330 RG
 0.70 w
 530.50 108.00 m 629.50 108.00 l S
@@ -252,7 +252,7 @@ BT /F2 6.8 Tf 691.38 394.93 Td (13%) Tj ET
 0.150 0.150 0.150 rg
 BT /F2 8.4 Tf 687.42 424.00 Td (1.42) Tj ET
 0.300 0.300 0.300 rg
-BT /F2 7.6 Tf 683.82 122.00 Td (Frozen) Tj ET
+BT /F2 7.6 Tf 679.26 122.00 Td (Standard) Tj ET
 0.420 0.450 0.500 rg
 730.50 138.00 44.00 41.70 re f
 1.000 1.000 1.000 rg
@@ -275,7 +275,7 @@ BT /F2 6.8 Tf 746.38 399.10 Td (10%) Tj ET
 0.150 0.150 0.150 rg
 BT /F2 8.4 Tf 742.42 424.00 Td (1.37) Tj ET
 0.800 0.450 0.100 rg
-BT /F2 7.6 Tf 734.26 122.00 Td (Unfrozen) Tj ET
+BT /F2 7.6 Tf 734.26 122.00 Td (LM-tuned) Tj ET
 0.330 0.330 0.330 RG
 0.70 w
 675.50 108.00 m 774.50 108.00 l S
@@ -302,13 +302,13 @@ BT /F1 8.0 Tf 230.00 24.00 Td (2/3) Tj ET
 0.000 0.000 0.000 rg
 BT /F1 8.0 Tf 288.00 24.00 Td (3/3) Tj ET
 0.200 0.200 0.200 rg
-BT /F1 8.0 Tf 350.00 24.00 Td (Recipe:) Tj ET
+BT /F1 8.0 Tf 350.00 24.00 Td (Fine-tuning:) Tj ET
 0.300 0.300 0.300 rg
-BT /F2 8.0 Tf 394.00 24.00 Td (Frozen) Tj ET
+BT /F2 8.0 Tf 412.00 24.00 Td (Standard) Tj ET
 0.800 0.450 0.100 rg
-BT /F2 8.0 Tf 436.88 24.00 Td (Unfrozen) Tj ET
+BT /F2 8.0 Tf 463.84 24.00 Td (LM-tuned) Tj ET
 0.130 0.450 0.550 rg
-BT /F2 8.0 Tf 488.72 24.00 Td (No-tail) Tj ET
+BT /F2 8.0 Tf 515.68 24.00 Td (No-tail) Tj ET
 endstream
 endobj
 xref
@@ -323,5 +323,5 @@ xref
 trailer
 << /Size 7 /Root 1 0 R >>
 startxref
-8998
+9007
 %%EOF

@@ -14,8 +14,8 @@ from plot_lib import ResultFile, draw_grouped_figure, parse_result
 
 REPORT_DIR = Path(__file__).resolve().parents[1]
 ROOT_DIR = REPORT_DIR.parent
-CLASSICAL_PDF = REPORT_DIR / "figures" / "orange_outcome_classical.pdf"
-RECIPES_PDF = REPORT_DIR / "figures" / "orange_outcome_recipes.pdf"
+STANDARD_PDF = REPORT_DIR / "figures" / "orange_outcome_standard.pdf"
+VARIANTS_PDF = REPORT_DIR / "figures" / "orange_outcome_variants.pdf"
 
 
 def _r(subdir, fname):
@@ -23,12 +23,12 @@ def _r(subdir, fname):
 
 
 # Each model is defined once; two figures reuse these specs.
-#   §4.1 Figure 1 (classical): the default recipe (backbone frozen; only the action
-#     expert + state projection are trained) for every model, grouped by source so the
-#     policy-backbone and monotask-vs-subtask choices compare on equal footing.
-#   §4.1 Figure 2 (recipe variations): the effect of unfreezing the language backbone and
-#     removing the terminal freeze frames (tail-free), shown only for the custom families
-#     that actually have those variants (frozen shown alongside as the reference).
+#   §4.1 Figure 1 (standard): the default fine-tuning (only the action expert and state
+#     projection are trained; the vision-language backbone stays frozen) for every model,
+#     grouped by source so the policy and monotask-vs-subtask choices compare directly.
+#   §4.1 Figure 2 (variants): the effect of also training the language model ("LM-tuned")
+#     and of removing the terminal freeze frames from the data ("no-tail"), shown only for
+#     the custom families that have those variants (standard shown alongside as reference).
 
 # --- LightwheelAI baseline (two policy backbones, frozen) ---
 ACT = ResultFile(label="ACT", description="ACT on the LightwheelAI Baseline (chunk 20)",
@@ -38,45 +38,45 @@ SMOLVLA = ResultFile(label="SmolVLA", description="SmolVLA on the LightwheelAI B
                      path=_r("pick-orange-mimic", "flat_latest.txt"),
                      policy="SmolVLA", mode="monotask", group="LightwheelAI\nbaseline", variant="SmolVLA")
 
-# --- Teleop monotask: frozen vs unfrozen ---
+# --- Teleop monotask: standard vs LM-tuned ---
 TELEOP_MONO_FROZEN = ResultFile(label="Teleop monotask frozen", description="SmolVLA Teleop monotask (frozen)",
                                 path=_r("Gal_split_nolang", "flat_latest.txt"),
-                                policy="SmolVLA", mode="monotask", group="Teleop\nmonotask", variant="frozen")
+                                policy="SmolVLA", mode="monotask", group="Teleop\nmonotask", variant="standard")
 TELEOP_MONO_UNFROZEN = ResultFile(label="Teleop monotask unfrozen", description="SmolVLA Teleop monotask (unfrozen VLM)",
                                   path=_r("Gal_split_nolang-unfrozen-vlm", "flat_latest.txt"),
-                                  policy="SmolVLA", mode="monotask", group="Teleop\nmonotask", variant="unfrozen")
+                                  policy="SmolVLA", mode="monotask", group="Teleop\nmonotask", variant="LM-tuned")
 
-# --- Teleop subtask: frozen vs unfrozen vs tail-free ---
+# --- Teleop subtask: standard vs LM-tuned vs no-tail ---
 TELEOP_SUB_FROZEN = ResultFile(label="Teleop subtask frozen", description="SmolVLA Teleop subtask (frozen)",
                                path=_r("Gal-pick-orange-tailedCH20", "latest.txt"),
-                               policy="SmolVLA", mode="subtasks", group="Teleop\nsubtask", variant="frozen")
+                               policy="SmolVLA", mode="subtasks", group="Teleop\nsubtask", variant="standard")
 TELEOP_SUB_UNFROZEN = ResultFile(label="Teleop subtask unfrozen", description="SmolVLA Teleop subtask (unfrozen VLM)",
                                  path=_r("Gal-pick-orange-tailedCH20-unfrozen-vlm", "latest.txt"),
-                                 policy="SmolVLA", mode="subtasks", group="Teleop\nsubtask", variant="unfrozen")
+                                 policy="SmolVLA", mode="subtasks", group="Teleop\nsubtask", variant="LM-tuned")
 TELEOP_SUB_NOTAIL = ResultFile(label="Teleop subtask no-tail", description="SmolVLA Teleop subtask (tail-free, frozen)",
                                path=_r("Gal-pick-orange-notailCH20", "latest.txt"),
                                policy="SmolVLA", mode="subtasks", group="Teleop\nsubtask", variant="no-tail")
 
-# --- Teleop+Auto monotask: frozen vs unfrozen ---
+# --- Teleop+Auto monotask: standard vs LM-tuned ---
 AUTO_MONO_FROZEN = ResultFile(label="Teleop+Auto monotask frozen", description="SmolVLA Teleop+Auto monotask (frozen)",
                               path=_r("Gal-merged-tailed-auto-no-lang-no-home", "flat_latest.txt"),
-                              policy="SmolVLA", mode="monotask", group="Teleop+Auto\nmonotask", variant="frozen")
+                              policy="SmolVLA", mode="monotask", group="Teleop+Auto\nmonotask", variant="standard")
 AUTO_MONO_UNFROZEN = ResultFile(label="Teleop+Auto monotask unfrozen", description="SmolVLA Teleop+Auto monotask (unfrozen VLM)",
                                 path=_r("Gal-merged-tailed-auto-no-lang-no-home-unfrozen-vlm", "flat_latest.txt"),
-                                policy="SmolVLA", mode="monotask", group="Teleop+Auto\nmonotask", variant="unfrozen")
+                                policy="SmolVLA", mode="monotask", group="Teleop+Auto\nmonotask", variant="LM-tuned")
 
-# --- Teleop+Auto subtask: frozen vs unfrozen ---
+# --- Teleop+Auto subtask: standard vs LM-tuned ---
 AUTO_SUB_FROZEN = ResultFile(label="Teleop+Auto subtask frozen", description="SmolVLA Teleop+Auto subtask (frozen)",
                              path=_r("Gal-merged-tailed-auto", "latest.txt"),
-                             policy="SmolVLA", mode="subtasks", group="Teleop+Auto\nsubtask", variant="frozen")
+                             policy="SmolVLA", mode="subtasks", group="Teleop+Auto\nsubtask", variant="standard")
 AUTO_SUB_UNFROZEN = ResultFile(label="Teleop+Auto subtask unfrozen", description="SmolVLA Teleop+Auto subtask (unfrozen VLM)",
                                path=_r("Gal-merged-tailed-auto-unfrozen-vlm", "latest.txt"),
-                               policy="SmolVLA", mode="subtasks", group="Teleop+Auto\nsubtask", variant="unfrozen")
+                               policy="SmolVLA", mode="subtasks", group="Teleop+Auto\nsubtask", variant="LM-tuned")
 
 
-# Figure 1 — classical fine-tuning (frozen only): regroup by source, label bars by
-# formulation so the source and monotask-vs-subtask comparisons read directly.
-CLASSICAL = [
+# Figure 1 — standard fine-tuning only: regroup by source, label bars by formulation
+# so the source and monotask-vs-subtask comparisons read directly.
+STANDARD = [
     ACT,
     SMOLVLA,
     replace(TELEOP_MONO_FROZEN, group="Teleop", variant="monotask"),
@@ -85,8 +85,8 @@ CLASSICAL = [
     replace(AUTO_SUB_FROZEN, group="Teleop+Auto", variant="subtask"),
 ]
 
-# Figure 2 — training-recipe variations: frozen vs unfrozen-VLM vs tail-free, per family.
-RECIPES = [
+# Figure 2 — fine-tuning variants: standard vs LM-tuned vs no-tail, per family.
+VARIANTS = [
     TELEOP_MONO_FROZEN,
     TELEOP_MONO_UNFROZEN,
     TELEOP_SUB_FROZEN,
@@ -118,21 +118,21 @@ def _report(output_pdf, results):
 
 
 def main() -> None:
-    classical = _parse_all(CLASSICAL)
+    standard = _parse_all(STANDARD)
     draw_grouped_figure(
-        classical, CLASSICAL_PDF,
-        title="Final orange count - classical fine-tuning",
+        standard, STANDARD_PDF,
+        title="Final orange count - standard fine-tuning",
         recipe_legend=None,
     )
-    _report(CLASSICAL_PDF, classical)
+    _report(STANDARD_PDF, standard)
 
-    recipes = _parse_all(RECIPES)
+    variants = _parse_all(VARIANTS)
     draw_grouped_figure(
-        recipes, RECIPES_PDF,
-        title="Final orange count - training-recipe variations",
-        recipe_legend=("frozen", "unfrozen", "no-tail"),
+        variants, VARIANTS_PDF,
+        title="Final orange count - fine-tuning variants",
+        recipe_legend=("standard", "LM-tuned", "no-tail"),
     )
-    _report(RECIPES_PDF, recipes)
+    _report(VARIANTS_PDF, variants)
 
 
 if __name__ == "__main__":
