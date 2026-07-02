@@ -129,8 +129,6 @@ def main() -> None:
         fig.rect(lx, ly, 12, 9, fill=False)
         fig.text(lx + 17, ly + 1, source, 8.5, "left", rgb=INK)
         lx += 78
-    fig.text(lx + 6, ly + 1, "Box: p25-p75   Bar: median   Dashed: mean   Whisker: p5-p95",
-             7.2, "left", rgb=MUTED)
 
     fig.save(OUTPUT_PDF)
     print(f"Wrote {OUTPUT_PDF}")

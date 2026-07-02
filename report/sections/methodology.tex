@@ -180,7 +180,7 @@ Teleoperated demonstrations are collected by hand and do not scale --- and grasp
 
 \textbf{Turning misgrabs into usable data.} A grasp counts as a success even when the policy closes on a different orange than requested. Rather than discard the episode, the pipeline automatically rewrites its instruction to name the orange \emph{actually} grasped --- identified from privileged state, with no human in the loop --- a hindsight relabelling of the goal~\cite{andrychowicz2017her}. Prompt and grasp now agree, so the episode becomes a valid demonstration of the correct instruction-to-target mapping: a mis-aimed attempt becomes extra, correctly-labelled aiming supervision instead of being thrown away.
 
-Retained episodes are balanced by scene state so early scenes are not over-represented; the 414 Auto episodes merge with the 846 Teleop episodes into \textbf{Teleop+Auto} (1260 episodes). Whether the extra data helps is tested in \cref{sec:experiments}; it does not.
+Retained episodes are balanced by scene state so early scenes are not over-represented; the 414 Auto episodes merge with the 846 Teleop episodes into \textbf{Teleop+Auto} (1260 episodes). Whether the extra data helps is tested in \cref{sec:experiments}.
 
 \subsubsection{Dataset Composition}
 
@@ -193,7 +193,7 @@ The data is organised as subtask episodes, roughly balanced across the three sub
     \label{fig:dataset_composition}
 \end{figure}
 
-Two features are relevant to later results. GRASP dominates the length budget --- two to three times longer than LIFT or PLACE, with by far the heaviest tail --- because it includes the variable search-and-approach phase before contact. The Auto episodes are shorter and less dispersed than their Teleop counterparts, consistent with being drawn from the policy's own visited states rather than human demonstration.
+Two features are relevant to later results. GRASP dominates the length budget --- two to three times longer than LIFT or PLACE, with by far the heaviest tail --- because it includes the variable search-and-approach phase before contact. The Auto episodes are shorter and less dispersed than their Teleop counterparts, which likely reflects how the episodes end rather than the motions themselves: Teleop fragments were cut by hand, when the operator judged the subtask done, so they often linger past completion; Auto fragments are cut automatically the moment the success check fires (an orange lifted past its height threshold, a grasp meeting its force and geometry checks, a place with the oranges at rest and the gripper clear).
 
 \subsubsection{Matched Monotask Comparison}
 \label{subsec:monotask}
