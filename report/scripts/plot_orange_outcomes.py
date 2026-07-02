@@ -130,6 +130,8 @@ def main() -> None:
     draw_grouped_figure(
         variants, VARIANTS_PDF,
         title="Final orange count - fine-tuning variants",
+        subtitle="Number above each bar = mean oranges placed (/3). "
+                 "No-tail uses standard fine-tuning; only its training data changes (terminal freeze frames removed).",
         recipe_legend=("standard", "LM-tuned", "no-tail"),
     )
     _report(VARIANTS_PDF, variants)

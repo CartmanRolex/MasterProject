@@ -15,12 +15,12 @@ endobj
 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
 endobj
 6 0 obj
-<< /Length 8559 >>
+<< /Length 8661 >>
 stream
 0.000 0.000 0.000 rg
 BT /F2 15.0 Tf 295.50 485.00 Td (Final orange count - fine-tuning variants) Tj ET
 0.250 0.250 0.250 rg
-BT /F1 9.0 Tf 356.52 468.00 Td (Number above each bar = mean oranges placed \(/3\).) Tj ET
+BT /F1 9.0 Tf 104.52 468.00 Td (Number above each bar = mean oranges placed \(/3\). No-tail uses standard fine-tuning; only its training data changes \(terminal freeze frames removed\).) Tj ET
 0.840 0.840 0.820 RG
 0.55 w
 74.00 138.00 m 886.00 138.00 l S
@@ -323,5 +323,5 @@ xref
 trailer
 << /Size 7 /Root 1 0 R >>
 startxref
-9007
+9109
 %%EOF
