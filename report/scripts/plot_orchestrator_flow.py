@@ -213,8 +213,8 @@ def main() -> None:
     # Local retry -> back to GRASP, same target. Routed up-left through the
     # open corridor between HOME-POSE RESET and LOCAL RETRY (avoids overlap).
     add_arrow(ax, top(retry, 0.0), bottom(grasp, 0.95),
-              color=ROUTE_COLOR, dashed=True, rad=0.0)
-    add_label(ax, 476, 360, "same target, direct retry")
+              color=ROUTE_COLOR, dashed=True, rad=0.0, z=4)
+    add_label(ax, 490, 374, "same target")
 
     # Footer panel: physical success checks.
     footer = FancyBboxPatch(
