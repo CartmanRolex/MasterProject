@@ -27,6 +27,8 @@ VARIANT_COLORS = {
     "no-tail":  (0.13, 0.45, 0.55),
     "ACT":      (0.10, 0.28, 0.66),
     "SmolVLA":  (0.58, 0.22, 0.10),
+    "monotask": (0.30, 0.30, 0.30),
+    "subtask":  (0.30, 0.30, 0.30),
 }
 
 
@@ -165,6 +167,28 @@ class PdfFigure:
         self.commands.append(f"{rgb[0]:.3f} {rgb[1]:.3f} {rgb[2]:.3f} rg")
         self.commands.append(f"BT {font} {size:.1f} Tf {x:.2f} {y:.2f} Td ({escaped}) Tj ET")
 
+    def vtext(
+        self,
+        x: float,
+        y: float,
+        text: str,
+        size: float = 10,
+        align: str = "left",
+        rgb: tuple[float, float, float] = (0, 0, 0),
+        bold: bool = False,
+    ) -> None:
+        # Text rotated 90deg (baseline points up); (x, y) is the anchor and
+        # `align` centres/ends the string along the vertical axis.
+        width = len(text) * size * (0.56 if not bold else 0.60)
+        if align == "center":
+            y -= width / 2
+        elif align == "right":
+            y -= width
+        font = "/F2" if bold else "/F1"
+        escaped = pdf_escape(text)
+        self.commands.append(f"{rgb[0]:.3f} {rgb[1]:.3f} {rgb[2]:.3f} rg")
+        self.commands.append(f"BT {font} {size:.1f} Tf 0 1 -1 0 {x:.2f} {y:.2f} Tm ({escaped}) Tj ET")
+
     def save(self, path: Path) -> None:
         content = "\n".join(self.commands).encode("ascii")
         objects: list[bytes] = []
@@ -297,6 +321,9 @@ def draw_grouped_figure(
     output_path: Path,
     *,
     bar_w: int = 44,
+    title: str = "Final orange count per episode",
+    subtitle: str = "Number above each bar = mean oranges placed (/3).",
+    recipe_legend: tuple[str, ...] | None = ("frozen", "unfrozen", "no-tail"),
 ) -> None:
     figure = PdfFigure(width=920, height=512)
     left, right, bottom, top = 74, 34, 138, 96
@@ -318,22 +345,17 @@ def draw_grouped_figure(
     x_cursor = left + (plot_w - total_w) / 2
     plot_cx = left + plot_w / 2  # centre titles on the plot area, not the canvas
 
-    figure.text(plot_cx, figure.height - 27, "Final orange count per episode", 15, "center", bold=True)
-    figure.text(
-        plot_cx,
-        figure.height - 44,
-        "Bar height = % of the 100 seeded episodes ending with 0-3 oranges placed; value above each bar is the mean (/3). "
-        "Within a family, bars are training recipes.",
-        9.0,
-        "center",
-        rgb=(0.25, 0.25, 0.25),
-    )
+    figure.text(plot_cx, figure.height - 27, title, 15, "center", bold=True)
+    figure.text(plot_cx, figure.height - 44, subtitle, 9.0, "center", rgb=(0.25, 0.25, 0.25))
 
     figure.set_stroke((0.84, 0.84, 0.82), 0.55)
     for pct in [0, 25, 50, 75, 100]:
         y = bottom + plot_h * pct / 100
         figure.line(left, y, figure.width - right, y)
         figure.text(left - 10, y - 4, f"{pct}", 8, "right", rgb=(0.25, 0.25, 0.25))
+
+    # vertical y-axis title, centred on the plot area
+    figure.vtext(22, bottom + plot_h / 2, "Share of episodes (%)", 10, "center", rgb=(0.25, 0.25, 0.25))
 
     figure.set_stroke((0.12, 0.12, 0.12), 1.0)
     figure.line(left, bottom, left, bottom + plot_h)
@@ -394,11 +416,12 @@ def draw_grouped_figure(
         figure.rect(legend_x, legend_y, 10, 10)
         figure.text(legend_x + 14, legend_y + 2, f"{oranges}/3", 8.0)
         legend_x += 58
-    legend_x += 18
-    figure.text(legend_x, legend_y + 2, "Recipe:", 8.0, rgb=(0.2, 0.2, 0.2))
-    legend_x += 44
-    for variant in ("frozen", "unfrozen", "no-tail"):
-        figure.text(legend_x, legend_y + 2, cap(variant), 8.0, rgb=VARIANT_COLORS[variant], bold=True)
-        legend_x += len(variant) * 8.0 * 0.56 + 16
+    if recipe_legend:
+        legend_x += 18
+        figure.text(legend_x, legend_y + 2, "Recipe:", 8.0, rgb=(0.2, 0.2, 0.2))
+        legend_x += 44
+        for variant in recipe_legend:
+            figure.text(legend_x, legend_y + 2, cap(variant), 8.0, rgb=VARIANT_COLORS[variant], bold=True)
+            legend_x += len(variant) * 8.0 * 0.56 + 16
 
     figure.save(output_path)

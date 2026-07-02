@@ -89,7 +89,7 @@ Python scripts that generate the report figures. Run from `report/scripts/`.
 |--------|---------------|
 | `plot_baseline_comparison.py` | `figures/baseline_comparison.pdf` |
 | `plot_data_effect.py` | `figures/data_effect.pdf` |
-| `plot_orange_outcomes.py` | `figures/orange_outcome_distribution.pdf` |
+| `plot_orange_outcomes.py` | `figures/orange_outcome_classical.pdf` (classical fine-tuning: frozen backbone only, grouped by source; §4.1 Figure 1) **and** `figures/orange_outcome_recipes.pdf` (training-recipe variations: frozen vs unfrozen-VLM vs tail-free, custom families only; §4.1 Figure 2). Pure-Python via `plot_lib`. |
 | `plot_failure_modes.py` | `figures/failure_modes.pdf` — per-subtask outcome composition (GRASP/LIFT/PLACE × success/drop-slip/timeout) for the two **subtask** models; imports the composition helpers from `compute_failure_modes.py`. Pure-Python via `plot_lib`. |
 | `plot_orchestrator_flow.py` | `figures/orchestrator_decision_flow.pdf` — decision-flow diagram. **Requires `matplotlib`** (the only script that does; the rest use the pure-Python `plot_lib` writer). |
 | `plot_subtask_placeholders.py` | `figures/subtask_{grasp,lift,place}_placeholder.pdf` |

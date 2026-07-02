@@ -7,11 +7,11 @@ Every completed run uses the same 100-scene reference seed set (\texttt{pick\_or
 
 \subsection{Overall Performance}
 
-Final plate occupancy for every model on the shared 100-seed set (5000-step budget) is shown below, via two metrics: the \emph{full-task success rate} (fraction of episodes placing all three oranges) and the \emph{mean final occupancy} (average oranges placed out of three, crediting partial progress). Bars are grouped by training source and, within the two custom sources, by formulation (\emph{monotask} end-to-end vs.\ orchestrated \emph{subtask}).
+Final plate occupancy for every model on the shared 100-seed set (5000-step budget) is read through two metrics: the \emph{full-task success rate} (fraction of episodes placing all three oranges) and the \emph{mean final occupancy} (average oranges placed out of three, crediting partial progress). Two figures separate two questions. The first compares the models trained the default way --- the vision-language backbone frozen, only the action expert and state projection fine-tuned --- across training source and formulation (\emph{monotask} end-to-end vs.\ orchestrated \emph{subtask}). The second isolates the two training-recipe changes explored on top of that default: unfreezing the language backbone and removing the terminal freeze frames from the data.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=\textwidth]{orange_outcome_distribution.pdf}
+    \includegraphics[width=0.88\textwidth]{orange_outcome_classical.pdf}
 \end{figure}
 
 \paragraph{Policy backbone.} On the LightwheelAI Baseline, run end-to-end under a single instruction, SmolVLA clearly outperforms ACT: it places all three oranges in 41\% of episodes against 13\% for ACT, averages 1.95 oranges against 0.92, and leaves only 9\% of episodes empty against 53\%. The compact vision-language backbone thus buys a large gain over the standard action-chunking baseline, so SmolVLA is adopted for the rest of the work. Yet 41\% is the highest full-task rate any single model reaches here: even the stronger backbone does not solve the task reliably, which motivates wrapping it in the subtask decomposition rather than scaling the policy alone.
@@ -21,6 +21,13 @@ Final plate occupancy for every model on the shared 100-seed set (5000-step budg
 \paragraph{Subtasking rarely fails completely.} The clearest advantage is on the weakest outcome --- an episode with no orange placed. The subtask models almost always place at least one (97\% of Teleop episodes, 84\% on Teleop+Auto), whereas the monotask models leave far more empty (only 56\% and 64\% reach one). Target redirection is the likely reason --- but not because the monotask fixates on a single orange: it does attempt other oranges on its own (\cref{sec:failure_modes}), yet, lacking a deliberate give-up-and-redirect, it often exhausts the budget without securing any, while the controller detects a repeated GRASP timeout and redirects to another reachable orange. The decomposed formulation thus rarely fails totally, even when it does not complete the task.
 
 \paragraph{Aggregating autonomous data did not help.} Adding the Auto episodes to Teleop regressed the subtask model on both metrics (full-task 20\% to 13\%, mean 1.77 to 1.42). In-distribution successful subtasks were thus not sufficient to improve full-task behaviour; the subtask-level analysis below isolates what degraded.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.92\textwidth]{orange_outcome_recipes.pdf}
+\end{figure}
+
+\paragraph{Unfreezing the language backbone is not a reliable lever.} Fine-tuning the language model on top of the action expert helps two configurations and hurts two. It raises full-task success on the Teleop subtask model from 20\% to 33\% (mean 1.77 to 1.88) and on the Teleop+Auto monotask model from 18\% to 25\% (1.29 to 1.54), but lowers it on the Teleop monotask model from 14\% to 9\% (1.02 to 0.92) and on the Teleop+Auto subtask model from 13\% to 10\% (1.42 to 1.37). The direction is thus inconsistent across source and formulation, and \cref{sec:obedience} shows the same change does not improve target obedience either (67\% on both unfrozen variants). Adapting the language backbone is therefore not a dependable way to raise performance. Removing the terminal freeze frames instead --- the tail-free recipe, a data change that leaves the backbone frozen --- gives the Teleop subtask model a comparable full-task gain (20\% to 32\%), which suggests the remaining headroom here owes more to the data than to which weights are trained.
 
 \subsection{Failure Analysis}
 
