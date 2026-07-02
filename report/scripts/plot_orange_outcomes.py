@@ -53,9 +53,9 @@ TELEOP_SUB_FROZEN = ResultFile(label="Teleop subtask frozen", description="SmolV
 TELEOP_SUB_UNFROZEN = ResultFile(label="Teleop subtask unfrozen", description="SmolVLA Teleop subtask (unfrozen VLM)",
                                  path=_r("Gal-pick-orange-tailedCH20-unfrozen-vlm", "latest.txt"),
                                  policy="SmolVLA", mode="subtasks", group="Teleop\nsubtask", variant="LM-tuned")
-TELEOP_SUB_NOTAIL = ResultFile(label="Teleop subtask no-tail", description="SmolVLA Teleop subtask (tail-free, frozen)",
+TELEOP_SUB_NOTAIL = ResultFile(label="Teleop subtask no-tail", description="SmolVLA Teleop subtask (no-tail, standard)",
                                path=_r("Gal-pick-orange-notailCH20", "latest.txt"),
-                               policy="SmolVLA", mode="subtasks", group="Teleop\nsubtask", variant="no-tail")
+                               policy="SmolVLA", mode="subtasks", group="Teleop\nsubtask", variant="Standard\n+ No-tail")
 
 # --- Teleop+Auto monotask: standard vs LM-tuned ---
 AUTO_MONO_FROZEN = ResultFile(label="Teleop+Auto monotask frozen", description="SmolVLA Teleop+Auto monotask (frozen)",
@@ -122,7 +122,6 @@ def main() -> None:
     draw_grouped_figure(
         standard, STANDARD_PDF,
         title="Final orange count - standard fine-tuning",
-        recipe_legend=None,
     )
     _report(STANDARD_PDF, standard)
 
@@ -130,9 +129,7 @@ def main() -> None:
     draw_grouped_figure(
         variants, VARIANTS_PDF,
         title="Final orange count - fine-tuning variants",
-        subtitle="Number above each bar = mean oranges placed (/3). "
-                 "No-tail uses standard fine-tuning; only its training data changes (terminal freeze frames removed).",
-        recipe_legend=("standard", "LM-tuned", "no-tail"),
+        variant_row_label="Fine-tuning:",
     )
     _report(VARIANTS_PDF, variants)
 

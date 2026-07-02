@@ -27,6 +27,7 @@ VARIANT_COLORS = {
     "standard": (0.30, 0.30, 0.30),
     "LM-tuned": (0.80, 0.45, 0.10),
     "no-tail":  (0.13, 0.45, 0.55),
+    "Standard\n+ No-tail": (0.13, 0.45, 0.55),
     "ACT":      (0.10, 0.28, 0.66),
     "SmolVLA":  (0.58, 0.22, 0.10),
     "monotask": (0.30, 0.30, 0.30),
@@ -324,11 +325,10 @@ def draw_grouped_figure(
     *,
     bar_w: int = 44,
     title: str = "Final orange count per episode",
-    subtitle: str = "Number above each bar = mean oranges placed (/3).",
-    recipe_legend: tuple[str, ...] | None = ("standard", "LM-tuned", "no-tail"),
+    variant_row_label: str | None = None,
 ) -> None:
-    figure = PdfFigure(width=920, height=512)
-    left, right, bottom, top = 74, 34, 138, 96
+    figure = PdfFigure(width=920, height=438)
+    left, right, bottom, top = 74, 34, 82, 64
     plot_w = figure.width - left - right
     plot_h = figure.height - bottom - top
     bar_gap = 11
@@ -348,7 +348,6 @@ def draw_grouped_figure(
     plot_cx = left + plot_w / 2  # centre titles on the plot area, not the canvas
 
     figure.text(plot_cx, figure.height - 27, title, 15, "center", bold=True)
-    figure.text(plot_cx, figure.height - 44, subtitle, 9.0, "center", rgb=(0.25, 0.25, 0.25))
 
     figure.set_stroke((0.84, 0.84, 0.82), 0.55)
     for pct in [0, 25, 50, 75, 100]:
@@ -397,33 +396,34 @@ def draw_grouped_figure(
                 figure.rect(x, bottom, bar_w, plot_h, fill=False)
                 figure.text(x + bar_w / 2, bottom + plot_h + 8, f"{parsed.mean:.2f}", 8.4, "center", rgb=(0.15, 0.15, 0.15), bold=True)
 
-            # per-bar recipe/variant label
-            figure.text(x + bar_w / 2, bottom - 16, cap(variant), 7.6, "center", rgb=variant_rgb, bold=True)
+            # per-bar recipe/variant label (may span two lines via "\n")
+            for li, vl in enumerate(cap(variant).split("\n")):
+                figure.text(x + bar_w / 2, bottom - 16 - 10 * li, vl, 7.6, "center", rgb=variant_rgb, bold=True)
 
         # family bracket + (possibly multi-line) label
         figure.set_stroke((0.33, 0.33, 0.33), 0.7)
-        figure.line(group_start, bottom - 30, group_start + group_w, bottom - 30)
-        figure.line(group_start, bottom - 27, group_start, bottom - 33)
-        figure.line(group_start + group_w, bottom - 27, group_start + group_w, bottom - 33)
+        figure.line(group_start, bottom - 36, group_start + group_w, bottom - 36)
+        figure.line(group_start, bottom - 33, group_start, bottom - 39)
+        figure.line(group_start + group_w, bottom - 33, group_start + group_w, bottom - 39)
         for li, gl in enumerate(key.split("\n")):
-            figure.text(group_center, bottom - 46 - 11 * li, cap(gl), 8.6, "center", bold=True)
+            figure.text(group_center, bottom - 52 - 11 * li, cap(gl), 8.6, "center", bold=True)
 
         x_cursor += group_w + group_gap
 
-    # legend: outcome colours + recipe key
-    legend_y = 22
-    legend_x = left + 26
-    for oranges in ORDER:
+    # row labels, right-aligned just left of the first group
+    first_group_x = left + (plot_w - total_w) / 2
+    figure.text(first_group_x - 12, bottom + plot_h + 8, "Mean /3", 8.0, "right", rgb=(0.35, 0.35, 0.35))
+    if variant_row_label:
+        figure.text(first_group_x - 12, bottom - 16, variant_row_label, 8.0, "right", rgb=(0.35, 0.35, 0.35))
+
+    # outcome legend: vertical, in the free space right of the last group
+    # (top-to-bottom order matches the stacking order inside the bars)
+    legend_x = (first_group_x + total_w + left + plot_w) / 2 - 16
+    legend_y = bottom + plot_h / 2 + 30
+    for oranges in reversed(ORDER):
         figure.set_fill(COLORS[oranges])
         figure.rect(legend_x, legend_y, 10, 10)
-        figure.text(legend_x + 14, legend_y + 2, f"{oranges}/3", 8.0)
-        legend_x += 58
-    if recipe_legend:
-        legend_x += 18
-        figure.text(legend_x, legend_y + 2, "Fine-tuning:", 8.0, rgb=(0.2, 0.2, 0.2))
-        legend_x += 62
-        for variant in recipe_legend:
-            figure.text(legend_x, legend_y + 2, cap(variant), 8.0, rgb=VARIANT_COLORS[variant], bold=True)
-            legend_x += len(variant) * 8.0 * 0.56 + 16
+        figure.text(legend_x + 15, legend_y + 2, f"{oranges}/3 oranges", 8.0)
+        legend_y -= 20
 
     figure.save(output_path)
