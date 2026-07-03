@@ -1,4 +1,10 @@
-"""Outcome of the FIRST orange each episode commits to, split three ways:
+"""[NO LONGER FEEDS THE REPORT — superseded by compute_level2_deadline.py.]
+The first-orange anchoring below is asymmetric (subtask = first GRASP prompt,
+monotask = first force-confirmed grasp), which is why it was replaced by the
+deadline-anchored Level-2 comparison. Kept for reference; the figure it wrote
+(recovery_outcomes.pdf) has been removed from figures/.
+
+Outcome of the FIRST orange each episode commits to, split three ways:
 the first orange itself is placed / a DIFFERENT orange is placed / nothing is placed.
 
 Why outcomes, not attempts: what the monotask policy is *trying* to grasp is not
