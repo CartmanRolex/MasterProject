@@ -2,7 +2,7 @@
 
 The monotask-vs-subtask recovery comparison cannot use grasp attempts (monotask
 intent is unobservable) nor post-grasp failures (those trigger Level-1, not
-Level-2). The matched evidence is TIME: a **deadlock** = one full grasp budget
+Level-2). The matched evidence is TIME: a **stall** = one full grasp budget
 (700 steps) of consecutive fruitless commitment to a single orange.
 
 Commitment
@@ -29,9 +29,9 @@ Filters (both formulations, identically)
             the deadline. The report uses 1500, which exceeds the median
             steps-to-place, so observed recovery is not clipped by episode end
             (it also makes subtask redirection an exact 100%: the only
-            exceptions ever observed were deadlocks < 100 steps before the end).
+            exceptions ever observed were stalls < 100 steps before the end).
 
-Metrics over kept deadlocks
+Metrics over kept stalls
   redirected     : share whose next worked-on orange differs from the committed
                    one (the Level-2 mechanism firing / monotask switching).
   placed after   : share followed by ANY successful placement, decomposed
@@ -40,9 +40,9 @@ Metrics over kept deadlocks
                    (the Level-2 payoff). A second additive decomposition by
                    response (via redirect / via persistence) is printed for the
                    prose; note the axes differ — a persisted-then-secured
-                   deadlock can still first place a different orange later.
+                   stall can still first place a different orange later.
   steps to place : deadline -> first subsequent placement (mean and median),
-                   among placed-after deadlocks.
+                   among placed-after stalls.
 
 Placement timing: subtask from genuine successful PLACE attempts
 (target_in_plate_end, interruptions excluded); monotask from the per-orange
@@ -145,11 +145,11 @@ def mono_trace(e):
     return spells, placed, secured_dur
 
 
-# ---------------- subtask: deadlocks from the orchestrator log ----------------
+# ---------------- subtask: stalls from the orchestrator log ----------------
 
 def sub_events(e):
-    """(deadlocks, placed, secured_durations).
-    deadlock = (orange, deadline_step, outcome S/R/E), one per run of
+    """(stalls, placed, secured_durations).
+    stall = (orange, deadline_step, outcome S/R/E), one per run of
     consecutive same-target GRASP prompts containing >=1 timeout before any
     success; deadline = end of that first timed-out attempt."""
     atts = sorted(e.get("subtask_attempts", []), key=lambda a: a.get("start_step", 0))
@@ -223,7 +223,7 @@ def report(thr_mono, min_remaining):
                     same += first_orange == o
                     diff += first_orange != o
                     ttp.append(first_step - dl)
-        print(f"{src:11s} {form:8s}: deadlocks={n:3d} (gated out {gated_out}, censored {censored}) | "
+        print(f"{src:11s} {form:8s}: stalls={n:3d} (gated out {gated_out}, censored {censored}) | "
               f"redirected {pct(R, n)} | "
               f"placed-after {pct(rec, n)} "
               f"= same orange {100*same/n:4.1f}% ({same:3d}) + different {100*diff/n:4.1f}% ({diff:3d}) | "
