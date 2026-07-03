@@ -49,8 +49,9 @@ Recipe: **frozen** = parameter-efficient (vision encoder + LM backbone frozen, o
 expert + state projection trained, `train_expert_only=true`); **unfrozen-VLM** = the 16-layer
 language backbone is also trained (`train_expert_only=false`); **unfrozen-all** = everything
 trained including the vision encoder (`train_expert_only=false`, `freeze_vision_encoder=false`),
-and — unlike every other model — 40k gradient steps instead of 20k. All SmolVLA models start
-from `lerobot/smolvla_base`; chunk = action-chunk size. Report surface names: frozen =
+and — unlike every other model — batch size 32 with 40k gradient steps instead of 64/20k
+(the 450M parameters did not fit in VRAM at batch 64; same samples seen, twice the weight
+updates). All SmolVLA models start from `lerobot/smolvla_base`; chunk = action-chunk size. Report surface names: frozen =
 *standard*, unfrozen-VLM = *LM-tuned*, unfrozen-all = *fully-tuned*.
 
 | Model | policy | formulation | recipe | chunk | trained on | full% / mean |
