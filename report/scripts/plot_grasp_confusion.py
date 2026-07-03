@@ -159,8 +159,9 @@ def draw_col_headers(fig: PdfFigure, grid_left: float, grid_top: float) -> None:
 
 def draw_panel(fig: PdfFigure, grid_left: float, top: float, conf: dict, row_labels: bool) -> None:
     """One confusion matrix. ``top`` is the top edge of the tag bar; the grid
-    starts 38 pt below it (tag bar + two-line column headers)."""
-    grid_top = top - 38
+    starts 50 pt below it (tag bar + axis title + two-line column headers).
+    The leftmost panel of a band (``row_labels``) also carries the axis titles."""
+    grid_top = top - 50
     gh = len(COLS) * CH
 
     # tag bar: overall obeyed rate (over ALL grasps, matching compute_obedience)
@@ -170,6 +171,10 @@ def draw_panel(fig: PdfFigure, grid_left: float, top: float, conf: dict, row_lab
     fig.rect(grid_left, top - 14, GRID_W, 14)
     fig.text(grid_left + 5, top - 10, f"{100 * cor / tot:.0f}% obeyed", 8.6, "left", bold=True, rgb=OBEY_TARGET)
     fig.text(grid_left + GRID_W - 5, top - 10, f"n = {tot} grasps", 7.6, "right", rgb=MUTE)
+
+    if row_labels:
+        fig.text(grid_left + GRID_W / 2, top - 27, "Grasped orange", 8.8, "center", bold=True, rgb=MUTE)
+        fig.vtext(grid_left - 52, grid_top - gh / 2, "Requested orange", 8.8, "center", bold=True, rgb=MUTE)
 
     draw_col_headers(fig, grid_left, grid_top)
 
@@ -227,32 +232,32 @@ def draw_legend(fig: PdfFigure, x0: float, top: float) -> None:
     swatch(MISS_TARGET, "Misgrab", "grasped a different orange")
     fig.text(x0, y + 4, "Cell value: % of the row's grasps;", 7.6, "left", rgb=MUTE)
     fig.text(x0, y - 5, "darker shade = larger share.", 7.6, "left", rgb=MUTE)
-    y -= 28
+    y -= 26
+    fig.text(x0, y + 4, "Scene states 0-1 pooled (with two", 7.6, "left", rgb=MUTE)
+    fig.text(x0, y - 5, "placed, one orange remains: trivial).", 7.6, "left", rgb=MUTE)
+    y -= 26
     fig.text(x0, y + 4, "No fully-tuned run exists for", 7.6, "left", rgb=MUTE)
     fig.text(x0, y - 5, "Teleop+Auto.", 7.6, "left", rgb=MUTE)
 
 
 def main() -> None:
-    fig = PdfFigure(width=846, height=512)
+    fig = PdfFigure(width=846, height=520)
     grid_x = [LABEL_W + 44 + k * (GRID_W + PANEL_GAP) for k in range(3)]
     content_cx = (grid_x[0] + grid_x[2] + GRID_W) / 2
 
-    fig.text(content_cx, fig.height - 26, "Which orange is grasped vs. which was requested", 15, "center", bold=True, rgb=INK)
-    fig.text(content_cx, fig.height - 43,
-             "Rows: requested position.   Columns: position grasped.   Cells: % of the row's grasps.   Scene states 0-1 pooled.",
-             8.8, "center", rgb=MUTE)
+    fig.text(content_cx, fig.height - 26, "Grasp obedience across fine-tuning recipes", 15, "center", bold=True, rgb=INK)
 
     # column super-headers: the three fine-tuning recipes
     for k, (name, sub) in enumerate(RECIPES):
         cx = grid_x[k] + GRID_W / 2
-        fig.text(cx, fig.height - 64, name, 11.5, "center", bold=True, rgb=INK)
-        fig.text(cx, fig.height - 76, sub, 7.6, "center", rgb=MUTE)
+        fig.text(cx, fig.height - 50, name, 11.5, "center", bold=True, rgb=INK)
+        fig.text(cx, fig.height - 62, sub, 7.6, "center", rgb=MUTE)
 
-    row_top = [fig.height - 90, fig.height - 308]
+    row_top = [fig.height - 76, fig.height - 300]
     for r, (source, subdirs) in enumerate(GRID):
         # vertical source label, centred on the matrix
-        grid_mid = row_top[r] - 38 - len(COLS) * CH / 2
-        fig.vtext(30, grid_mid, source, 10.5, "center", bold=True, rgb=INK)
+        grid_mid = row_top[r] - 50 - len(COLS) * CH / 2
+        fig.vtext(22, grid_mid, source, 10.5, "center", bold=True, rgb=INK)
         for k, subdir in enumerate(subdirs):
             if subdir is None:
                 draw_legend(fig, grid_x[k] + 12, row_top[r])
