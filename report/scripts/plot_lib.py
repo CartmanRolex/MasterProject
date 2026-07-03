@@ -22,10 +22,12 @@ POLICY_STROKES = {
 }
 # Per-bar variant label colours (scanning aid; falls back to dark grey).
 # "standard" = default fine-tuning (action expert + state projection only);
-# "LM-tuned" = the language model is trained as well.
+# "LM-tuned" = the language model is trained as well;
+# "Fully-tuned" = all weights trained, including the vision encoder.
 VARIANT_COLORS = {
     "standard": (0.30, 0.30, 0.30),
     "LM-tuned": (0.80, 0.45, 0.10),
+    "Fully-tuned": (0.48, 0.22, 0.58),
     "no-tail":  (0.13, 0.45, 0.55),
     "Standard\n+ No-tail": (0.13, 0.45, 0.55),
     "ACT":      (0.10, 0.28, 0.66),

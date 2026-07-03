@@ -53,6 +53,9 @@ TELEOP_SUB_FROZEN = ResultFile(label="Teleop subtask frozen", description="SmolV
 TELEOP_SUB_UNFROZEN = ResultFile(label="Teleop subtask unfrozen", description="SmolVLA Teleop subtask (unfrozen VLM)",
                                  path=_r("Gal-pick-orange-tailedCH20-unfrozen-vlm", "latest.txt"),
                                  policy="SmolVLA", mode="subtasks", group="Teleop\nsubtask", variant="LM-tuned")
+TELEOP_SUB_FULL = ResultFile(label="Teleop subtask fully-tuned", description="SmolVLA Teleop subtask (fully-tuned: all weights incl. vision encoder, 40k steps)",
+                             path=_r("Gal-pick-orange-tailedCH20-unfrozen-all", "latest.txt"),
+                             policy="SmolVLA", mode="subtasks", group="Teleop\nsubtask", variant="Fully-tuned")
 TELEOP_SUB_NOTAIL = ResultFile(label="Teleop subtask no-tail", description="SmolVLA Teleop subtask (no-tail, standard)",
                                path=_r("Gal-pick-orange-notailCH20", "latest.txt"),
                                policy="SmolVLA", mode="subtasks", group="Teleop\nsubtask", variant="Standard\n+ No-tail")
@@ -91,6 +94,7 @@ VARIANTS = [
     TELEOP_MONO_UNFROZEN,
     TELEOP_SUB_FROZEN,
     TELEOP_SUB_UNFROZEN,
+    TELEOP_SUB_FULL,
     TELEOP_SUB_NOTAIL,
     AUTO_MONO_FROZEN,
     AUTO_MONO_UNFROZEN,

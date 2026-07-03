@@ -47,20 +47,24 @@ official reference dataset; not in this org. Single global prompt, no subtask se
 
 Recipe: **frozen** = parameter-efficient (vision encoder + LM backbone frozen, only action
 expert + state projection trained, `train_expert_only=true`); **unfrozen-VLM** = the 16-layer
-language backbone is also trained (`train_expert_only=false`). All SmolVLA models start from
-`lerobot/smolvla_base`; chunk = action-chunk size.
+language backbone is also trained (`train_expert_only=false`); **unfrozen-all** = everything
+trained including the vision encoder (`train_expert_only=false`, `freeze_vision_encoder=false`),
+and — unlike every other model — 40k gradient steps instead of 20k. All SmolVLA models start
+from `lerobot/smolvla_base`; chunk = action-chunk size. Report surface names: frozen =
+*standard*, unfrozen-VLM = *LM-tuned*, unfrozen-all = *fully-tuned*.
 
 | Model | policy | formulation | recipe | chunk | trained on | full% / mean |
 |---|---|---|---|---|---|---|
 | `Gal-pick-orange-tailedCH20` | SmolVLA | subtask | frozen | 20 | `Gal_split_tailed` | 20% / 1.77 |
-| `Gal-pick-orange-tailedCH20-unfrozen-vlm` | SmolVLA | subtask | unfrozen-VLM | 20 | `Gal_split_tailed` | **33% / 1.88** |
-| `Gal-pick-orange-notailCH20` | SmolVLA | subtask | frozen | 20 | `Gal_split_notail` | *(pending)* |
-| `Gal_split_nolang` | SmolVLA | monotask | frozen | 20 | `Gal_split_nolang` | 18% / 1.11 |
-| `Gal_split_nolang-unfrozen-vlm` | SmolVLA | monotask | unfrozen-VLM | 20 | `Gal_split_nolang` | *(eval in progress)* |
+| `Gal-pick-orange-tailedCH20-unfrozen-vlm` | SmolVLA | subtask | unfrozen-VLM | 20 | `Gal_split_tailed` | 33% / 1.88 |
+| `Gal-pick-orange-tailedCH20-unfrozen-all` | SmolVLA | subtask | unfrozen-all | 20 | `Gal_split_tailed` | **58% / 2.32** |
+| `Gal-pick-orange-notailCH20` | SmolVLA | subtask | frozen | 20 | `Gal_split_notail` | 32% / 1.81 |
+| `Gal_split_nolang` | SmolVLA | monotask | frozen | 20 | `Gal_split_nolang` | 14% / 1.02 |
+| `Gal_split_nolang-unfrozen-vlm` | SmolVLA | monotask | unfrozen-VLM | 20 | `Gal_split_nolang` | 9% / 0.92 |
 | `Gal-merged-tailed-auto` | SmolVLA | subtask | frozen | 20 | `Gal-merged-tailed-auto` | 13% / 1.42 |
-| `Gal-merged-tailed-auto-unfrozen-vlm` | SmolVLA | subtask | unfrozen-VLM | 20 | `Gal-merged-tailed-auto` | *(eval in progress)* |
-| `Gal-merged-tailed-auto-no-lang-no-home` | SmolVLA | monotask | frozen | 20 | `…-no-lang-no-home` | 26% / 1.50 |
-| `…-no-lang-no-home-unfrozen-vlm` | SmolVLA | monotask | unfrozen-VLM | 20 | `…-no-lang-no-home` | *(eval in progress)* |
+| `Gal-merged-tailed-auto-unfrozen-vlm` | SmolVLA | subtask | unfrozen-VLM | 20 | `Gal-merged-tailed-auto` | 10% / 1.37 |
+| `Gal-merged-tailed-auto-no-lang-no-home` | SmolVLA | monotask | frozen | 20 | `…-no-lang-no-home` | 18% / 1.29 |
+| `…-no-lang-no-home-unfrozen-vlm` | SmolVLA | monotask | unfrozen-VLM | 20 | `…-no-lang-no-home` | 25% / 1.54 |
 | `pick-orange-mimic` | SmolVLA | monotask | frozen | — | `leisaac-pick-orange-mimic-v0` | 41% / 1.95 |
 | `ACT-pick-orange` | ACT | monotask | — | 20/100 | `leisaac-pick-orange-mimic-v0` | — |
 

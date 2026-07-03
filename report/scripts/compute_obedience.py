@@ -3,7 +3,7 @@
 Obedience = the gripper closed on the *requested* orange (matched by identity), i.e. the
 diagonal of the confusion matrices in ``plot_grasp_confusion.py``; we reuse that module's
 ``confusion()`` so the numbers match the figure exactly, over scene states 0 and 1,
-for all four subtask models (frozen and unfrozen-VLM).
+for all five subtask models (standard, LM-tuned, and the Teleop fully-tuned).
 
   python compute_obedience.py
 """
@@ -14,7 +14,7 @@ import json
 from collections import Counter, defaultdict
 from pathlib import Path
 
-from plot_grasp_confusion import MODELS, confusion
+from plot_grasp_confusion import GRID, RECIPES, confusion
 
 RESULTS = Path(__file__).resolve().parents[2] / "isaac-inference" / "results"
 ORDER = ["right", "middle", "left", "top right", "bottom right"]
@@ -32,7 +32,10 @@ def obedience(subdir: str, fname: str):
 
 def main() -> None:
     print("Per-model obedience (scene states 0+1; matches the confusion figure):")
-    for disp, subdir, fname in MODELS:
+    models = [(f"{source} {recipe.replace(' fine-tuning', '').lower()}", subdir, "checkpoint.json")
+              for source, subdirs in GRID
+              for (recipe, _), subdir in zip(RECIPES, subdirs) if subdir is not None]
+    for disp, subdir, fname in models:
         agg = obedience(subdir, fname)
         tot_o = sum(v[0] for v in agg.values())
         tot_n = sum(v[1] for v in agg.values())

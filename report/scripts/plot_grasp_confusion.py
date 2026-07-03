@@ -1,11 +1,13 @@
 """Grasp-obedience confusion heatmaps (figures/grasp_obedience_confusion.pdf).
 
-Reads the two orchestrated subtask eval checkpoints under
-``isaac-inference/results`` (git-tracked, so this runs on the laptop) and draws a
-2x2 grid of confusion matrices: rows = the requested grasp position, columns =
-the position actually grasped (by orange identity), for both models and for the
-two informative scene states (0 and 1 oranges already placed). The 2-placed
-state is omitted (one orange remains, trivially obeyed).
+Reads the orchestrated subtask eval checkpoints under ``isaac-inference/results``
+(git-tracked, so this runs on the laptop) and draws a 2x3 grid of confusion
+matrices: rows = the requested grasp position, columns = the position actually
+grasped (by orange identity). Grid rows = training source (Teleop, Teleop+Auto);
+grid columns = fine-tuning recipe (standard, LM-tuned, fully-tuned). The
+fully-tuned recipe exists for Teleop only, so the sixth cell holds the legend.
+Scene states 0 and 1 are pooled; the 2-placed state is omitted (one orange
+remains, trivially obeyed).
 
 Two subtleties are handled so the matrices are faithful:
 
@@ -15,6 +17,10 @@ Two subtleties are handled so the matrices are faithful:
   oranges still on the table sit at their start positions while the placed
   orange is moved to the plate, then ``classify`` is re-run. Using the
   start-of-episode labels would be wrong once an orange has been placed.
+
+Displayed rows are the five canonical labels; the handful of grasps whose
+requested label comes from a rare near-diagonal scene layout (at most 4 per
+model) are counted in each panel's overall obeyed rate but have no row.
 
 Pure stdlib + the shared ``plot_lib`` PDF writer (no matplotlib).
 
@@ -32,17 +38,26 @@ from plot_lib import PdfFigure
 RESULTS = Path(__file__).resolve().parents[2] / "isaac-inference" / "results"
 OUT = Path(__file__).resolve().parents[1] / "figures" / "grasp_obedience_confusion.pdf"
 
-# Four subtask models in a 2x2 grid: rows = training source, columns = standard
-# fine-tuning vs LM-tuned. Scene states are pooled (0+1), so each model is one panel.
-MODELS = [
-    ("Teleop standard",      "Gal-pick-orange-tailedCH20",              "checkpoint.json"),
-    ("Teleop LM-tuned",      "Gal-pick-orange-tailedCH20-unfrozen-vlm", "checkpoint.json"),
-    ("Teleop+Auto standard", "Gal-merged-tailed-auto",                  "checkpoint.json"),
-    ("Teleop+Auto LM-tuned", "Gal-merged-tailed-auto-unfrozen-vlm",     "checkpoint.json"),
+# Grid: rows = training source, columns = fine-tuning recipe. The fully-tuned
+# recipe (all weights trained, incl. the vision encoder) was run on Teleop only,
+# so the Teleop+Auto row has two panels and the legend takes the last cell.
+RECIPES = [
+    ("Standard fine-tuning", "action expert + state projection"),
+    ("LM-tuned", "+ language model"),
+    ("Fully-tuned", "+ language model + vision encoder"),
 ]
-# Fixed column order shared by every panel so they read consistently.
+GRID = [
+    ("Teleop", ["Gal-pick-orange-tailedCH20",
+                "Gal-pick-orange-tailedCH20-unfrozen-vlm",
+                "Gal-pick-orange-tailedCH20-unfrozen-all"]),
+    ("Teleop+Auto", ["Gal-merged-tailed-auto",
+                     "Gal-merged-tailed-auto-unfrozen-vlm",
+                     None]),
+]
+# Fixed row/column order shared by every panel so they read consistently.
 COLS = ["left", "middle", "right", "top right", "bottom right"]
-SHORT = {"left": "Left", "middle": "Mid", "right": "Right", "top right": "T.R", "bottom right": "B.R"}
+HEAD = {"left": ("Left",), "middle": ("Middle",), "right": ("Right",),
+        "top right": ("Top", "right"), "bottom right": ("Bottom", "right")}
 
 # classify_orange_positions constants (see eval_utils.py): x primary, both inverts on, 3 cm tol.
 TOL = 0.03
@@ -115,11 +130,13 @@ def confusion(subdir: str, fname: str, n_placed):
     return conf
 
 
-CW, CH = 48.0, 30.0          # cell size
-LABEL_W = 92.0               # row-label gutter
+CW, CH = 44.0, 30.0          # cell size
+LABEL_W = 78.0               # row-label gutter (leftmost panel only; rows are shared)
+GRID_W = len(COLS) * CW
+PANEL_GAP = 18.0
 INK = (0.16, 0.17, 0.20)
 MUTE = (0.42, 0.44, 0.48)
-GRID = (0.88, 0.88, 0.90)
+GRID_RGB = (0.88, 0.88, 0.90)
 OBEY_TARGET = (0.20, 0.59, 0.36)   # green, for the diagonal (obeyed)
 MISS_TARGET = (0.86, 0.42, 0.30)   # warm red, for off-diagonal (misgrab)
 
@@ -129,85 +146,120 @@ def ramp(target, frac):
     return tuple(1 - (1 - t) * frac for t in target)
 
 
-def draw_panel(fig: PdfFigure, x0: float, top: float, state_label: str, conf: dict) -> None:
-    grid_left = x0 + LABEL_W
-    rows = [r for r in COLS if r in conf]
-    gh = len(rows) * CH
-    grid_top = top - 16
-
-    # state tag, with overall obeyed rate for the panel
-    tot = sum(sum(conf[r].values()) for r in rows)
-    cor = sum(conf[r][r] for r in rows)
-    fig.set_fill((0.95, 0.95, 0.97))
-    fig.rect(x0, top + 2, LABEL_W + len(COLS) * CW, 15)
-    fig.text(x0 + 6, top + 6, state_label, 8.6, "left", bold=True, rgb=INK)
-    fig.text(grid_left + len(COLS) * CW, top + 6, f"{100 * cor / tot:.0f}% obeyed overall", 8.2, "right", bold=True, rgb=OBEY_TARGET)
-
-    # column headers
+def draw_col_headers(fig: PdfFigure, grid_left: float, grid_top: float) -> None:
     for j, c in enumerate(COLS):
-        fig.text(grid_left + j * CW + CW / 2, grid_top + 5, SHORT[c], 8.2, "center", bold=True, rgb=MUTE)
+        lines = HEAD[c]
+        cx = grid_left + j * CW + CW / 2
+        if len(lines) == 1:
+            fig.text(cx, grid_top + 5, lines[0], 7.9, "center", bold=True, rgb=MUTE)
+        else:
+            fig.text(cx, grid_top + 13, lines[0], 7.9, "center", bold=True, rgb=MUTE)
+            fig.text(cx, grid_top + 5, lines[1], 7.9, "center", bold=True, rgb=MUTE)
 
-    # cells
-    for i, r in enumerate(rows):
-        total = sum(conf[r].values())
+
+def draw_panel(fig: PdfFigure, grid_left: float, top: float, conf: dict, row_labels: bool) -> None:
+    """One confusion matrix. ``top`` is the top edge of the tag bar; the grid
+    starts 38 pt below it (tag bar + two-line column headers)."""
+    grid_top = top - 38
+    gh = len(COLS) * CH
+
+    # tag bar: overall obeyed rate (over ALL grasps, matching compute_obedience)
+    tot = sum(sum(c.values()) for c in conf.values())
+    cor = sum(conf[r][r] for r in conf)
+    fig.set_fill((0.94, 0.94, 0.96))
+    fig.rect(grid_left, top - 14, GRID_W, 14)
+    fig.text(grid_left + 5, top - 10, f"{100 * cor / tot:.0f}% obeyed", 8.6, "left", bold=True, rgb=OBEY_TARGET)
+    fig.text(grid_left + GRID_W - 5, top - 10, f"n = {tot} grasps", 7.6, "right", rgb=MUTE)
+
+    draw_col_headers(fig, grid_left, grid_top)
+
+    for i, r in enumerate(COLS):
+        row = conf.get(r, Counter())
+        total = sum(row.values())
         cy = grid_top - (i + 1) * CH
         for j, c in enumerate(COLS):
-            v = conf[r].get(c, 0)
+            v = row.get(c, 0)
             frac = v / total if total else 0.0
             cx = grid_left + j * CW
             on_diag = (c == r)
             fig.set_fill(ramp(OBEY_TARGET if on_diag else MISS_TARGET, frac) if v else (0.975, 0.975, 0.978))
             fig.rect(cx, cy, CW, CH)
             if v:
-                light = frac > 0.5
-                fig.text(cx + CW / 2, cy + CH / 2 - 3.5, str(v), 9.5, "center",
-                         rgb=(1, 1, 1) if light else INK, bold=on_diag)
-        # row label + obeyed rate
-        fig.text(grid_left - 7, cy + CH / 2 - 1, r.capitalize(), 8.6, "right", bold=True, rgb=INK)
-        fig.text(grid_left - 7, cy + CH / 2 - 10, f"{100 * conf[r][r] / total:.0f}% obeyed  (n={total})", 6.3, "right", rgb=MUTE)
+                txt_rgb = (1, 1, 1) if frac > 0.55 else INK
+                if on_diag:
+                    fig.text(cx + CW / 2, cy + CH / 2 + 1, f"{100 * frac:.0f}", 9.5, "center", rgb=txt_rgb, bold=True)
+                    fig.text(cx + CW / 2, cy + 4, f"n={total}", 5.6, "center", rgb=txt_rgb)
+                else:
+                    fig.text(cx + CW / 2, cy + CH / 2 - 3.5, f"{100 * frac:.0f}", 9.0, "center", rgb=txt_rgb)
+        if row_labels:
+            lines = HEAD[r]
+            if len(lines) == 1:
+                fig.text(grid_left - 7, cy + CH / 2 - 3, lines[0], 8.4, "right", bold=True, rgb=INK)
+            else:
+                fig.text(grid_left - 7, cy + CH / 2 + 1, lines[0], 8.4, "right", bold=True, rgb=INK)
+                fig.text(grid_left - 7, cy + CH / 2 - 8, lines[1], 8.4, "right", bold=True, rgb=INK)
 
     # thin gridlines + frame
-    fig.set_stroke(GRID, 0.5)
+    fig.set_stroke(GRID_RGB, 0.5)
     for j in range(len(COLS) + 1):
         fig.line(grid_left + j * CW, grid_top, grid_left + j * CW, grid_top - gh)
-    for i in range(len(rows) + 1):
-        fig.line(grid_left, grid_top - i * CH, grid_left + len(COLS) * CW, grid_top - i * CH)
+    for i in range(len(COLS) + 1):
+        fig.line(grid_left, grid_top - i * CH, grid_left + GRID_W, grid_top - i * CH)
     fig.set_stroke(INK, 1.0)
-    fig.rect(grid_left, grid_top - gh, len(COLS) * CW, gh, fill=False)
+    fig.rect(grid_left, grid_top - gh, GRID_W, gh, fill=False)
 
 
-def swatch(fig, x, y, target, label):
-    fig.set_fill(ramp(target, 0.85))
-    fig.rect(x, y, 13, 13)
-    fig.set_stroke(INK, 0.6)
-    fig.rect(x, y, 13, 13, fill=False)
-    fig.text(x + 19, y + 3, label, 8.6, "left", rgb=INK)
+def draw_legend(fig: PdfFigure, x0: float, top: float) -> None:
+    """Legend in the unused sixth grid cell."""
+    y = top - 52
+
+    def swatch(target, label, sub):
+        nonlocal y
+        fig.set_fill(ramp(target, 0.85))
+        fig.rect(x0, y, 13, 13)
+        fig.set_stroke(INK, 0.6)
+        fig.rect(x0, y, 13, 13, fill=False)
+        fig.text(x0 + 19, y + 7, label, 8.4, "left", bold=True, rgb=INK)
+        fig.text(x0 + 19, y - 2, sub, 7.6, "left", rgb=MUTE)
+        y -= 32
+
+    swatch(OBEY_TARGET, "Obeyed", "grasped the requested orange")
+    swatch(MISS_TARGET, "Misgrab", "grasped a different orange")
+    fig.text(x0, y + 4, "Cell value: % of the row's grasps;", 7.6, "left", rgb=MUTE)
+    fig.text(x0, y - 5, "darker shade = larger share.", 7.6, "left", rgb=MUTE)
+    y -= 28
+    fig.text(x0, y + 4, "No fully-tuned run exists for", 7.6, "left", rgb=MUTE)
+    fig.text(x0, y - 5, "Teleop+Auto.", 7.6, "left", rgb=MUTE)
 
 
 def main() -> None:
-    fig = PdfFigure(width=792, height=508)
-    grid_w = LABEL_W + len(COLS) * CW
-    col_x = [44, 44 + grid_w + 60]
-    center = [col_x[0] + LABEL_W + len(COLS) * CW / 2, col_x[1] + LABEL_W + len(COLS) * CW / 2]
-    content_cx = (col_x[0] + col_x[1] + grid_w) / 2  # centre titles on the panel grid
+    fig = PdfFigure(width=846, height=512)
+    grid_x = [LABEL_W + 44 + k * (GRID_W + PANEL_GAP) for k in range(3)]
+    content_cx = (grid_x[0] + grid_x[2] + GRID_W) / 2
 
-    fig.text(content_cx, fig.height - 28, "Which orange is grasped vs. which was requested", 15, "center", bold=True, rgb=INK)
-    fig.text(content_cx, fig.height - 45,
-             "Rows: requested position.   Columns: position grasped.   Cell shade = share of that row.   Scene states 0--1 pooled.",
+    fig.text(content_cx, fig.height - 26, "Which orange is grasped vs. which was requested", 15, "center", bold=True, rgb=INK)
+    fig.text(content_cx, fig.height - 43,
+             "Rows: requested position.   Columns: position grasped.   Cells: % of the row's grasps.   Scene states 0-1 pooled.",
              8.8, "center", rgb=MUTE)
 
-    # column super-headers: standard fine-tuning vs LM-tuned
-    fig.text(center[0], fig.height - 67, "Standard fine-tuning", 11.5, "center", bold=True, rgb=INK)
-    fig.text(center[1], fig.height - 67, "LM-tuned", 11.5, "center", bold=True, rgb=INK)
+    # column super-headers: the three fine-tuning recipes
+    for k, (name, sub) in enumerate(RECIPES):
+        cx = grid_x[k] + GRID_W / 2
+        fig.text(cx, fig.height - 64, name, 11.5, "center", bold=True, rgb=INK)
+        fig.text(cx, fig.height - 76, sub, 7.6, "center", rgb=MUTE)
 
-    row_top = [fig.height - 92, fig.height - 300]
-    for i, (disp, subdir, fname) in enumerate(MODELS):
-        r, c = i // 2, i % 2
-        source = "Teleop+Auto" if disp.startswith("Teleop+Auto") else "Teleop"
-        draw_panel(fig, col_x[c], row_top[r], source, confusion(subdir, fname, (0, 1)))
+    row_top = [fig.height - 90, fig.height - 308]
+    for r, (source, subdirs) in enumerate(GRID):
+        # vertical source label, centred on the matrix
+        grid_mid = row_top[r] - 38 - len(COLS) * CH / 2
+        fig.vtext(30, grid_mid, source, 10.5, "center", bold=True, rgb=INK)
+        for k, subdir in enumerate(subdirs):
+            if subdir is None:
+                draw_legend(fig, grid_x[k] + 12, row_top[r])
+            else:
+                draw_panel(fig, grid_x[k], row_top[r], confusion(subdir, "checkpoint.json", (0, 1)),
+                           row_labels=(k == 0))
 
-    swatch(fig, col_x[0], 30, OBEY_TARGET, "Obeyed (grasped the requested orange)")
-    swatch(fig, col_x[0] + 250, 30, MISS_TARGET, "Misgrab (grasped a different orange)")
     fig.save(OUT)
     print(f"wrote {OUT}")
 
