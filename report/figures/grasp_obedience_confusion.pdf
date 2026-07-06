@@ -15,7 +15,7 @@ endobj
 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
 endobj
 6 0 obj
-<< /Length 25312 >>
+<< /Length 25328 >>
 stream
 0.160 0.170 0.200 rg
 BT /F2 15.0 Tf 281.00 530.00 Td (Grasp obedience across fine-tuning recipes) Tj ET
@@ -24,11 +24,11 @@ BT /F2 11.5 Tf 163.00 506.00 Td (Standard fine-tuning) Tj ET
 0.420 0.440 0.480 rg
 BT /F1 7.6 Tf 163.90 494.00 Td (action expert + state projection) Tj ET
 0.160 0.170 0.200 rg
-BT /F2 11.5 Tf 442.40 506.00 Td (LM-tuned) Tj ET
+BT /F2 11.5 Tf 404.45 506.00 Td (Partial fine-tuning) Tj ET
 0.420 0.440 0.480 rg
 BT /F1 7.6 Tf 435.95 494.00 Td (+ language model) Tj ET
 0.160 0.170 0.200 rg
-BT /F2 11.5 Tf 670.05 506.00 Td (Fully-tuned) Tj ET
+BT /F2 11.5 Tf 652.80 506.00 Td (Full fine-tuning) Tj ET
 0.420 0.440 0.480 rg
 BT /F1 7.6 Tf 637.78 494.00 Td (+ language model + vision encoder) Tj ET
 0.160 0.170 0.200 rg
@@ -879,5 +879,5 @@ xref
 trailer
 << /Size 7 /Root 1 0 R >>
 startxref
-25761
+25777
 %%EOF

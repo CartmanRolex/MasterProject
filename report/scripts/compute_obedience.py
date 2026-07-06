@@ -3,7 +3,7 @@
 Obedience = the gripper closed on the *requested* orange (matched by identity), i.e. the
 diagonal of the confusion matrices in ``plot_grasp_confusion.py``; we reuse that module's
 ``confusion()`` so the numbers match the figure exactly, over scene states 0 and 1,
-for all five subtask models (standard, LM-tuned, and the Teleop fully-tuned).
+for all six subtask models (standard, partial, and full recipes).
 
   python compute_obedience.py
 """

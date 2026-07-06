@@ -4,7 +4,7 @@ Reads the orchestrated subtask eval checkpoints under ``isaac-inference/results`
 (git-tracked, so this runs on the laptop) and draws a 2x3 grid of confusion
 matrices: rows = the requested grasp position, columns = the position actually
 grasped (by orange identity). Grid rows = training source (Teleop, Teleop+Auto);
-grid columns = fine-tuning recipe (standard, LM-tuned, fully-tuned) --- all six
+grid columns = fine-tuning recipe (standard, partial, full) --- all six
 cells filled; the legend sits in a strip along the bottom. Scene states 0 and 1
 are pooled; the 2-placed state is omitted (one orange remains, trivially
 obeyed).
@@ -41,8 +41,8 @@ OUT = Path(__file__).resolve().parents[1] / "figures" / "grasp_obedience_confusi
 # Grid: rows = training source, columns = fine-tuning recipe.
 RECIPES = [
     ("Standard fine-tuning", "action expert + state projection"),
-    ("LM-tuned", "+ language model"),
-    ("Fully-tuned", "+ language model + vision encoder"),
+    ("Partial fine-tuning", "+ language model"),
+    ("Full fine-tuning", "+ language model + vision encoder"),
 ]
 GRID = [
     ("Teleop", ["Gal-pick-orange-tailedCH20",

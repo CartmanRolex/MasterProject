@@ -154,8 +154,8 @@
   Every model is trained under one of three recipes, compared in the results:
   \begin{itemize}
     \item \hl{Standard} --- backbone frozen; train only the \hl{action expert + state projection} ($\approx$100M of 450M params).
-    \item \hl{LM-tuned} --- additionally trains the \hl{language model} ($\approx$316M); vision encoder still frozen.
-    \item \hl{Fully-tuned} --- trains \hl{everything}, vision encoder included (450M). Needs batch 32 / 40k steps for GPU memory; a matched control bounds what that regime change alone contributes.
+    \item \hl{Partial} --- additionally trains the \hl{language model} ($\approx$316M); vision encoder still frozen.
+    \item \hl{Full} --- trains \hl{everything}, vision encoder included (450M). Needs batch 32 / 40k steps for GPU memory; a matched control bounds what that regime change alone contributes.
   \end{itemize}
 \end{frame}
 
@@ -298,8 +298,8 @@
   \begin{columns}[T]
     \begin{column}{0.42\textwidth}
       \begin{itemize}
-        \item \hl{LM-tuned} (middle): inconsistent --- helps the Teleop subtask model (20\% $\rightarrow$ 33\%), mixed or worse elsewhere.
-        \item \hl{Fully-tuned} (bottom): improves \hl{every} family. Best overall: baseline \gn{41\% $\rightarrow$ 61\%}; Teleop subtask \gn{58\%}.
+        \item \hl{Partial} (middle): inconsistent --- helps the Teleop subtask model (20\% $\rightarrow$ 33\%), mixed or worse elsewhere.
+        \item \hl{Full} (bottom): improves \hl{every} family. Best overall: baseline \gn{41\% $\rightarrow$ 61\%}; Teleop subtask \gn{58\%}.
         \item The gain is \hl{visuomotor}: per-attempt grasp success 37\% $\rightarrow$ \gn{55\%} --- instruction obedience does \emph{not} improve.
         \item The batch-32/40k \hl{regime control} (33\% $\rightarrow$ 40\%) shows the regime alone explains only a minor part.
       \end{itemize}
@@ -352,7 +352,7 @@
     \begin{column}{0.46\textwidth}
       \begin{itemize}
         \item Only \hl{64--73\%} of grasps obey the requested label.
-        \item \hl{Training more of the VLM does not help}: LM-tuned 67\%, fully-tuned 64\% --- the lowest, despite being the strongest models overall.
+        \item \hl{Training more of the VLM does not help}: partial 67\%, full 64\% --- the lowest, despite being the strongest models overall.
         \item Misses are systematically \hl{leftward}: ``right'' is the worst-followed label (27--47\%).
         \item ``Bottom right'' is taken for top right in 29--62\% of cases --- its supervision is scarce and inconsistently labelled.
       \end{itemize}

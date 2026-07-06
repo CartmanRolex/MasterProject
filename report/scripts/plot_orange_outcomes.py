@@ -48,7 +48,7 @@ TELEOP_MONO_FROZEN = ResultFile(label="Teleop monotask frozen", description="Smo
                                 policy="SmolVLA", mode="monotask", group="Teleop\nmonotask", variant="standard")
 TELEOP_MONO_UNFROZEN = ResultFile(label="Teleop monotask unfrozen", description="SmolVLA Teleop monotask (unfrozen VLM)",
                                   path=_r("Gal_split_nolang-unfrozen-vlm", "flat_latest.txt"),
-                                  policy="SmolVLA", mode="monotask", group="Teleop\nmonotask", variant="LM-tuned")
+                                  policy="SmolVLA", mode="monotask", group="Teleop\nmonotask", variant="partial")
 TELEOP_MONO_FULL = ResultFile(label="Teleop monotask fully-tuned", description="SmolVLA Teleop monotask (fully-tuned)",
                               path=_r("Gal_split_nolang-unfrozen-all", "flat_latest.txt"),
                               policy="SmolVLA", mode="monotask", group="Teleop\nmonotask", variant="")
@@ -59,7 +59,7 @@ TELEOP_SUB_FROZEN = ResultFile(label="Teleop subtask frozen", description="SmolV
                                policy="SmolVLA", mode="subtasks", group="Teleop\nsubtask", variant="standard")
 TELEOP_SUB_UNFROZEN = ResultFile(label="Teleop subtask unfrozen", description="SmolVLA Teleop subtask (unfrozen VLM)",
                                  path=_r("Gal-pick-orange-tailedCH20-unfrozen-vlm", "latest.txt"),
-                                 policy="SmolVLA", mode="subtasks", group="Teleop\nsubtask", variant="LM-tuned")
+                                 policy="SmolVLA", mode="subtasks", group="Teleop\nsubtask", variant="partial")
 TELEOP_SUB_PARTIAL_CTRL = ResultFile(
     label="Teleop subtask regime control",
     description="SmolVLA Teleop subtask (unfrozen VLM, batch 32 / 40k regime control)",
@@ -77,7 +77,7 @@ AUTO_MONO_FROZEN = ResultFile(label="Teleop+Auto monotask frozen", description="
                               policy="SmolVLA", mode="monotask", group="Teleop+Auto\nmonotask", variant="standard")
 AUTO_MONO_UNFROZEN = ResultFile(label="Teleop+Auto monotask unfrozen", description="SmolVLA Teleop+Auto monotask (unfrozen VLM)",
                                 path=_r("Gal-merged-tailed-auto-no-lang-no-home-unfrozen-vlm", "flat_latest.txt"),
-                                policy="SmolVLA", mode="monotask", group="Teleop+Auto\nmonotask", variant="LM-tuned")
+                                policy="SmolVLA", mode="monotask", group="Teleop+Auto\nmonotask", variant="partial")
 AUTO_MONO_FULL = ResultFile(label="Teleop+Auto monotask fully-tuned", description="SmolVLA Teleop+Auto monotask (fully-tuned)",
                             path=_r("Gal-merged-tailed-auto-no-lang-no-home-unfrozen-all", "flat_latest.txt"),
                             policy="SmolVLA", mode="monotask", group="Teleop+Auto\nmonotask", variant="")
@@ -88,7 +88,7 @@ AUTO_SUB_FROZEN = ResultFile(label="Teleop+Auto subtask frozen", description="Sm
                              policy="SmolVLA", mode="subtasks", group="Teleop+Auto\nsubtask", variant="standard")
 AUTO_SUB_UNFROZEN = ResultFile(label="Teleop+Auto subtask unfrozen", description="SmolVLA Teleop+Auto subtask (unfrozen VLM)",
                                path=_r("Gal-merged-tailed-auto-unfrozen-vlm", "latest.txt"),
-                               policy="SmolVLA", mode="subtasks", group="Teleop+Auto\nsubtask", variant="LM-tuned")
+                               policy="SmolVLA", mode="subtasks", group="Teleop+Auto\nsubtask", variant="partial")
 AUTO_SUB_FULL = ResultFile(label="Teleop+Auto subtask fully-tuned", description="SmolVLA Teleop+Auto subtask (fully-tuned)",
                            path=_r("Gal-merged-tailed-auto-unfrozen-all", "latest.txt"),
                            policy="SmolVLA", mode="subtasks", group="Teleop+Auto\nsubtask", variant="")

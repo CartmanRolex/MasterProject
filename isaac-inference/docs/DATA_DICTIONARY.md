@@ -52,7 +52,7 @@ trained including the vision encoder (`train_expert_only=false`, `freeze_vision_
 and — unlike every other model — batch size 32 with 40k gradient steps instead of 64/20k
 (the 450M parameters did not fit in VRAM at batch 64; same samples seen, twice the weight
 updates). All SmolVLA models start from `lerobot/smolvla_base`; chunk = action-chunk size. Report surface names: frozen =
-*standard*, unfrozen-VLM = *LM-tuned*, unfrozen-all = *fully-tuned*.
+*standard*, unfrozen-VLM = *partial*, unfrozen-all = *full* fine-tuning.
 
 **Key result (unfrozen-all sweep, seeded 100-ep benchmark).** Unfreezing the vision encoder
 beats the frozen recipe in **every** family: teleop-subtask 20→58, teleop-monotask 14→54,
