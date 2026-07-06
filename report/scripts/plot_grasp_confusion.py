@@ -4,10 +4,10 @@ Reads the orchestrated subtask eval checkpoints under ``isaac-inference/results`
 (git-tracked, so this runs on the laptop) and draws a 2x3 grid of confusion
 matrices: rows = the requested grasp position, columns = the position actually
 grasped (by orange identity). Grid rows = training source (Teleop, Teleop+Auto);
-grid columns = fine-tuning recipe (standard, LM-tuned, fully-tuned). The
-fully-tuned recipe exists for Teleop only, so the sixth cell holds the legend.
-Scene states 0 and 1 are pooled; the 2-placed state is omitted (one orange
-remains, trivially obeyed).
+grid columns = fine-tuning recipe (standard, LM-tuned, fully-tuned) --- all six
+cells filled; the legend sits in a strip along the bottom. Scene states 0 and 1
+are pooled; the 2-placed state is omitted (one orange remains, trivially
+obeyed).
 
 Two subtleties are handled so the matrices are faithful:
 
@@ -38,9 +38,7 @@ from plot_lib import PdfFigure
 RESULTS = Path(__file__).resolve().parents[2] / "isaac-inference" / "results"
 OUT = Path(__file__).resolve().parents[1] / "figures" / "grasp_obedience_confusion.pdf"
 
-# Grid: rows = training source, columns = fine-tuning recipe. The fully-tuned
-# recipe (all weights trained, incl. the vision encoder) was run on Teleop only,
-# so the Teleop+Auto row has two panels and the legend takes the last cell.
+# Grid: rows = training source, columns = fine-tuning recipe.
 RECIPES = [
     ("Standard fine-tuning", "action expert + state projection"),
     ("LM-tuned", "+ language model"),
@@ -52,7 +50,7 @@ GRID = [
                 "Gal-pick-orange-tailedCH20-unfrozen-all"]),
     ("Teleop+Auto", ["Gal-merged-tailed-auto",
                      "Gal-merged-tailed-auto-unfrozen-vlm",
-                     None]),
+                     "Gal-merged-tailed-auto-unfrozen-all"]),
 ]
 # Fixed row/column order shared by every panel so they read consistently.
 COLS = ["left", "middle", "right", "top right", "bottom right"]
@@ -214,34 +212,25 @@ def draw_panel(fig: PdfFigure, grid_left: float, top: float, conf: dict, row_lab
     fig.rect(grid_left, grid_top - gh, GRID_W, gh, fill=False)
 
 
-def draw_legend(fig: PdfFigure, x0: float, top: float) -> None:
-    """Legend in the unused sixth grid cell."""
-    y = top - 52
+def draw_legend_strip(fig: PdfFigure, x0: float, y: float) -> None:
+    """Horizontal legend along the bottom of the figure."""
 
-    def swatch(target, label, sub):
-        nonlocal y
+    def swatch(x, target, label, sub):
         fig.set_fill(ramp(target, 0.85))
-        fig.rect(x0, y, 13, 13)
+        fig.rect(x, y, 13, 13)
         fig.set_stroke(INK, 0.6)
-        fig.rect(x0, y, 13, 13, fill=False)
-        fig.text(x0 + 19, y + 7, label, 8.4, "left", bold=True, rgb=INK)
-        fig.text(x0 + 19, y - 2, sub, 7.6, "left", rgb=MUTE)
-        y -= 32
+        fig.rect(x, y, 13, 13, fill=False)
+        fig.text(x + 19, y + 7, label, 8.4, "left", bold=True, rgb=INK)
+        fig.text(x + 19, y - 2, sub, 7.6, "left", rgb=MUTE)
 
-    swatch(OBEY_TARGET, "Obeyed", "grasped the requested orange")
-    swatch(MISS_TARGET, "Misgrab", "grasped a different orange")
-    fig.text(x0, y + 4, "Cell value: % of the row's grasps;", 7.6, "left", rgb=MUTE)
-    fig.text(x0, y - 5, "darker shade = larger share.", 7.6, "left", rgb=MUTE)
-    y -= 26
-    fig.text(x0, y + 4, "Scene states 0-1 pooled (with two", 7.6, "left", rgb=MUTE)
-    fig.text(x0, y - 5, "placed, one orange remains: trivial).", 7.6, "left", rgb=MUTE)
-    y -= 26
-    fig.text(x0, y + 4, "No fully-tuned run exists for", 7.6, "left", rgb=MUTE)
-    fig.text(x0, y - 5, "Teleop+Auto.", 7.6, "left", rgb=MUTE)
+    swatch(x0, OBEY_TARGET, "Obeyed", "grasped the requested orange")
+    swatch(x0 + 200, MISS_TARGET, "Misgrab", "grasped a different orange")
+    fig.text(x0 + 400, y + 9, "Cell value: % of the row's grasps; darker shade = larger share.", 7.6, "left", rgb=MUTE)
+    fig.text(x0 + 400, y - 2, "Scene states 0-1 pooled (with two placed, one orange remains: trivial).", 7.6, "left", rgb=MUTE)
 
 
 def main() -> None:
-    fig = PdfFigure(width=846, height=520)
+    fig = PdfFigure(width=846, height=556)
     grid_x = [LABEL_W + 44 + k * (GRID_W + PANEL_GAP) for k in range(3)]
     content_cx = (grid_x[0] + grid_x[2] + GRID_W) / 2
 
@@ -259,11 +248,10 @@ def main() -> None:
         grid_mid = row_top[r] - 50 - len(COLS) * CH / 2
         fig.vtext(22, grid_mid, source, 10.5, "center", bold=True, rgb=INK)
         for k, subdir in enumerate(subdirs):
-            if subdir is None:
-                draw_legend(fig, grid_x[k] + 12, row_top[r])
-            else:
-                draw_panel(fig, grid_x[k], row_top[r], confusion(subdir, "checkpoint.json", (0, 1)),
-                           row_labels=(k == 0))
+            draw_panel(fig, grid_x[k], row_top[r], confusion(subdir, "checkpoint.json", (0, 1)),
+                       row_labels=(k == 0))
+
+    draw_legend_strip(fig, grid_x[0], 18)
 
     fig.save(OUT)
     print(f"wrote {OUT}")
