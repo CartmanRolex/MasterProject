@@ -118,7 +118,7 @@ FAMILIES = [
 
 PANEL_STANDARD = [
     ACT,
-    SMOLVLA,
+    replace(SMOLVLA, variant=""),   # every bar but ACT is SmolVLA; only ACT is labelled
     replace(TELEOP_MONO_FROZEN, variant=""),
     replace(TELEOP_SUB_FROZEN, variant=""),
     replace(AUTO_MONO_FROZEN, variant=""),

@@ -261,8 +261,13 @@ def draw_stacked_bar(
     pct_size: float = 6.8,
     stroke_width: float = 1.5,
 ) -> None:
-    """One stacked 0/1/2/3-orange bar with in-segment % labels and an outline."""
+    """One stacked 0/1/2/3-orange bar with % labels and an outline.
+
+    Segments tall enough carry their % inside; thinner ones get it just right
+    of the bar in the segment's (darkened) colour, staggered so consecutive
+    thin segments never overlap."""
     y = bottom
+    outside_y = None  # baseline of the last outside label, for stagger
     for oranges in ORDER:
         _, _, pct = parsed.outcomes[oranges]
         segment_h = plot_h * pct / 100
@@ -271,6 +276,14 @@ def draw_stacked_bar(
         if segment_h >= 12:
             label_rgb = (1, 1, 1) if oranges in [0, 3] else (0.05, 0.05, 0.05)
             figure.text(x + bar_w / 2, y + segment_h / 2 - 3, pct_label(pct), pct_size, "center", rgb=label_rgb, bold=True)
+        elif pct > 0:
+            r, g, b = COLORS[oranges]
+            label_y = max(y + segment_h / 2 - 2.5, bottom + 1.5)
+            if outside_y is not None and label_y < outside_y + 7.5:
+                label_y = outside_y + 7.5
+            figure.text(x + bar_w + 1.5, label_y, pct_label(pct), 6.2, "left",
+                        rgb=(r * 0.72, g * 0.72, b * 0.72), bold=True)
+            outside_y = label_y
         y += segment_h
     figure.set_stroke(stroke_rgb, stroke_width)
     figure.rect(x, bottom, bar_w, plot_h, fill=False)
@@ -500,21 +513,22 @@ def draw_recipe_panels(
         cursor += width + group_gap
 
     plot_cx = left + plot_w / 2
+    panels_top = figure.height - 78
+    last_bottom = panels_top - (len(panels) - 1) * panel_pitch - 34 - plot_h
+
+    # --- column bands: one light strip per family, spanning header and all
+    # panels, so the same model family reads as one vertical lane (wide enough
+    # that thin-segment labels placed right of a bar stay inside the lane) ---
+    figure.set_fill((0.958, 0.958, 0.950))
+    for sx, sw in zip(slot_x, slot_widths):
+        figure.rect(sx - 11, last_bottom - 42, sw + 22, (figure.height - 36) - (last_bottom - 42))
 
     # --- overall title + family column headers (drawn once) ---
     figure.text(plot_cx, figure.height - 24, title, 14, "center", bold=True)
     for family, sx, sw in zip(families, slot_x, slot_widths):
         center = sx + sw / 2
-        lines = family.split("\n")
-        for li, line in enumerate(lines):
-            figure.text(center, figure.height - 46 - 11 * li, cap(line), 8.6, "center", bold=True)
-        bracket_y = figure.height - 50 - 11 * len(lines)
-        figure.set_stroke((0.33, 0.33, 0.33), 0.7)
-        figure.line(sx, bracket_y, sx + sw, bracket_y)
-        figure.line(sx, bracket_y, sx, bracket_y + 3)
-        figure.line(sx + sw, bracket_y, sx + sw, bracket_y + 3)
-
-    panels_top = figure.height - 78
+        for li, line in enumerate(family.split("\n")):
+            figure.text(center, figure.height - 48 - 11 * li, cap(line), 8.6, "center", bold=True)
 
     for panel_index, panel in enumerate(panels):
         band_top = panels_top - panel_index * panel_pitch

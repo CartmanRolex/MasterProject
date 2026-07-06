@@ -15,7 +15,7 @@ endobj
 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
 endobj
 6 0 obj
-<< /Length 5859 >>
+<< /Length 5921 >>
 stream
 0.000 0.000 0.000 rg
 BT /F2 15.0 Tf 295.50 411.00 Td (Final orange count - standard fine-tuning) Tj ET
@@ -122,6 +122,8 @@ BT /F2 8.4 Tf 442.42 382.00 Td (1.02) Tj ET
 BT /F2 7.6 Tf 434.26 66.00 Td (Monotask) Tj ET
 0.420 0.450 0.500 rg
 485.50 82.00 44.00 8.76 re f
+0.302 0.324 0.360 rg
+BT /F2 6.2 Tf 531.00 83.88 Td (3%) Tj ET
 0.930 0.560 0.210 rg
 485.50 90.76 44.00 108.04 re f
 0.050 0.050 0.050 rg
@@ -233,5 +235,5 @@ xref
 trailer
 << /Size 7 /Root 1 0 R >>
 startxref
-6307
+6369
 %%EOF
