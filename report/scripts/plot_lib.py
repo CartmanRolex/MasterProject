@@ -28,8 +28,7 @@ VARIANT_COLORS = {
     "standard": (0.30, 0.30, 0.30),
     "LM-tuned": (0.80, 0.45, 0.10),
     "Fully-tuned": (0.48, 0.22, 0.58),
-    "no-tail":  (0.13, 0.45, 0.55),
-    "Standard\n+ No-tail": (0.13, 0.45, 0.55),
+    "regime\ncontrol": (0.13, 0.45, 0.55),
     "ACT":      (0.10, 0.28, 0.66),
     "SmolVLA":  (0.58, 0.22, 0.10),
     "monotask": (0.30, 0.30, 0.30),
@@ -48,6 +47,7 @@ class ResultFile:
     tag: str = ""
     group: str = ""      # family bracket label (e.g. "Teleop\nsubtask"); falls back to dataset
     variant: str = ""    # per-bar label (e.g. "frozen" / "unfrozen" / "no-tail"); falls back to policy
+    note: str = ""       # small grey per-bar annotation (e.g. "batch 32, 40k"); ASCII only
     placeholder: bool = False
     placeholder_lines: tuple[str, ...] = ("future", "data")
     placeholder_value: str = "TBD"
@@ -249,6 +249,33 @@ def draw_badge(
     figure.text(x, y + 3, text, 6.8, "center", rgb=stroke, bold=True)
 
 
+def draw_stacked_bar(
+    figure: PdfFigure,
+    x: float,
+    bottom: float,
+    bar_w: float,
+    plot_h: float,
+    parsed: ParsedResult,
+    *,
+    stroke_rgb: tuple[float, float, float],
+    pct_size: float = 6.8,
+    stroke_width: float = 1.5,
+) -> None:
+    """One stacked 0/1/2/3-orange bar with in-segment % labels and an outline."""
+    y = bottom
+    for oranges in ORDER:
+        _, _, pct = parsed.outcomes[oranges]
+        segment_h = plot_h * pct / 100
+        figure.set_fill(COLORS[oranges])
+        figure.rect(x, y, bar_w, segment_h)
+        if segment_h >= 12:
+            label_rgb = (1, 1, 1) if oranges in [0, 3] else (0.05, 0.05, 0.05)
+            figure.text(x + bar_w / 2, y + segment_h / 2 - 3, pct_label(pct), pct_size, "center", rgb=label_rgb, bold=True)
+        y += segment_h
+    figure.set_stroke(stroke_rgb, stroke_width)
+    figure.rect(x, bottom, bar_w, plot_h, fill=False)
+
+
 def draw_figure(
     results: list[tuple[ResultFile, ParsedResult]],
     output_path: Path,
@@ -384,18 +411,7 @@ def draw_grouped_figure(
                 figure.text(x + bar_w / 2, bottom + plot_h / 2, result_file.placeholder_value, 7.1,
                             "center", rgb=(0.30, 0.30, 0.28), bold=True)
             else:
-                y = bottom
-                for oranges in ORDER:
-                    _, _, pct = parsed.outcomes[oranges]
-                    segment_h = plot_h * pct / 100
-                    figure.set_fill(COLORS[oranges])
-                    figure.rect(x, y, bar_w, segment_h)
-                    if segment_h >= 12:
-                        label_rgb = (1, 1, 1) if oranges in [0, 3] else (0.05, 0.05, 0.05)
-                        figure.text(x + bar_w / 2, y + segment_h / 2 - 3, pct_label(pct), 6.8, "center", rgb=label_rgb, bold=True)
-                    y += segment_h
-                figure.set_stroke(policy_rgb, 1.5)
-                figure.rect(x, bottom, bar_w, plot_h, fill=False)
+                draw_stacked_bar(figure, x, bottom, bar_w, plot_h, parsed, stroke_rgb=policy_rgb)
                 figure.text(x + bar_w / 2, bottom + plot_h + 8, f"{parsed.mean:.2f}", 8.4, "center", rgb=(0.15, 0.15, 0.15), bold=True)
 
             # per-bar recipe/variant label (may span two lines via "\n")
@@ -422,6 +438,140 @@ def draw_grouped_figure(
     # (top-to-bottom order matches the stacking order inside the bars)
     legend_x = (first_group_x + total_w + left + plot_w) / 2 - 16
     legend_y = bottom + plot_h / 2 + 30
+    for oranges in reversed(ORDER):
+        figure.set_fill(COLORS[oranges])
+        figure.rect(legend_x, legend_y, 10, 10)
+        figure.text(legend_x + 15, legend_y + 2, f"{oranges}/3 oranges", 8.0)
+        legend_y -= 20
+
+    figure.save(output_path)
+
+
+@dataclass(frozen=True)
+class RecipePanel:
+    """One horizontal panel of the stacked recipe figure.
+
+    ``name`` is the bold recipe title, ``detail`` the plain-words description of
+    what is trained vs frozen, ``regime_note`` the batch/steps annotation shown
+    right-aligned in the title band. All strings must be ASCII (PDF writer)."""
+
+    name: str
+    detail: str
+    regime_note: str
+    results: list[tuple[ResultFile, ParsedResult]]
+
+
+def draw_recipe_panels(
+    panels: list[RecipePanel],
+    output_path: Path,
+    *,
+    families: list[str],
+    bar_w: int = 50,
+    bar_gap: int = 12,
+    title: str = "Final orange count per episode",
+) -> None:
+    """Stack one panel per fine-tuning recipe, families aligned in fixed columns.
+
+    ``families`` fixes the column order; each ``ResultFile.group`` must match one
+    entry. A family absent from a panel renders as a small "not trained" note, so
+    the same model family sits in the same column of every panel. Column headers
+    and the outcome legend are drawn once for the whole figure."""
+
+    plot_h = 120.0
+    panel_pitch = 194.0
+    figure = PdfFigure(width=920, height=655)
+    left, right, pad = 74.0, 120.0, 14.0
+    plot_w = figure.width - left - right
+
+    # --- fixed family slots (max bar count over all panels; at least one) ---
+    def family_of(result_file: ResultFile) -> str:
+        return result_file.group or dataset_name(result_file)
+
+    slot_counts = []
+    for family in families:
+        per_panel = [sum(1 for rf, _ in p.results if family_of(rf) == family) for p in panels]
+        slot_counts.append(max(1, *per_panel))
+    slot_widths = [n * bar_w + (n - 1) * bar_gap for n in slot_counts]
+    group_gap = (plot_w - 2 * pad - sum(slot_widths)) / (len(families) - 1)
+    slot_x = []
+    cursor = left + pad
+    for width in slot_widths:
+        slot_x.append(cursor)
+        cursor += width + group_gap
+
+    plot_cx = left + plot_w / 2
+
+    # --- overall title + family column headers (drawn once) ---
+    figure.text(plot_cx, figure.height - 24, title, 14, "center", bold=True)
+    for family, sx, sw in zip(families, slot_x, slot_widths):
+        center = sx + sw / 2
+        lines = family.split("\n")
+        for li, line in enumerate(lines):
+            figure.text(center, figure.height - 46 - 11 * li, cap(line), 8.6, "center", bold=True)
+        bracket_y = figure.height - 50 - 11 * len(lines)
+        figure.set_stroke((0.33, 0.33, 0.33), 0.7)
+        figure.line(sx, bracket_y, sx + sw, bracket_y)
+        figure.line(sx, bracket_y, sx, bracket_y + 3)
+        figure.line(sx + sw, bracket_y, sx + sw, bracket_y + 3)
+
+    panels_top = figure.height - 78
+
+    for panel_index, panel in enumerate(panels):
+        band_top = panels_top - panel_index * panel_pitch
+        bottom = band_top - 34 - plot_h
+
+        # panel title band: bold name, grey detail, right-aligned regime note
+        name_w = len(panel.name) * 10.5 * 0.60
+        figure.text(left, band_top - 12, panel.name, 10.5, "left", bold=True)
+        figure.text(left + name_w + 8, band_top - 12, panel.detail, 8.0, "left", rgb=(0.38, 0.38, 0.38))
+        figure.text(left + plot_w, band_top - 12, panel.regime_note, 8.0, "right", rgb=(0.38, 0.38, 0.38))
+
+        # gridlines + ticks (labels only at 0/50/100 to keep the panel light)
+        figure.set_stroke((0.84, 0.84, 0.82), 0.55)
+        for pct in [0, 25, 50, 75, 100]:
+            y = bottom + plot_h * pct / 100
+            figure.line(left, y, left + plot_w, y)
+            if pct in (0, 50, 100):
+                figure.text(left - 10, y - 3, f"{pct}", 7.5, "right", rgb=(0.25, 0.25, 0.25))
+        figure.set_stroke((0.12, 0.12, 0.12), 1.0)
+        figure.line(left, bottom, left, bottom + plot_h)
+        figure.line(left, bottom, left + plot_w, bottom)
+
+        figure.text(left - 34, bottom + plot_h + 8, "Mean /3", 7.5, "right", rgb=(0.35, 0.35, 0.35))
+
+        for family, sx, sw in zip(families, slot_x, slot_widths):
+            slot_results = [(rf, parsed) for rf, parsed in panel.results if family_of(rf) == family]
+            if not slot_results:
+                figure.text(sx + sw / 2, bottom + plot_h / 2 - 3, "not trained", 7.0, "center",
+                            rgb=(0.55, 0.55, 0.53))
+                continue
+            bars_w = len(slot_results) * bar_w + (len(slot_results) - 1) * bar_gap
+            x = sx + (sw - bars_w) / 2
+            for result_file, parsed in slot_results:
+                policy_rgb = POLICY_STROKES.get(policy_name(result_file), (0.12, 0.12, 0.12))
+                draw_stacked_bar(figure, x, bottom, bar_w, plot_h, parsed, stroke_rgb=policy_rgb)
+                figure.text(x + bar_w / 2, bottom + plot_h + 8, f"{parsed.mean:.2f}", 8.4, "center",
+                            rgb=(0.15, 0.15, 0.15), bold=True)
+
+                label_y = bottom - 16
+                variant = result_file.variant
+                if variant:
+                    variant_rgb = VARIANT_COLORS.get(variant, (0.20, 0.20, 0.20))
+                    for line in cap(variant).split("\n"):
+                        figure.text(x + bar_w / 2, label_y, line, 7.6, "center", rgb=variant_rgb, bold=True)
+                        label_y -= 10
+                if result_file.note:
+                    figure.text(x + bar_w / 2, label_y, result_file.note, 6.8, "center", rgb=(0.42, 0.42, 0.42))
+                x += bar_w + bar_gap
+
+    # shared y-axis title + outcome legend, centred on the whole panel stack
+    stack_top = panels_top - 34
+    stack_bottom = panels_top - (len(panels) - 1) * panel_pitch - 34 - plot_h
+    stack_cy = (stack_top + stack_bottom) / 2
+    figure.vtext(22, stack_cy, "Share of episodes (%)", 10, "center", rgb=(0.25, 0.25, 0.25))
+
+    legend_x = figure.width - right + 26
+    legend_y = stack_cy + 30
     for oranges in reversed(ORDER):
         figure.set_fill(COLORS[oranges])
         figure.rect(legend_x, legend_y, 10, 10)
