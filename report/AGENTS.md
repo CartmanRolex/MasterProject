@@ -180,16 +180,21 @@ https://docs.google.com/presentation/d/1wdk6iVC3G0WgORenrWnNZ3Llxan1iO6rcQS7SlbR
 Oral-presentation deck, **LaTeX/Beamer** — `slides/slides.tex`. Built from the report
 sections with the final seeded numbers; figures are pulled directly from
 `report/figures/` (`\graphicspath{{../figures/}}`). The deck is **sequential**: every
-concept (monotask, subtask, Teleop/Auto, Level-1/Level-2 recovery, spatial reset) is
-defined before it is used. ~19 frames, 16:9.
+concept (monotask, subtask, Teleop/Auto, the three fine-tuning recipes, Level-1/Level-2
+recovery, spatial reset) is defined before it is used. 21 frames, 16:9. Synced with the
+recipe-based results rewrite: recipes defined on the policy slide, standard-recipe
+outcomes + recipe-comparison (`orange_outcome_recipes.pdf`) + grasp-bottleneck
+(`failure_modes.pdf`) slides, the deadline-anchored stall table (from
+`tab:level2_deadline`), and the 2×3 obedience confusion figure.
 
 Build:
 ```bash
 export PATH="/home/students/texlive/2026/bin/x86_64-linux:$PATH"
 cd report/slides && latexmk -pdf -interaction=nonstopmode -halt-on-error slides.tex
 ```
-Output `slides/slides.pdf` is a build artifact (gitignored, like `main.pdf`); only
-`slides.tex` is tracked. The previous PowerPoint pipeline (`presentation.pptx`,
+Both `slides.tex` and the compiled `slides/slides.pdf` are tracked (the PDF is
+committed so the deck is viewable without a TeX toolchain; rebuild + recommit it
+whenever `slides.tex` changes). The previous PowerPoint pipeline (`presentation.pptx`,
 `build_pptx.py`, `assets/`) has been removed in favour of this LaTeX deck.
 
 ## Keeping this file current

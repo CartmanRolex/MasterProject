@@ -1,4 +1,4 @@
-# Beamer / LaTeX build artifacts (slides.tex is the source of truth)
+# Beamer / LaTeX build artifacts (slides.tex is the source; slides.pdf is committed)
 *.aux
 *.fdb_latexmk
 *.fls
@@ -8,4 +8,3 @@
 *.snm
 *.toc
 *.vrb
-slides.pdf

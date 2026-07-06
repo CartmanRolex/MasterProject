@@ -115,9 +115,9 @@
   \vfill
   \textbf{Contributions.}
   \begin{enumerate}
-    \item A monolithic baseline (\hl{ACT vs.\ SmolVLA}) --- changing the policy class alone is not enough.
+    \item A monotask baseline (\hl{ACT vs.\ SmolVLA}) --- changing the policy class alone is not enough.
     \item A targeted \hl{Teleop subtask dataset} + an orchestrator that monitors outcomes and performs \hl{retry / reset / redirect}.
-    \item Using the orchestrator for \hl{autonomous data generation} --- and asking whether more data helps (a useful \emph{negative} result).
+    \item Using the orchestrator for \hl{autonomous data generation} --- and asking whether more data helps (the answer is \emph{not clear-cut}).
   \end{enumerate}
 \end{frame}
 
@@ -144,13 +144,18 @@
   \end{columns}
 \end{frame}
 
-% ===== 6. SmolVLA & fine-tuning =====
-\begin{frame}{The policy: SmolVLA, fine-tuned efficiently}
+% ===== 6. SmolVLA & fine-tuning recipes =====
+\begin{frame}{The policy: SmolVLA, and three fine-tuning recipes}
   \begin{itemize}
     \item Pretrained vision-language backbone (\texttt{SmolVLM2-500M}) + a small \hl{action expert} (flow matching).
     \item Outputs a \hl{chunk of 20 joint actions} per query (matches the 20-frame terminal hold used in data collection).
-    \item \hl{Parameter-efficient fine-tuning}: freeze the vision encoder \emph{and} language backbone; train only the \hl{action expert + state projection} ($\approx$100M of 450M params, $\sim$22\%).
-    \item Keeps the web-scale visual/linguistic priors; adapts the action pathway to the SO-101.
+  \end{itemize}
+  \vspace{0.3em}
+  Every model is trained under one of three recipes, compared in the results:
+  \begin{itemize}
+    \item \hl{Standard} --- backbone frozen; train only the \hl{action expert + state projection} ($\approx$100M of 450M params).
+    \item \hl{LM-tuned} --- additionally trains the \hl{language model} ($\approx$316M); vision encoder still frozen.
+    \item \hl{Fully-tuned} --- trains \hl{everything}, vision encoder included (450M). Needs batch 32 / 40k steps for GPU memory; a matched control bounds what that regime change alone contributes.
   \end{itemize}
 \end{frame}
 
@@ -217,7 +222,7 @@
   \end{itemize}
   \end{block}
   \vspace{0.4em}
-  This is exactly why the orchestrator needs a \hl{scripted home-pose reset} --- defined next.
+  A \hl{dataset-coverage} effect --- target switching was only ever demonstrated from high, far-from-the-oranges configurations --- and exactly why the orchestrator needs a \hl{scripted home-pose reset}, defined next.
 \end{frame}
 
 % ===== 11. Failures vs timeouts =====
@@ -269,15 +274,15 @@
   {\footnotesize Question: does adding in-distribution successful data improve the orchestrated policy?}
 \end{frame}
 
-% ===== 14. Results: full-task =====
-\begin{frame}{Results: full-task outcomes (100 seeded scenes)}
+% ===== 14. Results: full-task (standard recipe) =====
+\begin{frame}{Results: full task, standard fine-tuning (100 seeded scenes)}
   \begin{columns}[T]
     \begin{column}{0.52\textwidth}
       \begin{itemize}
         \item Decomposition $\rightarrow$ more \hl{partial progress}, not more completions:\\
-              Teleop mean \hl{1.11 $\rightarrow$ 1.77}; full success 18\% $\rightarrow$ 20\%.
-        \item Subtask runs \hl{rarely fail completely}: $\geq$1 orange in \gn{97\%} (Teleop) vs.\ 57\% (monotask).
-        \item Adding Auto data \hl{hurt}: Teleop subtask \hl{20\% $\rightarrow$ 13\%} full success.
+              Teleop mean \hl{1.02 $\rightarrow$ 1.77}; full success 14\% $\rightarrow$ 20\%.
+        \item Subtask runs \hl{rarely fail completely}: $\geq$1 orange in \gn{97\%} (Teleop) vs.\ 56\% (monotask).
+        \item Auto data \hl{helped the monotask} (14\% $\rightarrow$ 18\%) but \hl{hurt the subtask model} (20\% $\rightarrow$ 13\%).
       \end{itemize}
       {\footnotesize Reference ceiling: SmolVLA monotask baseline = 41\%.}
     \end{column}
@@ -288,75 +293,100 @@
   \end{columns}
 \end{frame}
 
-% ===== 15. Results: task-level recovery =====
-\begin{frame}{Results: task-level recovery (the orchestrator's job)}
-  After a drop or slip, does the episode \hl{keep scoring}? --- measured identically for both formulations.
-  \vfill
-  \begin{columns}[c]
-    \begin{column}{0.62\textwidth}
-      \centering\small
-      \begin{tabular}{llcc}
-        \toprule
-        Training & Form. & Score recovery & Different-orange \\
-        \midrule
-        Teleop      & Monotask & 35.5\% & 23.1\% \\
-        Teleop      & \textbf{Subtask}  & \gn{73.5\%} & \gn{60.0\%} \\
-        \midrule
-        Teleop+Auto & Monotask & 53.7\% & 35.1\% \\
-        Teleop+Auto & Subtask  & 42.9\% & 28.0\% \\
-        \bottomrule
-      \end{tabular}
-    \end{column}
-    \begin{column}{0.38\textwidth}
+% ===== 15. Results: fine-tuning recipes =====
+\begin{frame}{Results: full fine-tuning is decisive --- and it is the vision encoder}
+  \begin{columns}[T]
+    \begin{column}{0.42\textwidth}
       \begin{itemize}
-        \item On Teleop, the orchestrator \hl{doubles} recovery --- this is \emph{why} it rarely fails completely.
-        \item But \hl{Auto data erodes} exactly this robustness.
+        \item \hl{LM-tuned} (middle): inconsistent --- helps the Teleop subtask model (20\% $\rightarrow$ 33\%), mixed or worse elsewhere.
+        \item \hl{Fully-tuned} (bottom): improves \hl{every} family. Best overall: baseline \gn{41\% $\rightarrow$ 61\%}; Teleop subtask \gn{58\%}.
+        \item The gain is \hl{visuomotor}: per-attempt grasp success 37\% $\rightarrow$ \gn{55\%} --- instruction obedience does \emph{not} improve.
+        \item The batch-32/40k \hl{regime control} (33\% $\rightarrow$ 40\%) shows the regime alone explains only a minor part.
       \end{itemize}
+    \end{column}
+    \begin{column}{0.58\textwidth}
+      \centering
+      \includegraphics[width=\textwidth]{orange_outcome_recipes.pdf}
     \end{column}
   \end{columns}
 \end{frame}
 
-% ===== 16. Results: obedience =====
+% ===== 16. Results: grasp bottleneck =====
+\begin{frame}{Grasp acquisition is the limiting step}
+  \begin{itemize}
+    \item Only $\sim$\hl{37\%} of grasp attempts secure an orange under standard fine-tuning (\gn{55\%} fully-tuned).
+    \item Everything downstream is reliable: LIFT and PLACE succeed \gn{80--92\%}; once held, an orange reaches the plate \gn{87\%} of the time (Teleop).
+    \item[$\Rightarrow$] The cap on full-task success is \hl{upstream}, at acquiring the orange at all.
+  \end{itemize}
+  \vfill
+  \centering
+  \includegraphics[width=0.95\textwidth]{failure_modes.pdf}
+\end{frame}
+
+% ===== 17. Results: recovery at matched stalls =====
+\begin{frame}{Results: recovery, compared at matched stalls}
+  A \hl{stall} = one grasp budget of fruitless commitment to a single orange, defined identically for both formulations (monotask intent read from \emph{proximity}). What happens after?
+  \vfill
+  \centering\small
+  \begin{tabular}{llccc}
+    \toprule
+    Training & Form. & Redirected & Placed after & \dots via \emph{different} orange \\
+    \midrule
+    Teleop      & Monotask          & 53.5\%     & 31.4\%        & 16.3\% \\
+    Teleop      & \textbf{Subtask}  & \gn{100\%} & \gn{71.2\%}   & \gn{53.4\%} \\
+    \midrule
+    Teleop+Auto & Monotask          & 45.2\%     & 34.4\%        & 17.2\% \\
+    Teleop+Auto & \textbf{Subtask}  & \gn{100\%} & \gn{43.2\%}   & \gn{33.7\%} \\
+    \bottomrule
+  \end{tabular}
+  \vfill
+  \begin{itemize}
+    \item The orchestrator redirects \hl{every} time (Level-2 by design); the monotask switches in only \hl{about half} the stalls --- and nothing ties its switch to the failure.
+    \item The recovery gap sits \hl{entirely in the different-orange column}; same-orange recovery is formulation-independent (10--18\%). Level-1 retry stays marginal (6--11\% of placed oranges).
+  \end{itemize}
+\end{frame}
+
+% ===== 18. Results: obedience =====
 \begin{frame}{Results: does it grasp the orange it was told to?}
   \begin{columns}[T]
-    \begin{column}{0.52\textwidth}
+    \begin{column}{0.46\textwidth}
       \begin{itemize}
-        \item $\sim$\hl{3 in 4} grasps obey; better as the scene clears.
-        \item Misgrabs are \hl{systematic}: the gripper closes on the orange just \emph{inward}.
-          \begin{itemize}\item ``right'' (the \emph{most common} label) is the \hl{worst} obeyed.\end{itemize}
-        \item More data $\neq$ better obedience.
-        \item[$\Rightarrow$] A \hl{grounding} gap, not a \emph{coverage} gap.
+        \item Only \hl{64--73\%} of grasps obey the requested label.
+        \item \hl{Training more of the VLM does not help}: LM-tuned 67\%, fully-tuned 64\% --- the lowest, despite being the strongest models overall.
+        \item Misses are systematically \hl{leftward}: ``right'' is the worst-followed label (27--47\%).
+        \item ``Bottom right'' is taken for top right in 29--62\% of cases --- its supervision is scarce and inconsistently labelled.
       \end{itemize}
     \end{column}
-    \begin{column}{0.48\textwidth}
+    \begin{column}{0.54\textwidth}
       \centering
       \includegraphics[width=\textwidth]{grasp_obedience_confusion.pdf}
     \end{column}
   \end{columns}
 \end{frame}
 
-% ===== 17. Discussion & limitations =====
+% ===== 19. Discussion & limitations =====
 \begin{frame}{Discussion \& limitations}
   \begin{itemize}
-    \item Decomposition creates \hl{real intervention points} --- failures are caught, not ignored.
-    \item But it \hl{cannot fix a weak GRASP policy} --- the bottleneck, and worse as the scene fills.
-    \item Auto data did not help $\Rightarrow$ the bottleneck is grasp \hl{quality}, not data \hl{volume}.
-    \item \hl{Coverage gap}: trained on clean isolated subtasks, never on messy full runs.
-    \item Success checks use \hl{privileged state} --- real-world deployment needs perception.
+    \item Decomposition creates \hl{real intervention points}: the system almost never fails completely --- the mechanism is Level-2 redirection.
+    \item But it \hl{cannot fix a weak GRASP policy} --- the binding constraint sits \emph{before} any check or recovery can help.
+    \item What moved the bottleneck was a \hl{stronger policy} (full fine-tuning, vision included), not more structure.
+    \item Auto data \hl{helped one formulation and hurt the other} --- why is left open. More self-generated data is unlikely the fix: a near-deterministic policy filtered by a binary success bit cannot discover the grasp it is missing.
+    \item Success checks use \hl{privileged state} --- deployment needs perception; 100 episodes per model, so small differences may be sampling noise.
   \end{itemize}
 \end{frame}
 
-% ===== 18. Conclusion =====
+% ===== 20. Conclusion =====
 \begin{frame}{Conclusion \& future work}
   \begin{itemize}
-    \item Recovery is an \hl{execution-level} problem, not just a policy choice.
-    \item The orchestrator enables \hl{retry / reset / redirection} --- and makes recovery \hl{measurable} at two levels.
-    \item Orchestration alone $\neq$ robustness while the grasp policy is weak (a \hl{useful negative result}).
-    \item \textbf{Next:} better GRASP / PLACE in late scenes; collect \hl{full, imperfect runs} --- \emph{before} more autonomous data.
+    \item Orchestration makes failure \hl{gradual instead of total}: abandon an ungraspable orange, still place another.
+    \item It did not reliably raise \hl{full completion}: the hard step --- grasping --- precedes every checkpoint.
+    \item The two levers are \hl{complementary}: better grasping raises how far each attempt gets; orchestration catches what still fails.
+    \item This task leaves a controller little to decide --- the orchestration shows its \hl{floor} here, not its ceiling.
+    \item \textbf{Next:} explicit exploration (RL fine-tuning) or targeted demos for the hard grasps; \hl{from-any-state} subtask data; a \hl{VLM success monitor} to replace privileged checks.
   \end{itemize}
 \end{frame}
 
-% ===== 19. Thanks =====
+% ===== 21. Thanks =====
 {\setbeamertemplate{footline}{}
 \begin{frame}[plain]
   \centering
