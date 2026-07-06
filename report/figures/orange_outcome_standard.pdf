@@ -15,7 +15,7 @@ endobj
 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
 endobj
 6 0 obj
-<< /Length 5921 >>
+<< /Length 5920 >>
 stream
 0.000 0.000 0.000 rg
 BT /F2 15.0 Tf 295.50 411.00 Td (Final orange count - standard fine-tuning) Tj ET
@@ -66,26 +66,26 @@ BT /F2 8.4 Tf 297.42 382.00 Td (0.92) Tj ET
 0.100 0.280 0.660 rg
 BT /F2 7.6 Tf 300.66 66.00 Td (ACT) Tj ET
 0.420 0.450 0.500 rg
-340.50 82.00 44.00 26.28 re f
+340.50 82.00 44.00 14.60 re f
 1.000 1.000 1.000 rg
-BT /F2 6.8 Tf 358.42 92.14 Td (9%) Tj ET
+BT /F2 6.8 Tf 358.42 86.30 Td (5%) Tj ET
 0.930 0.560 0.210 rg
-340.50 108.28 44.00 81.76 re f
+340.50 96.60 44.00 78.84 re f
 0.050 0.050 0.050 rg
-BT /F2 6.8 Tf 356.38 146.16 Td (28%) Tj ET
+BT /F2 6.8 Tf 356.38 133.02 Td (27%) Tj ET
 0.340 0.630 0.760 rg
-340.50 190.04 44.00 64.24 re f
+340.50 175.44 44.00 73.00 re f
 0.050 0.050 0.050 rg
-BT /F2 6.8 Tf 356.38 219.16 Td (22%) Tj ET
+BT /F2 6.8 Tf 356.38 208.94 Td (25%) Tj ET
 0.230 0.550 0.310 rg
-340.50 254.28 44.00 119.72 re f
+340.50 248.44 44.00 125.56 re f
 1.000 1.000 1.000 rg
-BT /F2 6.8 Tf 356.38 311.14 Td (41%) Tj ET
+BT /F2 6.8 Tf 356.38 308.22 Td (43%) Tj ET
 0.580 0.220 0.100 RG
 1.50 w
 340.50 82.00 44.00 292.00 re S
 0.150 0.150 0.150 rg
-BT /F2 8.4 Tf 352.42 382.00 Td (1.95) Tj ET
+BT /F2 8.4 Tf 352.42 382.00 Td (2.06) Tj ET
 0.580 0.220 0.100 rg
 BT /F2 7.6 Tf 346.54 66.00 Td (SmolVLA) Tj ET
 0.330 0.330 0.330 RG
@@ -235,5 +235,5 @@ xref
 trailer
 << /Size 7 /Root 1 0 R >>
 startxref
-6369
+6368
 %%EOF

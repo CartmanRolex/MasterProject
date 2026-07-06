@@ -15,7 +15,7 @@ endobj
 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
 endobj
 6 0 obj
-<< /Length 14320 >>
+<< /Length 14232 >>
 stream
 0.958 0.958 0.950 rg
 77.00 585.00 134.00 34.00 re f
@@ -65,7 +65,7 @@ BT /F2 10.5 Tf 74.00 565.00 Td (Standard fine-tuning) Tj ET
 0.380 0.380 0.380 rg
 BT /F1 8.0 Tf 208.00 565.00 Td (only the action expert and state projection trained; language model and vision encoder frozen) Tj ET
 0.380 0.380 0.380 rg
-BT /F1 8.0 Tf 616.32 565.00 Td (SmolVLA: batch 64, 20k steps unless noted) Tj ET
+BT /F1 8.0 Tf 674.56 565.00 Td (SmolVLA: batch 64, 20k steps) Tj ET
 0.840 0.840 0.820 RG
 0.55 w
 74.00 423.00 m 800.00 423.00 l S
@@ -109,28 +109,26 @@ BT /F2 8.4 Tf 102.92 551.00 Td (0.92) Tj ET
 0.100 0.280 0.660 rg
 BT /F2 7.6 Tf 106.16 407.00 Td (ACT) Tj ET
 0.420 0.450 0.500 rg
-150.00 423.00 50.00 10.80 re f
+150.00 423.00 50.00 6.00 re f
 0.302 0.324 0.360 rg
-BT /F2 6.2 Tf 201.50 425.90 Td (9%) Tj ET
+BT /F2 6.2 Tf 201.50 424.50 Td (5%) Tj ET
 0.930 0.560 0.210 rg
-150.00 433.80 50.00 33.60 re f
+150.00 429.00 50.00 32.40 re f
 0.050 0.050 0.050 rg
-BT /F2 6.8 Tf 168.88 447.60 Td (28%) Tj ET
+BT /F2 6.8 Tf 168.88 442.20 Td (27%) Tj ET
 0.340 0.630 0.760 rg
-150.00 467.40 50.00 26.40 re f
+150.00 461.40 50.00 30.00 re f
 0.050 0.050 0.050 rg
-BT /F2 6.8 Tf 168.88 477.60 Td (22%) Tj ET
+BT /F2 6.8 Tf 168.88 473.40 Td (25%) Tj ET
 0.230 0.550 0.310 rg
-150.00 493.80 50.00 49.20 re f
+150.00 491.40 50.00 51.60 re f
 1.000 1.000 1.000 rg
-BT /F2 6.8 Tf 168.88 515.40 Td (41%) Tj ET
+BT /F2 6.8 Tf 168.88 514.20 Td (43%) Tj ET
 0.580 0.220 0.100 RG
 1.50 w
 150.00 423.00 50.00 120.00 re S
 0.150 0.150 0.150 rg
-BT /F2 8.4 Tf 164.92 551.00 Td (1.95) Tj ET
-0.420 0.420 0.420 rg
-BT /F1 6.8 Tf 150.25 407.00 Td (batch 32, 40k) Tj ET
+BT /F2 8.4 Tf 164.92 551.00 Td (2.06) Tj ET
 0.420 0.450 0.500 rg
 281.00 423.00 50.00 52.80 re f
 1.000 1.000 1.000 rg
@@ -515,5 +513,5 @@ xref
 trailer
 << /Size 7 /Root 1 0 R >>
 startxref
-14769
+14681
 %%EOF

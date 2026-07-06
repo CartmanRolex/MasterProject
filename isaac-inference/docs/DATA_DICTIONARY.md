@@ -16,7 +16,7 @@ The thesis talks in terms of **training source × task formulation**. The mappin
 | **Teleop, monotask** | `Gal_split_nolang` | `Gal_split_nolang` | 18% (mean 1.11) |
 | **Teleop+Auto, subtask** | `Gal-merged-tailed-auto` | `Gal-merged-tailed-auto` | 13% (mean 1.42) |
 | **Teleop+Auto, monotask** | `Gal-merged-tailed-auto-no-lang-no-home` | `…-no-lang-no-home` | 26% (mean 1.50) |
-| **LightwheelAI baseline** | `leisaac-pick-orange-mimic-v0` (upstream) | `pick-orange-mimic` (SmolVLA), `ACT-pick-orange` (ACT) | 41% / — |
+| **LightwheelAI baseline** | `leisaac-pick-orange-mimic-v0` (upstream) | `pick-orange-mimic-b64s20k` (SmolVLA, regime-matched retrain), `ACT-pick-orange` (ACT) | 43% / — |
 
 "Subtask" = orchestrated GRASP/LIFT/PLACE with per-subtask language prompts. "Monotask" =
 end-to-end under one fixed prompt ("Place the orange into plate"), no orchestrator.
@@ -65,26 +65,27 @@ The **control** `…-unfrozen-vlm-b32s40k` isolates the batch32/40k regime on th
 family: 33 (batch64/20k) → 40 (batch32/40k), i.e. the regime adds ~+7 pts, and the
 vision-encoder unfreeze adds the remaining +18 (40→58). Eval is non-deterministic (±a few pts),
 so small gaps (e.g. the +7 regime effect) are near the noise floor; the vision-encoder effect is
-far above it. Every unfrozen-all model trains at batch32/40k (see recipe note above).
+far above it. Every unfrozen-all model (and the control) trains at batch32/40k **and keeps the smolvla_base default chunk 50** (the frozen/unfrozen-VLM custom models use chunk 20); the chunk-matched pairs (control→unfrozen-all, upstream-baseline→baseline-full) keep the unfreezing comparisons clean. A second regime check: `pick-orange-mimic-b64s20k`, the baseline retrained under the shared standard settings (b64/20k/chunk20), scores 43%/2.06 vs the upstream 41%/1.95 — the regime shifts the standard baseline by ~2 pts. The report's standard-panel baseline bar is this retrain.
 
 | Model | policy | formulation | recipe | chunk | trained on | full% / mean |
 |---|---|---|---|---|---|---|
 | `Gal-pick-orange-tailedCH20` | SmolVLA | subtask | frozen | 20 | `Gal_split_tailed` | 20% / 1.77 |
 | `Gal-pick-orange-tailedCH20-unfrozen-vlm` | SmolVLA | subtask | unfrozen-VLM | 20 | `Gal_split_tailed` | 33% / 1.88 |
-| `Gal-pick-orange-tailedCH20-unfrozen-all` | SmolVLA | subtask | unfrozen-all | 20 | `Gal_split_tailed` | **58% / 2.32** |
-| `Gal-pick-orange-tailedCH20-unfrozen-vlm-b32s40k` | SmolVLA | subtask | unfrozen-VLM (batch32/40k **control**) | 20 | `Gal_split_tailed` | 40% / 2.03 |
+| `Gal-pick-orange-tailedCH20-unfrozen-all` | SmolVLA | subtask | unfrozen-all | 50 | `Gal_split_tailed` | **58% / 2.32** |
+| `Gal-pick-orange-tailedCH20-unfrozen-vlm-b32s40k` | SmolVLA | subtask | unfrozen-VLM (batch32/40k **control**) | 50 | `Gal_split_tailed` | 40% / 2.03 |
 | `Gal-pick-orange-notailCH20` | SmolVLA | subtask | frozen | 20 | `Gal_split_notail` | 32% / 1.81 |
 | `Gal_split_nolang` | SmolVLA | monotask | frozen | 20 | `Gal_split_nolang` | 14% / 1.02 |
 | `Gal_split_nolang-unfrozen-vlm` | SmolVLA | monotask | unfrozen-VLM | 20 | `Gal_split_nolang` | 9% / 0.92 |
-| `Gal_split_nolang-unfrozen-all` | SmolVLA | monotask | unfrozen-all | 20 | `Gal_split_nolang` | **54% / 2.24** |
+| `Gal_split_nolang-unfrozen-all` | SmolVLA | monotask | unfrozen-all | 50 | `Gal_split_nolang` | **54% / 2.24** |
 | `Gal-merged-tailed-auto` | SmolVLA | subtask | frozen | 20 | `Gal-merged-tailed-auto` | 13% / 1.42 |
 | `Gal-merged-tailed-auto-unfrozen-vlm` | SmolVLA | subtask | unfrozen-VLM | 20 | `Gal-merged-tailed-auto` | 10% / 1.37 |
-| `Gal-merged-tailed-auto-unfrozen-all` | SmolVLA | subtask | unfrozen-all | 20 | `Gal-merged-tailed-auto` | **44% / 2.24** |
+| `Gal-merged-tailed-auto-unfrozen-all` | SmolVLA | subtask | unfrozen-all | 50 | `Gal-merged-tailed-auto` | **44% / 2.24** |
 | `Gal-merged-tailed-auto-no-lang-no-home` | SmolVLA | monotask | frozen | 20 | `…-no-lang-no-home` | 18% / 1.29 |
 | `…-no-lang-no-home-unfrozen-vlm` | SmolVLA | monotask | unfrozen-VLM | 20 | `…-no-lang-no-home` | 25% / 1.54 |
-| `…-no-lang-no-home-unfrozen-all` | SmolVLA | monotask | unfrozen-all | 20 | `…-no-lang-no-home` | **36% / 1.96** |
-| `pick-orange-mimic` | SmolVLA | monotask | frozen | — | `leisaac-pick-orange-mimic-v0` | 41% / 1.95 |
-| `pick-orange-mimic-unfrozen-all` | SmolVLA | monotask | unfrozen-all | 20 | `leisaac-pick-orange-mimic-v0` | **61% / 2.20** |
+| `…-no-lang-no-home-unfrozen-all` | SmolVLA | monotask | unfrozen-all | 50 | `…-no-lang-no-home` | **36% / 1.96** |
+| `pick-orange-mimic` | SmolVLA | monotask | frozen (upstream: batch32/40k) | 50 | `leisaac-pick-orange-mimic-v0` | 41% / 1.95 |
+| `pick-orange-mimic-b64s20k` | SmolVLA | monotask | frozen (shared settings retrain) | 20 | `leisaac-pick-orange-mimic-v0` | **43% / 2.06** |
+| `pick-orange-mimic-unfrozen-all` | SmolVLA | monotask | unfrozen-all | 50 | `leisaac-pick-orange-mimic-v0` | **61% / 2.20** |
 | `ACT-pick-orange` | ACT | monotask | — | 20/100 | `leisaac-pick-orange-mimic-v0` | — |
 
 Earlier/intermediate models kept for provenance (not in the report): `Gal-pick-orange`,

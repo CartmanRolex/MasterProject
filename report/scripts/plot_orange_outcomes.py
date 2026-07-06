@@ -34,10 +34,12 @@ def _r(subdir, fname):
 ACT = ResultFile(label="ACT", description="ACT on the LightwheelAI Baseline (chunk 20)",
                  path=_r("ACT-pick-orange-chunk20", "act_latest.txt"),
                  policy="ACT", mode="monotask", group="LightwheelAI\nbaseline", variant="ACT")
-SMOLVLA = ResultFile(label="SmolVLA", description="SmolVLA on the LightwheelAI Baseline",
-                     path=_r("pick-orange-mimic", "flat_latest.txt"),
-                     policy="SmolVLA", mode="monotask", group="LightwheelAI\nbaseline", variant="SmolVLA",
-                     note="batch 32, 40k")
+# Regime-matched retrain (batch 64, 20k, chunk 20 — the shared standard settings).
+# The upstream checkpoint (batch 32/40k/chunk 50, 41%/1.95) is kept in
+# results/pick-orange-mimic as the regime anchor for the fully-tuned comparison.
+SMOLVLA = ResultFile(label="SmolVLA", description="SmolVLA on the LightwheelAI Baseline (regime-matched retrain)",
+                     path=_r("pick-orange-mimic-b64s20k", "flat_latest.txt"),
+                     policy="SmolVLA", mode="monotask", group="LightwheelAI\nbaseline", variant="SmolVLA")
 BASELINE_FULL = ResultFile(label="Baseline fully-tuned", description="SmolVLA Baseline (fully-tuned)",
                            path=_r("pick-orange-mimic-unfrozen-all", "flat_latest.txt"),
                            policy="SmolVLA", mode="monotask", group="LightwheelAI\nbaseline", variant="")
@@ -170,7 +172,7 @@ def main() -> None:
         RecipePanel(
             name="Standard fine-tuning",
             detail="only the action expert and state projection trained; language model and vision encoder frozen",
-            regime_note="SmolVLA: batch 64, 20k steps unless noted",
+            regime_note="SmolVLA: batch 64, 20k steps",
             results=_parse_all(PANEL_STANDARD),
         ),
         RecipePanel(

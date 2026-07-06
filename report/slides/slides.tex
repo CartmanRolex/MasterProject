@@ -159,13 +159,13 @@
   \end{itemize}
 \end{frame}
 
-% ===== 7. Baseline (defines "monotask" + 41% ceiling) =====
+% ===== 7. Baseline (defines "monotask" + 43% ceiling) =====
 \begin{frame}{Baseline: is the bottleneck the policy class?}
   \begin{columns}[T]
     \begin{column}{0.54\textwidth}
       \begin{itemize}
         \item 60 public end-to-end demos (LightwheelAI). One fixed prompt --- the \hl{monotask} formulation.
-        \item \hl{SmolVLA $>$ ACT} (41\% vs.\ 13\%) --- but even SmolVLA completes only \hl{41 / 100} episodes.
+        \item \hl{SmolVLA $>$ ACT} (43\% vs.\ 13\%) --- but even SmolVLA completes only \hl{43 / 100} episodes.
         \item[$\Rightarrow$] The limit is \hl{not policy expressiveness}; it is the \hl{structure of the execution problem}.
       \end{itemize}
     \end{column}
@@ -284,7 +284,7 @@
         \item Subtask runs \hl{rarely fail completely}: $\geq$1 orange in \gn{97\%} (Teleop) vs.\ 56\% (monotask).
         \item Auto data \hl{helped the monotask} (14\% $\rightarrow$ 18\%) but \hl{hurt the subtask model} (20\% $\rightarrow$ 13\%).
       \end{itemize}
-      {\footnotesize Reference ceiling: SmolVLA monotask baseline = 41\%.}
+      {\footnotesize Reference ceiling: SmolVLA monotask baseline = 43\%.}
     \end{column}
     \begin{column}{0.48\textwidth}
       \centering
@@ -299,7 +299,7 @@
     \begin{column}{0.42\textwidth}
       \begin{itemize}
         \item \hl{Partial} (middle): inconsistent --- helps the Teleop subtask model (20\% $\rightarrow$ 33\%), mixed or worse elsewhere.
-        \item \hl{Full} (bottom): improves \hl{every} family. Best overall: baseline \gn{41\% $\rightarrow$ 61\%}; Teleop subtask \gn{58\%}.
+        \item \hl{Full} (bottom): improves \hl{every} family. Best overall: baseline \gn{43\% $\rightarrow$ 61\%}; Teleop subtask \gn{58\%}.
         \item The gain is \hl{visuomotor}: per-attempt grasp success 37\% $\rightarrow$ \gn{55\%} --- instruction obedience does \emph{not} improve.
         \item The batch-32/40k \hl{regime control} (33\% $\rightarrow$ 40\%) shows the regime alone explains only a minor part.
       \end{itemize}
