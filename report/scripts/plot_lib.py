@@ -514,14 +514,20 @@ def draw_recipe_panels(
 
     plot_cx = left + plot_w / 2
     panels_top = figure.height - 78
-    last_bottom = panels_top - (len(panels) - 1) * panel_pitch - 34 - plot_h
 
-    # --- column bands: one light strip per family, spanning header and all
-    # panels, so the same model family reads as one vertical lane (wide enough
-    # that thin-segment labels placed right of a bar stay inside the lane) ---
+    # --- column bands: one light lane per family, drawn as vertically aligned
+    # segments (header + one per panel) that leave the panel title rows white,
+    # so the title/detail/regime text never runs over the shading. Lanes are
+    # wide enough that thin-segment labels right of a bar stay inside them. ---
     figure.set_fill((0.958, 0.958, 0.950))
     for sx, sw in zip(slot_x, slot_widths):
-        figure.rect(sx - 11, last_bottom - 42, sw + 22, (figure.height - 36) - (last_bottom - 42))
+        band_x, band_w = sx - 11, sw + 22
+        figure.rect(band_x, figure.height - 70, band_w, 34)   # header segment
+        for panel_index in range(len(panels)):
+            band_top = panels_top - panel_index * panel_pitch
+            seg_top = band_top - 18                            # below the title row
+            seg_bottom = (band_top - 34 - plot_h) - 42         # below the bar labels
+            figure.rect(band_x, seg_bottom, band_w, seg_top - seg_bottom)
 
     # --- overall title + family column headers (drawn once) ---
     figure.text(plot_cx, figure.height - 24, title, 14, "center", bold=True)
