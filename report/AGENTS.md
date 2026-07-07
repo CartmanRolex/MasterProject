@@ -191,9 +191,11 @@ sketch) → the idea (VLA as **low-level controller**, a high-level controller i
 **via text**; carries the project-pipeline TikZ ported from `abstract.tex`) → environment
 & task (5 joints + 1 gripper; per-episode randomisation of top-camera pose + orange
 positions; env figures side by side) → **decomposition & data merged on one slide**
-(GRASP/LIFT/PLACE + grasp gate; the 3 sources LightwheelAI/Teleop/Auto, one **monotask**
-bullet — no `dataset_composition.pdf` in the deck) → orchestrator & recovery
-(`orchestrator_decision_flow.pdf`, given the wide 0.63 column) → fine-tuning variants
+(GRASP/LIFT/PLACE + by-position; then the 3 sources LightwheelAI/Teleop/Auto with
+end-to-end vs subtask episode counts spelled out; one **monotask** bullet = "same
+trajectories, no language conditioning" — no `dataset_composition.pdf` in the deck) →
+orchestrator & recovery (`orchestrator_decision_flow.pdf`, given the wide 0.63 column;
+the **grasp gate** bullet lives here, not on the decomposition slide) → fine-tuning variants
 (**schematic only**: the SmolVLA TikZ from `methodology.tex` ported inline — but
 **recoloured**: three orange shades encode the cheapest variant that trains each block
 (deep = standard: expert+state proj.; medium = partial adds embedding+LM; pale = full adds

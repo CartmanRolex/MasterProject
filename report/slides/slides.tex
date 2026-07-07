@@ -248,10 +248,9 @@
 % ===== 5. Decomposition & data =====
 \begin{frame}{Decomposing the task \& data}
   \begin{itemize}
-    \item \hl{GRASP $\rightarrow$ LIFT $\rightarrow$ PLACE} --- each a \hl{checkpoint}, outcome \hl{verified}
-    \item GRASP \hl{by position} --- ``left / middle / right'' \; $\cdot$ \; LIFT gated on a \hl{secure grasp}
-    \item Data, 3 sources: \hl{LightwheelAI} (60, public) \; $\cdot$ \; \hl{Teleop} (846) \; $\cdot$ \; \hl{Auto} ($+414$, self-generated; merged $\rightarrow$ \hl{Teleop+Auto})
-    \item \hl{Monotask} comparison --- \hl{same demos}, flattened, one end-to-end prompt
+    \item \hl{GRASP $\rightarrow$ LIFT $\rightarrow$ PLACE} --- each a \hl{checkpoint}, outcome \hl{verified} \; $\cdot$ \; GRASP \hl{by position} (``left / middle / right'')
+    \item Data, 3 sources: \hl{LightwheelAI} (60 \hl{end-to-end}, public) \; $\cdot$ \; \hl{Teleop} (846 \hl{subtask} episodes) \; $\cdot$ \; \hl{Auto} ($+414$ \hl{subtask}, self-generated; merged $\rightarrow$ \hl{Teleop+Auto})
+    \item \hl{Monotask} comparison --- \hl{same trajectories}, no \hl{language conditioning}
   \end{itemize}
   \vfill
   \begin{columns}[c]
@@ -267,7 +266,8 @@
     \begin{column}{0.37\textwidth}
       \begin{itemize}
         \item Checks: \hl{privileged sim state} --- policy never sees it
-        \item \hl{Timeout} = step budget $\rightarrow$ detection trigger
+        \item \hl{Grasp gate} --- LIFT starts only on a \hl{secure} grasp (centred $+$ contact force)
+        \item \hl{Success / Failure / Timeout} --- outcome of each subtask (timeout $=$ step budget)
         \item \hl{Level-1 retry} --- \textbf{same} orange
         \item \hl{Level-2 redirect} --- \textbf{different} orange, task keeps scoring
         \item \hl{Home reset} --- precondition; target switch only \hl{far from oranges}
