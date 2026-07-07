@@ -264,7 +264,7 @@
 % ===== 7. Orchestrator + recovery =====
 \begin{frame}{Orchestrator \& recovery}
   \begin{columns}[c]
-    \begin{column}{0.54\textwidth}
+    \begin{column}{0.37\textwidth}
       \begin{itemize}
         \item Checks: \hl{privileged sim state} --- policy never sees it
         \item \hl{Timeout} = step budget $\rightarrow$ detection trigger
@@ -273,21 +273,26 @@
         \item \hl{Home reset} --- precondition; target switch only \hl{far from oranges}
       \end{itemize}
     \end{column}
-    \begin{column}{0.46\textwidth}
+    \begin{column}{0.63\textwidth}
       \centering
-      \includegraphics[width=\textwidth]{orchestrator_decision_flow.pdf}
+      \includegraphics[width=\linewidth,height=0.82\textheight,keepaspectratio]{orchestrator_decision_flow.pdf}
     \end{column}
   \end{columns}
 \end{frame}
 
 % ===== 8. Fine-tuning variants (schematic) =====
+% Block colour = the cheapest variant that trains the block (a variant trains its
+% colour and every darker one): standard = expert + state proj; partial adds the
+% token embedding + LM (train_expert_only=False, freeze_vision_encoder=True);
+% full adds the vision encoder.
 \begin{frame}{Fine-tuning: three variants}
   \centering
-  \resizebox{0.92\textwidth}{!}{%
+  \resizebox{0.86\textwidth}{!}{%
     \begin{tikzpicture}[
         font=\small, >=Latex, node distance=6mm,
-        frozen/.style={draw=blue!55!black, fill=blue!12, rounded corners, align=center, minimum height=10mm, inner sep=4pt},
-        trained/.style={draw=orange!80!black, fill=orange!20, rounded corners, align=center, minimum height=10mm, inner sep=4pt},
+        ftstd/.style={draw=orange!85!black, fill=orange!75, rounded corners, align=center, minimum height=10mm, inner sep=4pt},
+        ftpar/.style={draw=orange!85!black, fill=orange!40, rounded corners, align=center, minimum height=10mm, inner sep=4pt},
+        ftful/.style={draw=orange!85!black, fill=orange!12, rounded corners, align=center, minimum height=10mm, inner sep=4pt},
         io/.style={draw=black!45, fill=black!6, rounded corners, align=center, minimum height=8mm, inner sep=3pt},
         arr/.style={->, thick, draw=black!65},
     ]
@@ -295,17 +300,17 @@
         \node[io, below=4mm of front] (wrist) {Wrist\\camera};
         \node[io, below=8mm of wrist] (prompt) {Language\\prompt};
         \node[io, below=8mm of prompt] (state) {Joint state\\$q\in\mathbb{R}^{6}$};
-        \node[frozen, right=12mm of $(front)!0.5!(wrist)$] (venc) {Vision\\encoder};
-        \node[frozen, right=12mm of prompt] (emb) {Token\\embedding};
-        \node[trained, right=12mm of state] (sproj) {State\\projection};
-        \node[frozen, right=14mm of venc, minimum height=24mm] (vlm) {Language model\\\footnotesize(16-layer LM)};
-        \node[trained, right=16mm of vlm, minimum height=30mm] (expert) {Action\\expert\\\footnotesize(flow matching)};
+        \node[ftful, right=12mm of $(front)!0.5!(wrist)$] (venc) {Vision\\encoder};
+        \node[ftpar, right=12mm of prompt] (emb) {Token\\embedding};
+        \node[ftstd, right=12mm of state] (sproj) {State\\projection};
+        \node[ftpar, right=14mm of venc, minimum height=24mm] (vlm) {Language model\\\footnotesize(16-layer LM)};
+        \node[ftstd, right=16mm of vlm, minimum height=30mm] (expert) {Action\\expert\\\footnotesize(flow matching)};
         \node[io, right=12mm of expert] (act) {Action chunk\\$a_{t:t+20}\in\mathbb{R}^{20\times 6}$};
         \node[io, above=6mm of expert] (noise) {noise $+$ time};
         \begin{scope}[on background layer]
-            \node[draw=blue!55!black, dashed, rounded corners, fill=blue!4, inner sep=3.5mm,
+            \node[draw=black!45, dashed, rounded corners, fill=black!2, inner sep=3.5mm,
                   fit=(venc)(emb)(vlm),
-                  label={[blue!55!black, font=\footnotesize\bfseries]above:VLM (SmolVLM2)}] (vlmbox) {};
+                  label={[black!55, font=\footnotesize\bfseries]above:VLM (SmolVLM2)}] (vlmbox) {};
         \end{scope}
         \draw[arr] (front.east) -- (venc.west);
         \draw[arr] (wrist.east) -- (venc.west);
@@ -319,8 +324,15 @@
         \draw[arr] (expert.east) -- (act.west);
     \end{tikzpicture}}
 
-  \vspace{0.5em}
-  {\footnotesize\hl{Standard} action expert only ($\sim$100M) \; $\cdot$ \; \hl{Partial} $+$ language model ($\sim$316M) \; $\cdot$ \; \hl{Full} $+$ vision (450M)}
+  \vspace{0.4em}
+  {\footnotesize
+   \tikz[baseline=-2.5pt]{\draw[draw=orange!85!black, fill=orange!75, rounded corners=1pt] (0,0) rectangle (0.32,0.16);}\, \hl{Standard} expert $+$ proj.\ (100M)
+   \; $\cdot$ \;
+   \tikz[baseline=-2.5pt]{\draw[draw=orange!85!black, fill=orange!40, rounded corners=1pt] (0,0) rectangle (0.32,0.16);}\, \hl{Partial} $+$ LM (316M)
+   \; $\cdot$ \;
+   \tikz[baseline=-2.5pt]{\draw[draw=orange!85!black, fill=orange!12, rounded corners=1pt] (0,0) rectangle (0.32,0.16);}\, \hl{Full} $+$ vision (450M)
+  \\[0.2em]
+  \scriptsize\color{gray}each variant trains its colour and every darker one; the rest stays frozen}
 \end{frame}
 
 % ===== 9. Results: outcomes, all models =====

@@ -193,8 +193,11 @@ sketch) → the idea (VLA as **low-level controller**, a high-level controller i
 positions; env figures side by side) → **decomposition & data merged on one slide**
 (GRASP/LIFT/PLACE + grasp gate; the 3 sources LightwheelAI/Teleop/Auto, one **monotask**
 bullet — no `dataset_composition.pdf` in the deck) → orchestrator & recovery
-(`orchestrator_decision_flow.pdf`) → fine-tuning variants (**schematic only**: the SmolVLA
-TikZ from `methodology.tex` ported inline; needs `fit,backgrounds,calc` tikzlibraries) →
+(`orchestrator_decision_flow.pdf`, given the wide 0.63 column) → fine-tuning variants
+(**schematic only**: the SmolVLA TikZ from `methodology.tex` ported inline — but
+**recoloured**: three orange shades encode the cheapest variant that trains each block
+(deep = standard: expert+state proj.; medium = partial adds embedding+LM; pale = full adds
+vision encoder), with legend chips; needs `fit,backgrounds,calc` tikzlibraries) →
 outcomes across all models
 (`orange_outcome_recipes.pdf`) → grasp bottleneck (`failure_modes_variants_subtask.pdf`)
 → recovery stall table (`tab:level2_deadline`) → obedience (`grasp_obedience_confusion.pdf`)
