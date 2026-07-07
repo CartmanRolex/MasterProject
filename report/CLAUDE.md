@@ -89,8 +89,8 @@ Python scripts that generate the report figures. Run from `report/scripts/`.
 |--------|---------------|
 | `plot_baseline_comparison.py` | `figures/baseline_comparison.pdf` |
 | `plot_data_effect.py` | `figures/data_effect.pdf` |
-| `plot_orange_outcomes.py` | `figures/orange_outcome_recipes.pdf` — §4.1's single results figure: three stacked panels, one per fine-tuning recipe (standard / partial=partial / full=full), the five model families in fixed columns (LightwheelAI · Teleop mono/sub · Teleop+Auto mono/sub), one shared legend, batch size + steps annotated per panel (control excepted per bar). Standard-panel baseline bar = `pick-orange-mimic-b64s20k` (regime-matched retrain, 43%/2.06; upstream 41% model kept as full-recipe regime anchor). Full recipe improves every family (36–61%; best = baseline full 61%/2.20); panel 2 carries the batch32/40k **regime control** (`…-unfrozen-vlm-b32s40k`, 40%/2.03). No-tail dropped from the figure (inline numbers only). **Also** `figures/orange_outcome_standard.pdf` — slides-only now (slides.tex includes it); `orange_outcome_variants.pdf` removed. Pure-Python via `plot_lib` (`draw_recipe_panels`). |
-| `plot_failure_modes.py` | `figures/failure_modes.pdf` — per-subtask outcome composition (GRASP/LIFT/PLACE × success/drop-slip/timeout) for the two **subtask** models, **standard variant only**; imports the composition helpers from `compute_failure_modes.py`. **Slides-only now** (report §4.2.1 uses the per-variant figures below). Pure-Python via `plot_lib`. |
+| `plot_orange_outcomes.py` | `figures/orange_outcome_recipes.pdf` — §4.1's single results figure: three stacked panels, one per fine-tuning recipe (standard / partial=partial / full=full), the five model families in fixed columns (LightwheelAI · Teleop mono/sub · Teleop+Auto mono/sub), one shared legend, batch size + steps annotated per panel (control excepted per bar). Standard-panel baseline bar = `pick-orange-mimic-b64s20k` (regime-matched retrain, 43%/2.06; upstream 41% model kept as full-recipe regime anchor). Full recipe improves every family (36–61%; best = baseline full 61%/2.20); panel 2 carries the batch32/40k **regime control** (`…-unfrozen-vlm-b32s40k`, 40%/2.03). No-tail dropped from the figure (inline numbers only). **Also** `figures/orange_outcome_standard.pdf` — **no longer referenced** (the slides now use `orange_outcome_recipes.pdf`); `orange_outcome_variants.pdf` removed. Pure-Python via `plot_lib` (`draw_recipe_panels`). |
+| `plot_failure_modes.py` | `figures/failure_modes.pdf` — per-subtask outcome composition (GRASP/LIFT/PLACE × success/drop-slip/timeout) for the two **subtask** models, **standard variant only**; imports the composition helpers from `compute_failure_modes.py`. **No longer referenced** — report §4.2.1 and the slides both use the per-variant figures below; kept for reference. Pure-Python via `plot_lib`. |
 | `plot_failure_modes_variants.py` | `figures/failure_modes_variants_subtask.pdf` + `figures/failure_modes_variants_monotask.pdf` — §4.2.1's two per-subtask composition figures across all three fine-tuning **variants** (standard/partial/full). One panel per dataset (Teleop, Teleop+Auto); GRASP/LIFT/PLACE grouped, three variant bars each, success/drop-slip/timeout share with a `%` x-axis. **Subtask** figure = GRASP/LIFT/PLACE; **monotask** figure = LIFT/PLACE only (per-attempt grasp not inferable) and drops the Timeout legend (its offline reconstruction expresses failures as drop/slip only). Reuses `grasp_strict` + colours from `plot_failure_modes.py` and `composition` from `compute_failure_modes.py`. Pure-Python via `plot_lib`. |
 | `plot_orchestrator_flow.py` | `figures/orchestrator_decision_flow.pdf` — decision-flow diagram. **Requires `matplotlib`** (the only script that does; the rest use the pure-Python `plot_lib` writer). |
 | `plot_subtask_placeholders.py` | `figures/subtask_{grasp,lift,place}_placeholder.pdf` |
@@ -178,15 +178,22 @@ https://docs.google.com/presentation/d/1wdk6iVC3G0WgORenrWnNZ3Llxan1iO6rcQS7SlbR
 
 ## Slides (`slides/`)
 
-Oral-presentation deck, **LaTeX/Beamer** — `slides/slides.tex`. Built from the report
-sections with the final seeded numbers; figures are pulled directly from
-`report/figures/` (`\graphicspath{{../figures/}}`). The deck is **sequential**: every
-concept (monotask, subtask, Teleop/Auto, the three fine-tuning recipes, Level-1/Level-2
-recovery, spatial reset) is defined before it is used. 21 frames, 16:9. Synced with the
-recipe-based results rewrite: recipes defined on the policy slide, standard-recipe
-outcomes + recipe-comparison (`orange_outcome_recipes.pdf`) + grasp-bottleneck
-(`failure_modes.pdf`) slides, the deadline-anchored stall table (from
-`tab:level2_deadline`), and the 2×3 obedience confusion figure.
+Oral-presentation deck, **LaTeX/Beamer** — `slides/slides.tex`. Built for a **20-minute
+talk**: **figure-driven and keyword-sparse** (the presenter narrates; each content slide
+carries a few keywords + one figure/result, not full sentences). Figures are pulled
+directly from `report/figures/` (`\graphicspath{{../figures/}}`) and the deck **reuses the
+report's own figures** — all models, not slides-only simplifications. **17 frames** (14
+main + 3 Q&A backup), 16:9, sequential (every concept — monotask, subtask, Teleop/Auto,
+the three fine-tuning variants, Level-1/Level-2 recovery, home-pose reset — is defined
+before use). Flow: problem → decompose+orchestrate idea → setup → SmolVLA + 3 variants
+(the architecture TikZ from `methodology.tex` ported inline; needs `fit,backgrounds,calc`
+tikzlibraries) → GRASP/LIFT/PLACE → orchestrator (`orchestrator_decision_flow.pdf`) →
+Teleop+Auto data (`dataset_composition.pdf`) → outcomes across all models
+(`orange_outcome_recipes.pdf`) → grasp bottleneck (`failure_modes_variants_subtask.pdf`)
+→ recovery stall table (`tab:level2_deadline`) → obedience (`grasp_obedience_confusion.pdf`)
+→ takeaways+future. **Backup** (dark title bar): monotask composition
+(`failure_modes_variants_monotask.pdf`), ACT-vs-SmolVLA baseline (`baseline_comparison.pdf`),
+limitations.
 
 Build:
 ```bash
