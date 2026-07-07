@@ -37,7 +37,14 @@ The overview above reports \emph{what} each model achieves; this section locates
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.9\textwidth]{failure_modes.pdf}
+    \includegraphics[width=0.92\textwidth]{failure_modes_variants_subtask.pdf}
+    \caption{Per-subtask outcome composition for the orchestrated models (share of genuine attempts). Grasp acquisition is the limiting step and the only one that full fine-tuning substantially improves; lift and place are already reliable across every variant.}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.92\textwidth]{failure_modes_variants_monotask.pdf}
+    \caption{The same composition for the monotask models (lift and place only --- per-attempt grasp is not inferable). Full fine-tuning sharply cuts lift failures, most strikingly on Teleop (56\% to 94\% success).}
 \end{figure}
 
 \textbf{Recovery is compared at matched stalls, on the standard models.} If \textbf{Level-2} recovery works, then whenever the policy is stuck on an orange it cannot grasp, the orchestrated formulation should escape --- switch to another orange and keep scoring --- where the monotask policy, which has no such mechanism, should stay stuck. Comparing the two requires knowing, on both sides, which orange the policy is working on and when that effort has failed. For the subtask both are explicit: the target is named in the GRASP prompt, and failure is the prompt timing out after its 700-step budget. For the monotask neither is observable --- no prompt names a target --- so its intent is approximated by \emph{proximity}: the orange it is working on is taken to be the nearest not-yet-placed orange to the gripper. A \textbf{stall} is then defined for both formulations as one grasp budget of consecutive commitment to a single orange without a force-confirmed grasp ($\geq$10\,N on both fingertips): for the subtask, exactly the first timed-out GRASP prompt on a target; for the monotask, 600 consecutive steps nearest to the same orange with nothing secured. The lower threshold compensates the proximity clock starting late (an orange only becomes nearest partway into an approach, roughly 130--150 steps in, judging by successful acquisitions), and no conclusion below changes for any threshold between 500 and 700. Two filters apply identically to both formulations: a stall counts only if another orange remains unplaced (so redirection is possible) and if at least 1500 of the 5000 episode steps remain (more than the median time to the next placement, so recovery is not cut short). The table then follows each stall: was the next orange worked on a \emph{different} one (\emph{redirected}), was any orange placed afterwards --- split by whether that first placement was the \emph{same} committed orange or a \emph{different} one --- and how many steps it took.
