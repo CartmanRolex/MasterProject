@@ -202,8 +202,8 @@ the **grasp gate** bullet lives here, not on the decomposition slide) → fine-t
 vision encoder), with legend chips; needs `fit,backgrounds,calc` tikzlibraries) →
 outcomes across all models
 (`orange_outcome_recipes.pdf`; bullets structured as **Subtasking / Auto-data /
-Fine-tuning effects** + the 100-seeded line) → grasp bottleneck (**both** composition
-figures stacked, `failure_modes_variants_subtask.pdf` + `_monotask.pdf`; bullets = grasp
+Fine-tuning effects** + the 100-seeded line) → grasp bottleneck (bullets left, **both** composition
+figures stacked in a wide right column, `failure_modes_variants_subtask.pdf` + `_monotask.pdf`; bullets = grasp
 is the bottleneck + orchestrated LIFT advantaged by the privileged gate) → recovery stall
 table (`tab:level2_deadline`) → obedience (`grasp_obedience_confusion.pdf`) →
 takeaways+future. **Backup** (dark title bar): ACT-vs-SmolVLA baseline

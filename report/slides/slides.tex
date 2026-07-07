@@ -341,7 +341,7 @@
     \begin{column}{0.40\textwidth}
       \begin{itemize}
         \item \hl{100 seeded} episodes / model
-        \item \hl{Subtasking effect} --- rarely empty-handed: \gn{$\geq$1 orange 97\%} vs.\ 56\%; completions $\pm$ a few pts
+        \item \hl{Subtasking effect} --- \hl{strong on weak policies} (Level-2 recovery, checks): \gn{$\geq$1 orange 97\%} vs.\ 56\%; completions $\pm$ a few pts
         \item \hl{Auto-data effect} --- mixed: monotask $\uparrow$ (14$\rightarrow$18\%), subtask $\downarrow$ (20$\rightarrow$13\%)
         \item \hl{Fine-tuning effect} --- partial inconsistent; \hl{full} decisive: \emph{every} family $\uparrow$, best \gn{61\%}
       \end{itemize}
@@ -355,14 +355,19 @@
 
 % ===== 10. Results: grasp bottleneck =====
 \begin{frame}{Grasp acquisition is the bottleneck}
-  \begin{itemize}
-    \item \hl{Grasp is the bottleneck} --- secures \hl{$\sim$37\%} $\rightarrow$ \gn{55\%} (full); LIFT / PLACE reliable
-    \item \hl{Orchestrated LIFT is advantaged} --- the \hl{privileged gate} lets only secure grasps through; the monotask lifts \hl{unchecked}: 56--60\% vs.\ \gn{87--92\%}, closing only under \hl{full} tuning
-  \end{itemize}
-  \vfill
-  \centering
-  \includegraphics[width=0.78\textwidth,height=0.355\textheight,keepaspectratio]{failure_modes_variants_subtask.pdf}\\[0.1em]
-  \includegraphics[width=0.78\textwidth,height=0.275\textheight,keepaspectratio]{failure_modes_variants_monotask.pdf}
+  \begin{columns}[c]
+    \begin{column}{0.36\textwidth}
+      \begin{itemize}
+        \item \hl{Grasp is the bottleneck} --- secures \hl{$\sim$37\%} $\rightarrow$ \gn{55\%} (full); LIFT / PLACE reliable
+        \item \hl{Orchestrated LIFT is advantaged} --- the \hl{privileged gate} lets only secure grasps through; the monotask lifts \hl{unchecked}: 56--60\% vs.\ \gn{87--92\%}, closing only under \hl{full} tuning
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.64\textwidth}
+      \centering
+      \includegraphics[width=\linewidth,height=0.44\textheight,keepaspectratio]{failure_modes_variants_subtask.pdf}\\[0.15em]
+      \includegraphics[width=\linewidth,height=0.35\textheight,keepaspectratio]{failure_modes_variants_monotask.pdf}
+    \end{column}
+  \end{columns}
 \end{frame}
 
 % ===== 11. Results: recovery at matched stalls =====
