@@ -1,5 +1,6 @@
 % Oral-presentation slides for the Master's project.
 % Built from the report (sections/*.tex) — final seeded results.
+% Sequential: every concept is defined before it is used.
 % Build: export PATH="/home/students/texlive/2026/bin/x86_64-linux:$PATH"
 %        latexmk -pdf -interaction=nonstopmode -halt-on-error slides.tex
 \documentclass[aspectratio=169,10pt]{beamer}
@@ -85,12 +86,33 @@
   {\footnotesize June 2026}
 \end{frame}}
 
-% ===== 2. Problem =====
-\begin{frame}{The problem: long-horizon manipulation}
+% ===== 2. The task =====
+\begin{frame}{The task}
+  \begin{columns}[c]
+    \begin{column}{0.52\textwidth}
+      \begin{itemize}
+        \item Simulated \hl{SO-101} arm --- Isaac Sim kitchen.
+        \item Pick \hl{3 oranges}, place them in the \hl{plate}.
+        \item Score per episode: \hl{oranges in the plate} (0--3).
+        \item \hl{Long horizon} --- minutes of control, thousands of steps.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \centering
+      \includegraphics[width=\textwidth,height=0.42\textheight,keepaspectratio]{environment_top_view.png}\\[0.4em]
+      \includegraphics[width=0.72\textwidth,height=0.34\textheight,keepaspectratio]{environment_plate_closeup.png}\\
+      {\footnotesize Top camera \,\textbullet\, wrist camera.}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ===== 3. Learned policies & why they're brittle =====
+\begin{frame}{The robot is driven by a learned policy --- a brittle one}
   \begin{itemize}
-    \item Success needs \hl{grasp $\rightarrow$ lift $\rightarrow$ place} --- in order.
-    \item Imitation policies learn from \hl{successful demos} $\Rightarrow$ brittle \hl{out-of-distribution} after any slip.
-    \item A language interface can't \hl{detect} or \hl{interrupt} a failure.
+    \item \hl{Imitation learning}: a neural policy trained to mimic \hl{demonstrations}.
+    \item \hl{VLA} (vision--language--action): cameras $+$ joint state $+$ a \hl{language instruction} $\rightarrow$ actions. Here: \hl{SmolVLA}.
+    \item Trained on \hl{successful} demos only $\Rightarrow$ any slip lands it \hl{out of distribution}; errors \hl{compound} over the horizon.
+    \item Nothing \hl{detects} or \hl{interrupts} a failure mid-episode.
   \end{itemize}
   \vfill
   \begin{block}{Angle}
@@ -98,39 +120,20 @@
   \end{block}
 \end{frame}
 
-% ===== 3. Idea + contributions =====
+% ===== 4. Idea + contributions =====
 \begin{frame}{Idea: decompose, then orchestrate}
-  \textbf{Hypothesis.} Robustness comes from \hl{language-conditioned subtasks} + an \hl{orchestrator} that checks each outcome and \hl{recovers}.
+  \textbf{Hypothesis.} The task becomes more robust if split into \hl{simple language-instructed steps}, with a controller that \hl{checks each step's outcome} and \hl{recovers} from failure.
   \vfill
   \textbf{Contributions.}
   \begin{enumerate}
-    \item Monotask baseline (\hl{ACT vs.\ SmolVLA}) --- policy class alone is not enough.
-    \item \hl{Subtask dataset} + orchestrator: \hl{retry / reset / redirect}.
-    \item \hl{Autonomous data} generation --- does more data help? (\emph{not clear-cut}).
+    \item \hl{End-to-end baselines} (ACT vs.\ SmolVLA): a stronger policy class alone is \hl{not enough}.
+    \item A custom \hl{teleoperated step dataset} $+$ an \hl{orchestrator} that retries or switches target.
+    \item \hl{Autonomous data generation}: does more data help? (\emph{not clear-cut})
   \end{enumerate}
 \end{frame}
 
-% ===== 4. Setup =====
-\begin{frame}{Setup}
-  \begin{columns}[c]
-    \begin{column}{0.55\textwidth}
-      \begin{itemize}
-        \item \hl{SO-101} arm, Isaac Sim; \hl{3 oranges $\rightarrow$ plate}.
-        \item Policy \hl{SmolVLA}: sees \hl{only} joints + 2 cameras.
-        \item \hl{No object coordinates}.
-        \item Privileged state (poses, forces) $\rightarrow$ \hl{orchestrator + eval only}.
-      \end{itemize}
-    \end{column}
-    \begin{column}{0.45\textwidth}
-      \centering
-      \includegraphics[width=\textwidth]{environment_top_view.png}\\
-      {\footnotesize Top-camera view.}
-    \end{column}
-  \end{columns}
-\end{frame}
-
 % ===== 5. Policy: SmolVLA + 3 variants =====
-\begin{frame}{Policy: SmolVLA \& three fine-tuning variants}
+\begin{frame}{The policy: SmolVLA \& three fine-tuning variants}
   \centering
   \resizebox{0.92\textwidth}{!}{%
     \begin{tikzpicture}[
@@ -172,31 +175,32 @@
   {\footnotesize\hl{Standard} action expert only ($\sim$100M) \; $\cdot$ \; \hl{Partial} $+$ language model ($\sim$316M) \; $\cdot$ \; \hl{Full} $+$ vision (450M)}
 \end{frame}
 
-% ===== 6. Decompose =====
-\begin{frame}{Decompose: GRASP $\rightarrow$ LIFT $\rightarrow$ PLACE}
+% ===== 6. Two formulations =====
+\begin{frame}{Two formulations of the same task}
   \begin{itemize}
-    \item Each subtask = an explicit \hl{checkpoint}; \hl{verify the physical outcome} before the next step.
-    \item GRASP targets \hl{one orange by position} (left / middle / right).
-    \item \hl{Confirmed-grasp gate}: lift only on a secure grasp, not just a closed gripper.
+    \item \hl{Monotask}: one fixed prompt, \hl{end-to-end} --- no visibility into progress.
+    \item \hl{Subtask}: decompose into \hl{GRASP $\rightarrow$ LIFT $\rightarrow$ PLACE} --- each step a \hl{checkpoint} whose \hl{physical outcome is verified}.
+    \item GRASP names its target \hl{by position}: ``grasp the \emph{left / middle / right} orange''.
+    \item \hl{Confirmed-grasp gate}: LIFT starts only on a \hl{secure} grasp (centred $+$ firm contact force) --- not just a closed gripper.
   \end{itemize}
   \vfill
   \begin{columns}[c]
-    \column{0.32\textwidth}\centering\includegraphics[height=2.6cm]{grasp.png}\\\textbf{GRASP}
-    \column{0.32\textwidth}\centering\includegraphics[height=2.6cm]{pick.png}\\\textbf{LIFT}
-    \column{0.32\textwidth}\centering\includegraphics[height=2.6cm]{place.png}\\\textbf{PLACE}
+    \column{0.32\textwidth}\centering\includegraphics[height=2.4cm]{grasp.png}\\\textbf{GRASP}
+    \column{0.32\textwidth}\centering\includegraphics[height=2.4cm]{pick.png}\\\textbf{LIFT}
+    \column{0.32\textwidth}\centering\includegraphics[height=2.4cm]{place.png}\\\textbf{PLACE}
   \end{columns}
 \end{frame}
 
 % ===== 7. Orchestrator =====
-\begin{frame}{Orchestrator: a controller around the VLA}
+\begin{frame}{The orchestrator: a controller around the VLA}
   \begin{columns}[c]
     \begin{column}{0.54\textwidth}
       \begin{itemize}
-        \item VLA does \hl{only} GRASP / LIFT / PLACE; checks use \hl{privileged state}.
-        \item \hl{Timeout} = per-subtask budget $\rightarrow$ detection trigger.
-        \item \hl{Level-1} retry --- \textbf{same} orange.
-        \item \hl{Level-2} redirect --- \textbf{different} orange (task keeps scoring).
-        \item \hl{Home reset} --- precondition: language switches target only when \hl{far from all oranges}.
+        \item Checks read \hl{privileged simulator state} (poses, contact forces) --- the \hl{policy never sees it}.
+        \item \hl{Timeout} = per-subtask step budget $\rightarrow$ the detection trigger.
+        \item \hl{Level-1 retry}: slip / timeout $\rightarrow$ re-GRASP the \hl{same} orange.
+        \item \hl{Level-2 redirect}: repeated GRASP failure $\rightarrow$ a \hl{different} orange --- the task keeps scoring.
+        \item \hl{Home reset} (precondition): the policy only switches target \hl{far from all oranges}.
       \end{itemize}
     \end{column}
     \begin{column}{0.46\textwidth}
@@ -206,19 +210,18 @@
   \end{columns}
 \end{frame}
 
-% ===== 8. Data: Teleop + Auto =====
-\begin{frame}{Data: Teleop $+$ Auto}
+% ===== 8. Data =====
+\begin{frame}{Training data}
   \begin{columns}[c]
-    \begin{column}{0.5\textwidth}
+    \begin{column}{0.52\textwidth}
       \begin{itemize}
-        \item \hl{846} Teleop episodes --- gamepad; \hl{randomised pick order}; \hl{freeze-tail}.
-        \item \hl{$+414$ Auto} --- orchestrator self-run, keep \hl{successful} subtasks only.
-        \item Auto is \hl{shorter / less dispersed} (policy's own states).
+        \item \hl{846 Teleop} subtask episodes --- gamepad; \hl{randomised pick order}; 20-frame \hl{freeze tail}.
+        \item Same trajectories \hl{flattened} $\rightarrow$ the \hl{monotask} training set (matched comparison).
+        \item \hl{$+414$ Auto}: orchestrator self-run, keep \hl{successes} only $\rightarrow$ \hl{Teleop+Auto}.
+        \item Baseline family: \hl{60 public} end-to-end demos (LightwheelAI).
       \end{itemize}
-      \vspace{0.3em}
-      {\footnotesize Probe: does more \hl{in-distribution} data help?}
     \end{column}
-    \begin{column}{0.5\textwidth}
+    \begin{column}{0.48\textwidth}
       \centering
       \includegraphics[width=\textwidth]{dataset_composition.pdf}
     \end{column}
@@ -230,10 +233,10 @@
   \begin{columns}[c]
     \begin{column}{0.40\textwidth}
       \begin{itemize}
-        \item Decomposition $\rightarrow$ more \hl{partial progress}, not more completions.
-        \item Rarely empty-handed: \gn{$\geq$1 orange 97\%} (Teleop) vs.\ 56\% monotask.
-        \item \hl{Full fine-tuning is decisive} --- improves \emph{every} family (\gn{43 $\rightarrow$ 61\%} best).
-        \item Reference ceiling: monotask \hl{43\%}.
+        \item \hl{100 seeded} episodes per model.
+        \item Decomposition $\rightarrow$ more \hl{partial progress}: \gn{$\geq$1 orange in 97\%} (Teleop) vs.\ 56\% monotask.
+        \item Full completions: \hl{not reliably higher} under standard tuning.
+        \item \hl{Full fine-tuning is decisive} --- improves \emph{every} family (best \gn{61\%}).
       \end{itemize}
     \end{column}
     \begin{column}{0.60\textwidth}
@@ -246,9 +249,9 @@
 % ===== 10. Results: grasp bottleneck =====
 \begin{frame}{Grasp acquisition is the bottleneck}
   \begin{itemize}
-    \item Grasp secures an orange only \hl{$\sim$37\%} of attempts $\rightarrow$ \gn{55\%} under \hl{full} tuning.
-    \item \hl{Lift and place already reliable} across every variant.
-    \item Monotask lift jumps \hl{56\% $\rightarrow$ 94\%} with full tuning (no grasp gate).
+    \item GRASP secures an orange in only \hl{$\sim$37\%} of attempts $\rightarrow$ \gn{55\%} under \hl{full} tuning.
+    \item \hl{LIFT and PLACE already reliable} across every variant.
+    \item Monotask (no grasp gate): lift completion \hl{56\% $\rightarrow$ 94\%} with full tuning.
   \end{itemize}
   \vfill
   \centering
