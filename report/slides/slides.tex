@@ -247,6 +247,9 @@
       The VLA does \emph{only} GRASP / LIFT / PLACE; all checks use privileged state.
       \medskip
 
+      The key check \hl{gates the LIFT}: advance only once the grasp is \hl{confirmed secure} --- orange centred between the fingertips with firm contact force --- not merely once the gripper has closed.
+      \medskip
+
       Recovery at \hl{two levels} + one precondition:
       \begin{itemize}
         \item \hl{Level-1 --- local retry} \emph{(recovery)}: slip / timeout on LIFT or PLACE $\rightarrow$ re-GRASP the \textbf{same} orange.
@@ -367,10 +370,10 @@
 % ===== 19. Discussion & limitations =====
 \begin{frame}{Discussion \& limitations}
   \begin{itemize}
-    \item Decomposition creates \hl{real intervention points}: the system almost never fails completely --- the mechanism is Level-2 redirection.
-    \item But it \hl{cannot fix a weak GRASP policy} --- the binding constraint sits \emph{before} any check or recovery can help.
-    \item What moved the bottleneck was a \hl{stronger policy} (full fine-tuning, vision included), not more structure.
-    \item Auto data \hl{helped one formulation and hurt the other} --- why is left open. More self-generated data is unlikely the fix: a near-deterministic policy filtered by a binary success bit cannot discover the grasp it is missing.
+    \item Orchestration helps \hl{most where grasping is weak}: the system almost never ends empty-handed --- abandon an ungraspable orange, still place another (Level-2). $\geq$1 orange in \gn{97\%} of Teleop episodes vs.\ 56\% monotask; the biggest gains fall on the weakest-grasp models.
+    \item The lever is a \hl{confirmed-grasp gate}: it lifts only on a secure grasp, where the monotask lifts on its own judgement and drops far more --- \hl{56--60\%} of monotask lifts complete vs.\ \gn{87--92\%} orchestrated (the gap closes under full fine-tuning).
+    \item But it \hl{cannot fix a weak GRASP policy}: acquisition ($\sim$\hl{37\%}) is the binding constraint, upstream of every checkpoint. What moved it was a \hl{stronger policy} (full fine-tuning, vision included), not more structure.
+    \item Auto data \hl{helped one formulation and hurt the other}; more self-generated data is unlikely the fix --- a near-deterministic policy filtered by a binary success bit cannot discover the grasp it is missing.
     \item Success checks use \hl{privileged state} --- deployment needs perception; 100 episodes per model, so small differences may be sampling noise.
   \end{itemize}
 \end{frame}
