@@ -183,15 +183,16 @@ talk**: **figure-driven and keyword-sparse** (the presenter narrates; each conte
 carries a few keywords + one figure/result, not full sentences). Figures are pulled
 directly from `report/figures/` (`\graphicspath{{../figures/}}`) and the deck **reuses the
 report's own figures** — all models, not slides-only simplifications. Bullets are
-**keyword fragments, not sentences** (the presenter develops them orally). **17 frames**
-(14 main + 3 Q&A backup), 16:9, sequential (every concept defined before use). The
+**keyword fragments, not sentences** (the presenter develops them orally). **16 frames**
+(13 main + 3 Q&A backup), 16:9, sequential (every concept defined before use). The
 narrative order is **user-prescribed — do not reorder without asking**: the problem stated
 generally (IL limited, OOD, goal = recover; illustrated by a small inline OOD-drift TikZ
 sketch) → the idea (VLA as **low-level controller**, a high-level controller interacting
 **via text**; carries the project-pipeline TikZ ported from `abstract.tex`) → environment
-& task (5 joints + 1 gripper; env figures side by side) → subtask decomposition
-(GRASP/LIFT/PLACE + grasp gate) → datasets (Teleop, flattened→**monotask defined here**,
-Auto, public baseline demos; `dataset_composition.pdf`) → orchestrator & recovery
+& task (5 joints + 1 gripper; per-episode randomisation of top-camera pose + orange
+positions; env figures side by side) → **decomposition & data merged on one slide**
+(GRASP/LIFT/PLACE + grasp gate; the 3 sources LightwheelAI/Teleop/Auto, one **monotask**
+bullet — no `dataset_composition.pdf` in the deck) → orchestrator & recovery
 (`orchestrator_decision_flow.pdf`) → fine-tuning variants (**schematic only**: the SmolVLA
 TikZ from `methodology.tex` ported inline; needs `fit,backgrounds,calc` tikzlibraries) →
 outcomes across all models
