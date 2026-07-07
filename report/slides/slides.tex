@@ -341,9 +341,9 @@
     \begin{column}{0.40\textwidth}
       \begin{itemize}
         \item \hl{100 seeded} episodes / model
-        \item \gn{$\geq$1 orange: 97\%} vs.\ 56\% --- rarely empty-handed
-        \item Full completions: \hl{no reliable gain} (standard)
-        \item \hl{Full tuning}: \emph{every} family $\uparrow$ --- best \gn{61\%}
+        \item \hl{Subtasking effect} --- rarely empty-handed: \gn{$\geq$1 orange 97\%} vs.\ 56\%; completions $\pm$ a few pts
+        \item \hl{Auto-data effect} --- mixed: monotask $\uparrow$ (14$\rightarrow$18\%), subtask $\downarrow$ (20$\rightarrow$13\%)
+        \item \hl{Fine-tuning effect} --- partial inconsistent; \hl{full} decisive: \emph{every} family $\uparrow$, best \gn{61\%}
       \end{itemize}
     \end{column}
     \begin{column}{0.60\textwidth}
@@ -356,13 +356,13 @@
 % ===== 10. Results: grasp bottleneck =====
 \begin{frame}{Grasp acquisition is the bottleneck}
   \begin{itemize}
-    \item GRASP: \hl{$\sim$37\%} $\rightarrow$ \gn{55\%} (full tuning)
-    \item LIFT / PLACE: \hl{already reliable}
-    \item Monotask lift (no gate): \hl{56\% $\rightarrow$ 94\%}
+    \item \hl{Grasp is the bottleneck} --- secures \hl{$\sim$37\%} $\rightarrow$ \gn{55\%} (full); LIFT / PLACE reliable
+    \item \hl{Orchestrated LIFT is advantaged} --- the \hl{privileged gate} lets only secure grasps through; the monotask lifts \hl{unchecked}: 56--60\% vs.\ \gn{87--92\%}, closing only under \hl{full} tuning
   \end{itemize}
   \vfill
   \centering
-  \includegraphics[width=\textwidth,height=0.62\textheight,keepaspectratio]{failure_modes_variants_subtask.pdf}
+  \includegraphics[width=0.78\textwidth,height=0.355\textheight,keepaspectratio]{failure_modes_variants_subtask.pdf}\\[0.1em]
+  \includegraphics[width=0.78\textwidth,height=0.275\textheight,keepaspectratio]{failure_modes_variants_monotask.pdf}
 \end{frame}
 
 % ===== 11. Results: recovery at matched stalls =====
@@ -432,14 +432,7 @@
 % =========================================================
 {\setbeamercolor{frametitle}{fg=white,bg=ink}
 
-% ----- B1: monotask failure composition -----
-\begin{frame}{Backup: monotask lift/place composition}
-  \centering
-  \includegraphics[width=\textwidth,height=0.62\textheight,keepaspectratio]{failure_modes_variants_monotask.pdf}\\
-  {\footnotesize Full fine-tuning sharply cuts lift failures --- Teleop \hl{56\% $\rightarrow$ 94\%} success.}
-\end{frame}
-
-% ----- B2: baseline ACT vs SmolVLA -----
+% ----- B1: baseline ACT vs SmolVLA -----
 \begin{frame}{Backup: baseline --- is it the policy class?}
   \begin{columns}[c]
     \begin{column}{0.54\textwidth}
@@ -456,7 +449,7 @@
   \end{columns}
 \end{frame}
 
-% ----- B3: limitations -----
+% ----- B2: limitations -----
 \begin{frame}{Backup: limitations}
   \begin{itemize}
     \item \hl{Privileged supervision} --- deployment needs perception

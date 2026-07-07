@@ -183,8 +183,8 @@ talk**: **figure-driven and keyword-sparse** (the presenter narrates; each conte
 carries a few keywords + one figure/result, not full sentences). Figures are pulled
 directly from `report/figures/` (`\graphicspath{{../figures/}}`) and the deck **reuses the
 report's own figures** — all models, not slides-only simplifications. Bullets are
-**keyword fragments, not sentences** (the presenter develops them orally). **16 frames**
-(13 main + 3 Q&A backup), 16:9, sequential (every concept defined before use). The
+**keyword fragments, not sentences** (the presenter develops them orally). **15 frames**
+(13 main + 2 Q&A backup), 16:9, sequential (every concept defined before use). The
 narrative order is **user-prescribed — do not reorder without asking**: the problem stated
 generally (IL limited, OOD, goal = recover; illustrated by a small inline OOD-drift TikZ
 sketch) → the idea (VLA as **low-level controller**, a high-level controller interacting
@@ -199,11 +199,13 @@ bullet — no `dataset_composition.pdf` in the deck) → orchestrator & recovery
 (deep = standard: expert+state proj.; medium = partial adds embedding+LM; pale = full adds
 vision encoder), with legend chips; needs `fit,backgrounds,calc` tikzlibraries) →
 outcomes across all models
-(`orange_outcome_recipes.pdf`) → grasp bottleneck (`failure_modes_variants_subtask.pdf`)
-→ recovery stall table (`tab:level2_deadline`) → obedience (`grasp_obedience_confusion.pdf`)
-→ takeaways+future. **Backup** (dark title bar): monotask composition
-(`failure_modes_variants_monotask.pdf`), ACT-vs-SmolVLA baseline (`baseline_comparison.pdf`),
-limitations.
+(`orange_outcome_recipes.pdf`; bullets structured as **Subtasking / Auto-data /
+Fine-tuning effects** + the 100-seeded line) → grasp bottleneck (**both** composition
+figures stacked, `failure_modes_variants_subtask.pdf` + `_monotask.pdf`; bullets = grasp
+is the bottleneck + orchestrated LIFT advantaged by the privileged gate) → recovery stall
+table (`tab:level2_deadline`) → obedience (`grasp_obedience_confusion.pdf`) →
+takeaways+future. **Backup** (dark title bar): ACT-vs-SmolVLA baseline
+(`baseline_comparison.pdf`), limitations.
 
 Build:
 ```bash
