@@ -144,14 +144,14 @@
   \end{columns}
 \end{frame}
 
-% ===== 6. SmolVLA & fine-tuning recipes =====
-\begin{frame}{The policy: SmolVLA, and three fine-tuning recipes}
+% ===== 6. SmolVLA & fine-tuning variants =====
+\begin{frame}{The policy: SmolVLA, and three fine-tuning variants}
   \begin{itemize}
     \item Pretrained vision-language backbone (\texttt{SmolVLM2-500M}) + a small \hl{action expert} (flow matching).
     \item Outputs a \hl{chunk of 20 joint actions} per query (matches the 20-frame terminal hold used in data collection).
   \end{itemize}
   \vspace{0.3em}
-  Every model is trained under one of three recipes, compared in the results:
+  Every model is trained under one of three variants, compared in the results:
   \begin{itemize}
     \item \hl{Standard} --- backbone frozen; train only the \hl{action expert + state projection} ($\approx$100M of 450M params).
     \item \hl{Partial} --- additionally trains the \hl{language model} ($\approx$316M); vision encoder still frozen.
@@ -274,7 +274,7 @@
   {\footnotesize Question: does adding in-distribution successful data improve the orchestrated policy?}
 \end{frame}
 
-% ===== 14. Results: full-task (standard recipe) =====
+% ===== 14. Results: full-task (standard variant) =====
 \begin{frame}{Results: full task, standard fine-tuning (100 seeded scenes)}
   \begin{columns}[T]
     \begin{column}{0.52\textwidth}
@@ -293,7 +293,7 @@
   \end{columns}
 \end{frame}
 
-% ===== 15. Results: fine-tuning recipes =====
+% ===== 15. Results: fine-tuning variants =====
 \begin{frame}{Results: full fine-tuning is decisive --- and it is the vision encoder}
   \begin{columns}[T]
     \begin{column}{0.42\textwidth}
