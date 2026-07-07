@@ -1,7 +1,7 @@
 % Oral-presentation slides for the Master's project.
 % Built from the report (sections/*.tex) — final seeded results.
 % Narrative order: problem -> idea (language-conditioned recovery) -> environment
-% -> decomposition -> orchestrator -> datasets -> fine-tuning variants -> results.
+% -> decomposition -> datasets -> orchestrator -> fine-tuning variants -> results.
 % Keyword-style bullets: the presenter develops them orally.
 % Build: export PATH="/home/students/texlive/2026/bin/x86_64-linux:$PATH"
 %        latexmk -pdf -interaction=nonstopmode -halt-on-error slides.tex
@@ -90,13 +90,45 @@
 
 % ===== 2. Problem / goal =====
 \begin{frame}{The problem}
-  \begin{itemize}
-    \item \hl{Imitation learning} --- mimic demonstrations
-    \item Demos = \hl{successes only}
-    \item One slip $\rightarrow$ \hl{out of distribution} $\rightarrow$ lost
-    \item Long horizon $\rightarrow$ errors \hl{compound}
-    \item No failure \hl{detection}, no \hl{interruption}
-  \end{itemize}
+  \begin{columns}[c]
+    \begin{column}{0.52\textwidth}
+      \begin{itemize}
+        \item \hl{Imitation learning} --- mimic demonstrations
+        \item Demos = \hl{successes only}
+        \item One slip $\rightarrow$ \hl{out of distribution} $\rightarrow$ lost
+        \item Long horizon $\rightarrow$ errors \hl{compound}
+        \item No failure \hl{detection}, no \hl{interruption}
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \centering
+      \begin{tikzpicture}[font=\footnotesize, scale=0.88, >=Latex]
+        % training-distribution band
+        \draw[line width=30pt, blue!11, line cap=round]
+          (0,0) .. controls (1.7,0.85) and (3.1,0.85) .. (4.7,0.15);
+        % demonstration trajectories
+        \draw[blue!55!black, thick]
+          (0,0.13) .. controls (1.7,0.98) and (3.1,0.98) .. (4.7,0.28);
+        \draw[blue!55!black, thick, opacity=0.5]
+          (0,-0.12) .. controls (1.7,0.7) and (3.1,0.7) .. (4.7,0.0);
+        \node[blue!55!black, anchor=west] at (0.4,-0.75) {demonstrations};
+        % goal
+        \node[good, font=\large] at (5.05,0.15) {$\star$};
+        \node[good, anchor=west] at (5.2,0.15) {goal};
+        % policy rollout drifting out
+        \draw[red!75!black, very thick, densely dashed, ->]
+          (0,0.0) .. controls (0.9,0.55) .. (1.8,0.6)
+                  .. controls (2.5,0.55) and (2.8,-0.35) .. (3.2,-1.15);
+        \fill[red!75!black] (1.8,0.6) circle (1.7pt);
+        \node[red!75!black, anchor=south] at (1.8,0.78) {slip};
+        \node[red!75!black, anchor=north, align=center] at (2.7,-1.3) {out of distribution\\--- no data};
+        % recovery arrow
+        \draw[good, thick, dotted, ->]
+          (3.45,-1.0) .. controls (4.35,-0.6) .. (4.6,-0.15);
+        \node[good, anchor=west] at (4.25,-0.95) {recover?};
+      \end{tikzpicture}
+    \end{column}
+  \end{columns}
   \vfill
   \begin{block}{Goal}
     \hl{Detect} failures \; $\cdot$ \; \hl{recover} \; $\cdot$ \; keep the task moving
@@ -106,31 +138,108 @@
 % ===== 3. Idea =====
 \begin{frame}{The idea: recovery through language}
   \begin{itemize}
-    \item \hl{VLA} (vision--language--action) --- policy conditioned on a \hl{language instruction}
-    \item Instruction = a \hl{run-time control knob}
-    \item Task $\rightarrow$ \hl{simple language-instructed steps}
-    \item Check each step $\rightarrow$ \hl{retry} \,/\, \hl{switch target} with a new instruction
+    \item \hl{VLA} (vision--language--action) --- policy conditioned on \hl{language}
+    \item VLA $=$ \hl{low-level controller} --- executes motions
+    \item On top: a \hl{high-level controller} --- monitors, decides \emph{what} to do
+    \item They interact \hl{via text} --- a new instruction $=$ retry / new target
   \end{itemize}
   \vfill
-  \textbf{Built:} \hl{subtask dataset} \; $\cdot$ \; \hl{orchestrator} \; $\cdot$ \; \hl{autonomous data} probe
+  \centering
+  \resizebox{0.8\textwidth}{!}{%
+    \begin{tikzpicture}[
+        font=\small, >=Latex, node distance=10mm,
+        stage/.style={draw, thick, rounded corners=3pt, align=center,
+                      minimum height=12mm, inner sep=4pt},
+        data/.style={stage, draw=teal!60!black, fill=teal!10},
+        model/.style={stage, draw=orange!85!black, fill=orange!16},
+        orchs/.style={stage, draw=blue!60!black, fill=blue!10},
+        env/.style={stage, draw=black!55, fill=black!7},
+        srcbox/.style={draw, rounded corners=2pt, draw=teal!55!black, fill=teal!5,
+                       align=center, font=\footnotesize, minimum height=9mm, text width=22mm, inner sep=2pt},
+        group/.style={draw, dashed, rounded corners=4pt, inner sep=3.4mm},
+        arr/.style={->, thick, draw=black!70},
+        loop/.style={->, thick, draw=teal!55!black, dashed},
+        gamepad/.pic={
+            \draw[fill=teal!22, draw=teal!65!black, line width=0.5pt, line join=round]
+                (-0.5,0.08)
+                .. controls (-0.5,0.24) and (-0.34,0.26) .. (-0.18,0.26)
+                -- (0.18,0.26)
+                .. controls (0.34,0.26) and (0.5,0.24) .. (0.5,0.08)
+                -- (0.5,-0.10)
+                .. controls (0.5,-0.34) and (0.30,-0.36) .. (0.18,-0.22)
+                .. controls (0.07,-0.10) and (-0.07,-0.10) .. (-0.18,-0.22)
+                .. controls (-0.30,-0.36) and (-0.5,-0.34) .. (-0.5,-0.10)
+                -- cycle;
+            \fill[white] (-0.34,-0.03) rectangle (-0.18,0.03);
+            \fill[white] (-0.29,-0.08) rectangle (-0.23,0.08);
+            \fill[white] (0.26,0.07) circle (0.025);
+            \fill[white] (0.26,-0.07) circle (0.025);
+            \fill[white] (0.19,0.0) circle (0.025);
+            \fill[white] (0.33,0.0) circle (0.025);
+        },
+    ]
+        % --- LeRobot group: datasets feed fine-tuning ---
+        \node[data] (data) {\textbf{Datasets}};
+        \node[model, right=of data] (train) {\textbf{SmolVLA}\\\footnotesize fine-tuning};
+
+        % --- Isaac Sim group: orchestrator prompts the policy; policy drives the robot ---
+        \node[model, right=26mm of train] (vla) {\textbf{SmolVLA}\\\footnotesize policy};
+        \node[env, right=20mm of vla] (robot) {\textbf{Simulated}\\\textbf{robot}};
+        \coordinate (vrmid) at ($(vla)!0.5!(robot)$);
+        \node[orchs, above=16mm of vrmid] (orch) {\textbf{Orchestrator}\\\footnotesize GRASP / LIFT / PLACE};
+
+        % --- data sources (left of the dataset stage) ---
+        \node[srcbox] (base) [left=13mm of data, yshift=-5mm] {Public dataset\\{\scriptsize HuggingFace}};
+        \node[srcbox] (tele) [above=4mm of base] {Teleoperation\\{\scriptsize LeIsaac / Isaac Sim}};
+        \pic[scale=0.72] at ([yshift=6mm]tele.north) {gamepad};
+
+        % --- framework / environment grouping ---
+        \begin{scope}[on background layer]
+            \node[group, draw=black!45, fill=black!3, fit=(data)(train),
+                  label={[font=\footnotesize\bfseries, black!55]above:LeRobot}] {};
+            \node[group, draw=green!45!black, fill=green!5, fit=(vla)(robot)(orch),
+                  label={[font=\footnotesize\bfseries, green!45!black]above:Isaac Sim (LeIsaac) --- inference}] (isim) {};
+        \end{scope}
+
+        % --- arrows ---
+        \draw[arr] (tele.east) -- (data.west);
+        \draw[arr] (base.east) -- (data.west);
+        \draw[arr] (data) -- (train);
+        \draw[arr] (train.east) -- node[above, font=\scriptsize, align=center]{fine-tuned\\policy} (vla.west);
+
+        % orchestrator -> policy -> robot -> orchestrator (inside Isaac Sim)
+        \draw[arr] (orch.south west) -- node[midway, left, font=\scriptsize]{prompt} (vla.north);
+        \draw[arr] (vla.east) -- node[midway, below, font=\scriptsize]{actions} (robot.west);
+        \draw[arr] (robot.north) -- node[midway, right, font=\scriptsize]{state} (orch.south east);
+
+        % --- autonomous-data feedback loop ---
+        \draw[loop] (isim.south) -- ++(0,-0.7) -| (data.south);
+        \node[font=\footnotesize, text=teal!45!black, align=center]
+            at ($(data.south)!0.5!(isim.south)+(0,-0.35)$)
+            {successful subtask rollouts \;(autonomous \emph{Auto} data)};
+    \end{tikzpicture}%
+  }
 \end{frame}
 
 % ===== 4. Environment & task =====
 \begin{frame}{Environment \& task}
+  \begin{itemize}
+    \item \hl{SO-101} arm --- \hl{5 joints $+$ 1 gripper} --- Isaac Sim
+    \item \hl{3 oranges $\rightarrow$ plate} \; $\cdot$ \; score 0--3
+    \item Policy sees \hl{2 cameras $+$ joint state} --- \hl{no object poses}
+  \end{itemize}
+  \vfill
+  \centering
   \begin{columns}[c]
-    \begin{column}{0.52\textwidth}
-      \begin{itemize}
-        \item \hl{SO-101} arm --- Isaac Sim
-        \item \hl{3 oranges $\rightarrow$ plate} \; $\cdot$ \; score 0--3
-        \item Policy: \hl{SmolVLA} --- 2 cameras $+$ joints, \hl{no object poses}
-        \item Long horizon --- thousands of steps
-      \end{itemize}
-    \end{column}
-    \begin{column}{0.48\textwidth}
+    \begin{column}{0.5\textwidth}
       \centering
-      \includegraphics[width=\textwidth,height=0.42\textheight,keepaspectratio]{environment_top_view.png}\\[0.4em]
-      \includegraphics[width=0.72\textwidth,height=0.34\textheight,keepaspectratio]{environment_plate_closeup.png}\\
-      {\footnotesize Top camera \,\textbullet\, wrist camera}
+      \includegraphics[height=4.1cm]{environment_top_view.png}\\[0.2em]
+      {\footnotesize\color{gray} Top camera}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \centering
+      \includegraphics[height=4.1cm]{environment_plate_closeup.png}\\[0.2em]
+      {\footnotesize\color{gray} Wrist camera}
     \end{column}
   \end{columns}
 \end{frame}
@@ -141,17 +250,34 @@
     \item \hl{GRASP $\rightarrow$ LIFT $\rightarrow$ PLACE} --- each a \hl{checkpoint}, outcome \hl{verified}
     \item GRASP targets \hl{by position} --- ``left / middle / right orange''
     \item LIFT gated on a \hl{secure grasp} --- centred $+$ contact force
-    \item Comparison: \hl{monotask} --- one prompt, end-to-end
   \end{itemize}
   \vfill
   \begin{columns}[c]
-    \column{0.32\textwidth}\centering\includegraphics[height=2.4cm]{grasp.png}\\\textbf{GRASP}
-    \column{0.32\textwidth}\centering\includegraphics[height=2.4cm]{pick.png}\\\textbf{LIFT}
-    \column{0.32\textwidth}\centering\includegraphics[height=2.4cm]{place.png}\\\textbf{PLACE}
+    \column{0.32\textwidth}\centering\includegraphics[height=2.6cm]{grasp.png}\\\textbf{GRASP}
+    \column{0.32\textwidth}\centering\includegraphics[height=2.6cm]{pick.png}\\\textbf{LIFT}
+    \column{0.32\textwidth}\centering\includegraphics[height=2.6cm]{place.png}\\\textbf{PLACE}
   \end{columns}
 \end{frame}
 
-% ===== 6. Orchestrator + recovery =====
+% ===== 6. Datasets =====
+\begin{frame}{Datasets}
+  \begin{columns}[c]
+    \begin{column}{0.52\textwidth}
+      \begin{itemize}
+        \item \hl{846 Teleop} subtask episodes --- gamepad \; $\cdot$ \; \hl{random pick order} \; $\cdot$ \; \hl{freeze tail}
+        \item Flattened end-to-end $\rightarrow$ \hl{monotask} baseline --- one prompt, \hl{same data}
+        \item \hl{$+414$ Auto} --- self-generated, successes only $\rightarrow$ \hl{Teleop+Auto}
+        \item Also: \hl{60 public} end-to-end demos (LightwheelAI)
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \centering
+      \includegraphics[width=\textwidth]{dataset_composition.pdf}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ===== 7. Orchestrator + recovery =====
 \begin{frame}{Orchestrator \& recovery}
   \begin{columns}[c]
     \begin{column}{0.54\textwidth}
@@ -166,24 +292,6 @@
     \begin{column}{0.46\textwidth}
       \centering
       \includegraphics[width=\textwidth]{orchestrator_decision_flow.pdf}
-    \end{column}
-  \end{columns}
-\end{frame}
-
-% ===== 7. Datasets =====
-\begin{frame}{Datasets}
-  \begin{columns}[c]
-    \begin{column}{0.52\textwidth}
-      \begin{itemize}
-        \item \hl{846 Teleop} subtask episodes --- gamepad \; $\cdot$ \; \hl{random pick order} \; $\cdot$ \; \hl{freeze tail}
-        \item Flattened $\rightarrow$ \hl{monotask} set --- matched comparison
-        \item \hl{$+414$ Auto} --- self-run, successes only $\rightarrow$ \hl{Teleop+Auto}
-        \item Baseline: \hl{60 public} end-to-end demos
-      \end{itemize}
-    \end{column}
-    \begin{column}{0.48\textwidth}
-      \centering
-      \includegraphics[width=\textwidth]{dataset_composition.pdf}
     \end{column}
   \end{columns}
 \end{frame}
