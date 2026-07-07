@@ -371,8 +371,10 @@
 \end{frame}
 
 % ===== 11. Results: recovery at matched stalls =====
-\begin{frame}{Recovery, compared at matched stalls}
-  {\footnotesize \hl{Stall} = one grasp budget stuck on one orange (monotask intent $\approx$ \emph{proximity}). What happens next?}
+\begin{frame}{Level-2 recovery, compared at matched stalls}
+  % NB: must not start with a bare "{...}" group — beamer would parse it as the
+  % frame subtitle, which this deck's frametitle template never typesets.
+  \begingroup\footnotesize \hl{Stall} $=$ one grasp budget stuck on one orange, nothing secured (monotask intent $\approx$ \emph{proximity}) \; $\cdot$ \; data: \hl{standard} fine-tuning\par\endgroup
   \vfill
   \centering\small
   \begin{tabular}{llccc}
@@ -389,7 +391,7 @@
   \vfill
   \begin{itemize}
     \item Orchestrator: \hl{redirects every time} \; $\cdot$ \; monotask: \hl{$\sim$half}
-    \item Gap $=$ \hl{different-orange column} \; $\cdot$ \; Level-1 marginal
+    \item Recovery gap $=$ \hl{different-orange column} --- the \hl{Level-2} payoff
   \end{itemize}
 \end{frame}
 
@@ -413,13 +415,17 @@
 % ===== 13. Takeaways + future =====
 \begin{frame}{Takeaways \& future work}
   \begin{itemize}
-    \item Helps \hl{most where grasping is weak} --- rarely empty-handed (Level-2)
-    \item \hl{Cannot fix a weak grasp} --- a \hl{stronger policy} did (vision), not more structure
-    \item Two \hl{complementary levers} --- better grasping $+$ graceful failure
-    \item This task: the orchestration's \hl{floor}, not its ceiling
+    \item Failure becomes \hl{gradual, not total} --- Level-2 redirection; strongest on \hl{weak} policies
+    \item \hl{Grasp acquisition} stays the bottleneck --- upstream of every check; moved by \hl{full fine-tuning}, not by more structure
   \end{itemize}
   \vfill
-  \textbf{Next:} RL / targeted grasp demos \; $\cdot$ \; \hl{from-any-state} data \; $\cdot$ \; \hl{VLM success monitor}
+  \textbf{Future work}
+  \begin{itemize}
+    \item \hl{Better demonstrations} --- 5-joint arm made teleop hard: a \hl{6-DOF arm} $\rightarrow$ larger, cleaner dataset \; $\cdot$ \; \hl{RL} or targeted demos for the hard grasps (self-generated data cannot find them)
+    \item \hl{From-any-state} subtask data --- today chronological-only: obeys the prompt $\sim$2/3, cannot redirect near an orange (hence the \hl{home reset})
+    \item \hl{VLM success monitor} --- replace the privileged sim-state checks $\rightarrow$ deployable on a real robot
+    \item \hl{Richer tasks} --- this one shows the \hl{floor}: ordering constraints, irreversible steps $\rightarrow$ an \hl{FSM or LM/VLM} selects the subtasks
+  \end{itemize}
 \end{frame}
 
 % ===== 14. Thanks =====
