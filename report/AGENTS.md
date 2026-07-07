@@ -182,15 +182,17 @@ Oral-presentation deck, **LaTeX/Beamer** — `slides/slides.tex`. Built for a **
 talk**: **figure-driven and keyword-sparse** (the presenter narrates; each content slide
 carries a few keywords + one figure/result, not full sentences). Figures are pulled
 directly from `report/figures/` (`\graphicspath{{../figures/}}`) and the deck **reuses the
-report's own figures** — all models, not slides-only simplifications. **17 frames** (14
-main + 3 Q&A backup), 16:9, sequential (every concept — monotask, subtask, Teleop/Auto,
-the three fine-tuning variants, Level-1/Level-2 recovery, home-pose reset — is defined
-before use). Flow: the task (env figures) → learned policy & why it's brittle (defines
-IL/VLA/SmolVLA) → decompose+orchestrate idea → SmolVLA + 3 variants (the architecture
-TikZ from `methodology.tex` ported inline; needs `fit,backgrounds,calc` tikzlibraries) →
-two formulations (**monotask defined here** vs subtask GRASP/LIFT/PLACE + grasp gate) →
-orchestrator (`orchestrator_decision_flow.pdf`) → training data (Teleop, flattened→
-monotask set, Auto, public baseline demos; `dataset_composition.pdf`) → outcomes across all models
+report's own figures** — all models, not slides-only simplifications. Bullets are
+**keyword fragments, not sentences** (the presenter develops them orally). **17 frames**
+(14 main + 3 Q&A backup), 16:9, sequential (every concept defined before use). The
+narrative order is **user-prescribed — do not reorder without asking**: the problem stated
+generally (IL limited, OOD, goal = recover) → the idea (leverage VLA **language
+conditioning** for recovery) → environment & task (env figures) → subtask decomposition
+(**monotask defined here** as the comparison; GRASP/LIFT/PLACE + grasp gate) →
+orchestrator & recovery (`orchestrator_decision_flow.pdf`) → datasets (Teleop, flattened→
+monotask set, Auto, public baseline demos; `dataset_composition.pdf`) → fine-tuning
+variants (**schematic only**: the SmolVLA TikZ from `methodology.tex` ported inline; needs
+`fit,backgrounds,calc` tikzlibraries) → outcomes across all models
 (`orange_outcome_recipes.pdf`) → grasp bottleneck (`failure_modes_variants_subtask.pdf`)
 → recovery stall table (`tab:level2_deadline`) → obedience (`grasp_obedience_confusion.pdf`)
 → takeaways+future. **Backup** (dark title bar): monotask composition
