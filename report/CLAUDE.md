@@ -183,8 +183,8 @@ talk**: **figure-driven and keyword-sparse** (the presenter narrates; each conte
 carries a few keywords + one figure/result, not full sentences). Figures are pulled
 directly from `report/figures/` (`\graphicspath{{../figures/}}`) and the deck **reuses the
 report's own figures** — all models, not slides-only simplifications. Bullets are
-**keyword fragments, not sentences** (the presenter develops them orally). **15 frames**
-(13 main + 2 Q&A backup), 16:9, sequential (every concept defined before use). The
+**keyword fragments, not sentences** (the presenter develops them orally). **16 frames**
+(13 main + a full-screen results-figure backup + 2 Q&A backup), 16:9, sequential (every concept defined before use). The
 narrative order is **user-prescribed — do not reorder without asking**: the problem stated
 generally (IL limited, OOD, goal = recover; illustrated by a small inline OOD-drift TikZ
 sketch) → the idea (VLA as **low-level controller**, a high-level controller interacting
