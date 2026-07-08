@@ -141,7 +141,7 @@
     \item Split \hl{doing} from \hl{thinking} --- \hl{low level} $=$ execute one \hl{atomistic subtask}; \hl{high level} $=$ decide \emph{which} subtask, \emph{when}
     \item \hl{Low level} $=$ the \hl{VLA} (vision--language--action) --- a reflexive \hl{executor}, one subtask at a time \; ($\Rightarrow$ \hl{should be good enough})
     \item \hl{High level} $=$ a \hl{controller} --- \emph{what} to do / \emph{when} to recover; upgradeable on its own (\hl{algorithm} now $\rightarrow$ \hl{stronger model} later)
-    \item \hl{Language} $=$ the \hl{bridge} --- interface between the levels; a new instruction re-directs the VLA (retry / new target)
+    \item \hl{Language} $=$ the \hl{bridge} --- interface between the levels
   \end{itemize}
   \vfill
   \centering
@@ -272,8 +272,7 @@
       \small
       \begin{itemize}
         \item \hl{Finite-state machine} --- select target $\rightarrow$ prompt $\rightarrow$ read outcome $\rightarrow$ transition
-        \item Checks: \hl{privileged sim state} --- policy never sees it
-        \item \hl{Grasp gate} --- LIFT only on a \hl{secure} grasp (centred $+$ force)
+        \item \hl{Checks}: \hl{privileged sim state} --- policy never sees it; e.g.\ LIFT only starts on a \hl{secure} grasp (centred $+$ force)
         \item \hl{Success / Failure / Timeout} --- each subtask's outcome
         \item \hl{Level-1 retry} (\textbf{same} orange) \; $\cdot$ \; \hl{Level-2 redirect} (\textbf{different}, keeps scoring)
         \item \hl{Home reset} --- precondition; target switch only \hl{far from oranges}
