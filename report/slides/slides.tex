@@ -347,9 +347,9 @@
     \begin{column}{0.40\textwidth}
       \begin{itemize}
         \item \hl{100 seeded} episodes / model
-        \item \hl{Subtasking effect} --- \hl{strong on weak policies} (Level-2 recovery, checks): \gn{$\geq$1 orange 97\%} vs.\ 56\%; completions $\pm$ a few pts
-        \item \hl{Auto-data effect} --- mixed: monotask $\uparrow$ (14$\rightarrow$18\%), subtask $\downarrow$ (20$\rightarrow$13\%)
-        \item \hl{Fine-tuning effect} --- partial inconsistent; \hl{full} decisive: \emph{every} family $\uparrow$, best \gn{61\%}
+        \item \hl{Subtasking effect} --- \hl{strong on weak policies} (Level-2 recovery, checks): \gn{almost never ends empty}; completions barely move
+        \item \hl{Auto-data effect} --- mixed: monotask $\uparrow$, subtask $\downarrow$
+        \item \hl{Fine-tuning effect} --- partial inconsistent; \hl{full} decisive: \emph{every} family $\uparrow$
       \end{itemize}
     \end{column}
     \begin{column}{0.60\textwidth}
@@ -390,21 +390,21 @@
   \begingroup\footnotesize \hl{Stall} $=$ one grasp budget stuck on one orange, nothing secured (monotask intent $\approx$ \emph{proximity}) \; $\cdot$ \; data: \hl{standard} fine-tuning\par\endgroup
   \vfill
   \centering\small
-  \begin{tabular}{llccc}
+  \begin{tabular}{llcccc}
     \toprule
-    Training & Form. & Redirected & Placed after & \dots via \emph{different} orange \\
+    Training & Form. & Redirected & Placed after & \dots via \emph{different} & Median steps \\
     \midrule
-    Teleop      & Monotask          & 53.5\%     & 31.4\%        & 16.3\% \\
-    Teleop      & \textbf{Subtask}  & \gn{100\%} & \gn{71.2\%}   & \gn{53.4\%} \\
+    Teleop      & Monotask          & 53.5\%     & 31.4\%        & 16.3\%       & 1440 \\
+    Teleop      & \textbf{Subtask}  & \gn{100\%} & \gn{71.2\%}   & \gn{53.4\%}  & \gn{\textbf{1030}} \\
     \midrule
-    Teleop+Auto & Monotask          & 45.2\%     & 34.4\%        & 17.2\% \\
-    Teleop+Auto & \textbf{Subtask}  & \gn{100\%} & \gn{43.2\%}   & \gn{33.7\%} \\
+    Teleop+Auto & Monotask          & 45.2\%     & 34.4\%        & 17.2\%       & 1305 \\
+    Teleop+Auto & \textbf{Subtask}  & \gn{100\%} & \gn{43.2\%}   & \gn{33.7\%}  & 1214 \\
     \bottomrule
   \end{tabular}
   \vfill
   \begin{itemize}
-    \item Orchestrator: \hl{redirects every time} \; $\cdot$ \; monotask: \hl{$\sim$half}
-    \item Recovery gap $=$ \hl{different-orange column} --- the \hl{Level-2} payoff
+    \item Counted only \hl{recoverable} stalls --- \hl{$\geq$1 other orange} still unplaced (redirection even possible)
+    \item \dots\ and only with \hl{time to recover} --- \hl{$\geq$1500 steps left} in the budget
   \end{itemize}
 \end{frame}
 
