@@ -432,8 +432,8 @@
       \textbf{Conclusion}
       \begin{itemize}
         \item \hl{Strongest on weak policies} --- eliminates \hl{complete failure}: rarely ends \hl{empty-handed} (abandon $+$ place another)
-        \item \hl{Full completion} too: subtask $>$ monotask \hl{on average} --- not on every family; largest gains from a \hl{stronger policy}
-        \item \hl{Maybe overkill here} --- interchangeable objects, ordering-free $=$ the \hl{floor}; richer tasks $\rightarrow$ more room
+        \item \hl{Auto-data doesn't seem useful} --- self-generated subtasks gave \hl{no reliable gain}
+        \item \hl{Shows its floor here} --- a simple task (interchangeable objects, ordering-free); \hl{richer tasks} $\rightarrow$ bigger payoff
       \end{itemize}
     \end{column}
     \begin{column}{0.48\textwidth}
@@ -441,10 +441,10 @@
       \textbf{Limitations}
       \begin{itemize}
         \item \hl{Privileged supervision} --- sim state; deployment needs perception
-        \item \hl{Matched-regime confound} --- full variant: batch 32 / 40k / chunk 50 (controls bound it)
+        \item \hl{Not a fair comparison} --- the full models trained with different settings (batch / steps / chunk); controls bound it
         \item \hl{Chronological data only} --- obeys prompt $\sim$2/3; can't redirect near an orange $\rightarrow$ home reset
-        \item \hl{Hand-set orchestrator} --- step budgets $+$ FSM unoptimised
-        \item \hl{100 episodes} / model --- small gaps may be noise
+        \item \hl{Too-simple ``RL''} --- self-improvement loop with \hl{no real exploration}, \hl{no reward function}
+        \item \hl{Few, noisy evaluations} --- small episode count $+$ \hl{non-deterministic} sim $\rightarrow$ small gaps are noise
       \end{itemize}
     \end{column}
   \end{columns}
