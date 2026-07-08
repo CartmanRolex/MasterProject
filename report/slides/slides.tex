@@ -475,39 +475,4 @@
   {\footnotesize Gal Pascual \,\textbullet\, EPFL CREATE Lab / Sycamore Lab}
 \end{frame}}
 
-% =========================================================
-% ===============   BACKUP  (for Q&A)   ===================
-% =========================================================
-{\setbeamercolor{frametitle}{fg=white,bg=ink}
-
-% ----- B1: baseline ACT vs SmolVLA -----
-\begin{frame}{Backup: baseline --- is it the policy class?}
-  \begin{columns}[c]
-    \begin{column}{0.54\textwidth}
-      \begin{itemize}
-        \item 60 public end-to-end demos, one fixed prompt (\hl{monotask})
-        \item \hl{SmolVLA $>$ ACT} --- 43\% vs.\ 13\%; still only \hl{43 / 100}
-        \item[$\Rightarrow$] Limit $=$ \hl{execution structure}, not policy expressiveness
-      \end{itemize}
-    \end{column}
-    \begin{column}{0.46\textwidth}
-      \centering
-      \includegraphics[width=\textwidth]{baseline_comparison.pdf}
-    \end{column}
-  \end{columns}
-\end{frame}
-
-% ----- B2: limitations -----
-\begin{frame}{Backup: limitations}
-  \begin{itemize}
-    \item \hl{Privileged supervision} --- deployment needs perception
-    \item \hl{Matched-regime confound} --- full variant: batch 32 / 40k (controls bound it)
-    \item \hl{Composite-label inconsistency} --- labels by eye vs.\ 3\,cm rule
-    \item \hl{Limited sampling} --- 100 episodes / model
-    \item \hl{Slow execution} --- slow teleop $\rightarrow$ long rollouts
-  \end{itemize}
-\end{frame}
-
-}
-
 \end{document}

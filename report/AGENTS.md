@@ -183,8 +183,8 @@ talk**: **figure-driven and keyword-sparse** (the presenter narrates; each conte
 carries a few keywords + one figure/result, not full sentences). Figures are pulled
 directly from `report/figures/` (`\graphicspath{{../figures/}}`) and the deck **reuses the
 report's own figures** — all models, not slides-only simplifications. Bullets are
-**keyword fragments, not sentences** (the presenter develops them orally). **17 frames**
-(14 main + a full-screen results-figure backup + 2 Q&A backup), 16:9, sequential (every concept defined before use). The
+**keyword fragments, not sentences** (the presenter develops them orally). **15 frames**
+(14 main + a full-screen results-figure backup; the Q&A backup slides were removed), 16:9, sequential (every concept defined before use). The
 narrative order is **user-prescribed — do not reorder without asking**: the problem stated
 generally (IL limited, OOD, goal = recover; illustrated by a small inline OOD-drift TikZ
 sketch) → the idea (VLA as **low-level controller**, a high-level controller interacting
@@ -206,8 +206,7 @@ Fine-tuning effects** + the 100-seeded line) → grasp bottleneck (bullets left,
 figures stacked in a wide right column, `failure_modes_variants_subtask.pdf` + `_monotask.pdf`; bullets = grasp
 is the bottleneck + orchestrated LIFT advantaged by the privileged gate) → recovery stall
 table (`tab:level2_deadline`) → obedience (`grasp_obedience_confusion.pdf`) →
-conclusion \& limitations $\rightarrow$ future work. **Backup** (dark title bar): ACT-vs-SmolVLA baseline
-(`baseline_comparison.pdf`), limitations.
+conclusion \& limitations $\rightarrow$ future work.
 
 Build:
 ```bash
