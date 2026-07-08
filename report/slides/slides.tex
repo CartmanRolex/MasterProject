@@ -1,6 +1,6 @@
 % Oral-presentation slides for the Master's project.
 % Built from the report (sections/*.tex) — final seeded results.
-% Narrative order: problem -> idea (language-conditioned recovery) -> environment
+% Narrative order: problem -> idea (separate doing/thinking; language bridges) -> environment
 % -> decomposition -> datasets -> orchestrator -> fine-tuning variants -> results.
 % Keyword-style bullets: the presenter develops them orally.
 % Build: export PATH="/home/students/texlive/2026/bin/x86_64-linux:$PATH"
@@ -136,12 +136,12 @@
 \end{frame}
 
 % ===== 3. Idea =====
-\begin{frame}{The idea: recovery through language}
+\begin{frame}{The idea: separate the doing from the thinking}
   \begin{itemize}
-    \item \hl{VLA} (vision--language--action) --- a \hl{language}-conditioned motor policy
-    \item Delegate the \hl{``muscle memory''} to the VLA --- reflexive, short-horizon motor skill \; ($\Rightarrow$ \hl{should be good enough})
-    \item Keep the \hl{thinking} in a \hl{high-level controller} --- \emph{what} to do / \emph{when} to recover; made \hl{smarter / more robust} on its own: \hl{algorithm} now $\rightarrow$ \hl{stronger model} later
-    \item They interact \hl{via text} --- a new instruction $=$ retry / new target
+    \item Split \hl{doing} from \hl{thinking} --- \hl{low-level} execution vs \hl{high-level} decisions
+    \item \hl{Low level} $=$ the \hl{VLA} (vision--language--action) --- reflexive \hl{``muscle memory''}, one subtask at a time \; ($\Rightarrow$ \hl{should be good enough})
+    \item \hl{High level} $=$ a \hl{controller} --- \emph{what} to do / \emph{when} to recover; upgradeable on its own (\hl{algorithm} now $\rightarrow$ \hl{stronger model} later)
+    \item \hl{Language} $=$ the \hl{bridge} --- interface between the levels; a new instruction re-directs the VLA (retry / new target)
   \end{itemize}
   \vfill
   \centering
