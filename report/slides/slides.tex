@@ -432,10 +432,9 @@
       \small
       \textbf{Conclusion}
       \begin{itemize}
-        \item Wrapping a \hl{controller} around the policy --- \hl{real but selective} payoff
-        \item \hl{Failure gradual, not total} --- rarely ends \hl{empty-handed}; strongest on \hl{weak} policies
-        \item \hl{Full completion} not reliably raised --- \hl{grasp} is upstream of every check; moved by a \hl{stronger policy}, not more structure
-        \item Two \hl{complementary} levers --- this task shows the \hl{floor} (interchangeable objects, ordering-free)
+        \item \hl{Strongest on weak policies} --- eliminates \hl{complete failure}: rarely ends \hl{empty-handed} (abandon $+$ place another)
+        \item \hl{Full completion} not raised --- the real limit is \hl{grasp acquisition}, moved by a \hl{stronger policy}, not more structure
+        \item \hl{Maybe overkill here} --- interchangeable objects, ordering-free $=$ the \hl{floor}; richer tasks $\rightarrow$ more room
       \end{itemize}
     \end{column}
     \begin{column}{0.48\textwidth}
@@ -462,7 +461,7 @@
   \vfill
   \textbf{Orchestration} \; --- \; largely orthogonal to the policy, generalise it
   \begin{itemize}
-    \item \hl{VLM success monitor} --- replace the privileged sim-state checks $\rightarrow$ deployable on a \hl{real robot}
+    \item \hl{Drop the privileged check} --- judge subtask completion from \hl{observations}: the \hl{VLA itself} signals done, or an \hl{external model} $\rightarrow$ deployable on a \hl{real robot}
     \item \hl{Richer tasks} --- ordering constraints, irreversible steps $\rightarrow$ an \hl{FSM or LM/VLM} selects subtasks; VLA signals completion
   \end{itemize}
 \end{frame}
