@@ -95,7 +95,7 @@
       \begin{itemize}
         \item \hl{Imitation learning} --- mimic demonstrations
         \item Demos = \hl{successes only}
-        \item One slip $\rightarrow$ \hl{out of distribution} $\rightarrow$ lost
+        \item One failure $\rightarrow$ \hl{out of distribution} $\rightarrow$ lost
         \item Long horizon $\rightarrow$ errors \hl{compound}
         \item No failure \hl{detection}, no \hl{interruption}
       \end{itemize}
@@ -120,7 +120,7 @@
           (0,0.0) .. controls (0.9,0.55) .. (1.8,0.6)
                   .. controls (2.5,0.55) and (2.8,-0.35) .. (3.2,-1.15);
         \fill[red!75!black] (1.8,0.6) circle (1.7pt);
-        \node[red!75!black, anchor=south] at (1.8,0.78) {slip};
+        \node[red!75!black, anchor=south] at (1.8,0.78) {failure};
         \node[red!75!black, anchor=north, align=center] at (2.7,-1.3) {out of distribution\\--- no data};
         % recovery arrow
         \draw[good, thick, dotted, ->]
