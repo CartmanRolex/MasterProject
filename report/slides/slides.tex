@@ -138,9 +138,9 @@
 % ===== 3. Idea =====
 \begin{frame}{The idea: recovery through language}
   \begin{itemize}
-    \item \hl{VLA} (vision--language--action) --- policy conditioned on \hl{language}
-    \item VLA $=$ \hl{low-level controller} --- executes motions
-    \item On top: a \hl{high-level controller} --- monitors, decides \emph{what} to do
+    \item \hl{VLA} (vision--language--action) --- a \hl{language}-conditioned motor policy
+    \item Delegate the \hl{``muscle memory''} to the VLA --- reflexive, short-horizon motor skill \; ($\Rightarrow$ \hl{should be good enough})
+    \item Keep the \hl{thinking} in a \hl{high-level controller} --- \emph{what} to do / \emph{when} to recover; made \hl{smarter / more robust} on its own: \hl{algorithm} now $\rightarrow$ \hl{stronger model} later
     \item They interact \hl{via text} --- a new instruction $=$ retry / new target
   \end{itemize}
   \vfill
