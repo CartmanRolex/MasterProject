@@ -65,18 +65,20 @@ The **control** `…-unfrozen-vlm-b32s40k` isolates the batch32/40k regime on th
 family: 33 (batch64/20k) → 40 (batch32/40k), i.e. the regime adds ~+7 pts, and the
 vision-encoder unfreeze adds the remaining +18 (40→58). Eval is non-deterministic (±a few pts),
 so small gaps (e.g. the +7 regime effect) are near the noise floor; the vision-encoder effect is
-far above it. Every unfrozen-all model (and the control) trains at batch32/40k **and keeps the smolvla_base default chunk 50** (the frozen/unfrozen-VLM custom models use chunk 20); the chunk-matched pairs (control→unfrozen-all, upstream-baseline→baseline-full) keep the unfreezing comparisons clean. A second regime check: `pick-orange-mimic-b64s20k`, the baseline retrained under the shared standard settings (b64/20k/chunk20), scores 43%/2.06 vs the upstream 41%/1.95 — the regime shifts the standard baseline by ~2 pts. The report's standard-panel baseline bar is this retrain.
+far above it. Every unfrozen-all model (and the control) trains at batch32/40k **and keeps the smolvla_base default chunk 50** (the frozen/unfrozen-VLM custom models use chunk 20); the chunk-matched pairs (control→unfrozen-all, upstream-baseline→baseline-full) keep the unfreezing comparisons clean. A second regime check: `pick-orange-mimic-b64s20k`, the baseline retrained under the shared standard settings (b64/20k/chunk20), scores 43%/2.06 vs the upstream 41%/1.95 — the regime shifts the standard baseline by ~2 pts. The report's standard-panel baseline bar is this retrain. **Chunk isolated directly (2026-07):** the two Teleop full models retrained at chunk 20 (`…-unfrozen-all-chunk20`) score 47%/2.15 (subtask, from 58%) and 49%/2.13 (monotask, from 54%) — so chunk length is worth ~5–11 pts of the full-tuning gain, but the chunk-matched full models still dwarf the standard ones (20%, 14%), i.e. the vision-encoder effect survives chunk-matching. Feeds the report's "imperfectly matched fully-tuned regime" limitation (4th check).
 
 | Model | policy | formulation | recipe | chunk | trained on | full% / mean |
 |---|---|---|---|---|---|---|
 | `Gal-pick-orange-tailedCH20` | SmolVLA | subtask | frozen | 20 | `Gal_split_tailed` | 20% / 1.77 |
 | `Gal-pick-orange-tailedCH20-unfrozen-vlm` | SmolVLA | subtask | unfrozen-VLM | 20 | `Gal_split_tailed` | 33% / 1.88 |
 | `Gal-pick-orange-tailedCH20-unfrozen-all` | SmolVLA | subtask | unfrozen-all | 50 | `Gal_split_tailed` | **58% / 2.32** |
+| `Gal-pick-orange-tailedCH20-unfrozen-all-chunk20` | SmolVLA | subtask | unfrozen-all (**chunk-matched retrain**) | 20 | `Gal_split_tailed` | 47% / 2.15 |
 | `Gal-pick-orange-tailedCH20-unfrozen-vlm-b32s40k` | SmolVLA | subtask | unfrozen-VLM (batch32/40k **control**) | 50 | `Gal_split_tailed` | 40% / 2.03 |
 | `Gal-pick-orange-notailCH20` | SmolVLA | subtask | frozen | 20 | `Gal_split_notail` | 32% / 1.81 |
 | `Gal_split_nolang` | SmolVLA | monotask | frozen | 20 | `Gal_split_nolang` | 14% / 1.02 |
 | `Gal_split_nolang-unfrozen-vlm` | SmolVLA | monotask | unfrozen-VLM | 20 | `Gal_split_nolang` | 9% / 0.92 |
 | `Gal_split_nolang-unfrozen-all` | SmolVLA | monotask | unfrozen-all | 50 | `Gal_split_nolang` | **54% / 2.24** |
+| `Gal_split_nolang-unfrozen-all-chunk20` | SmolVLA | monotask | unfrozen-all (**chunk-matched retrain**) | 20 | `Gal_split_nolang` | 49% / 2.13 |
 | `Gal-merged-tailed-auto` | SmolVLA | subtask | frozen | 20 | `Gal-merged-tailed-auto` | 13% / 1.42 |
 | `Gal-merged-tailed-auto-unfrozen-vlm` | SmolVLA | subtask | unfrozen-VLM | 20 | `Gal-merged-tailed-auto` | 10% / 1.37 |
 | `Gal-merged-tailed-auto-unfrozen-all` | SmolVLA | subtask | unfrozen-all | 50 | `Gal-merged-tailed-auto` | **44% / 2.24** |

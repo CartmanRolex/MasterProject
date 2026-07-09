@@ -1,0 +1,16 @@
+
+========================================
+FLAT-PROMPT EVALUATION COMPLETE
+Model ID:             /home/students/Gal/outputs/train/Gal_split_nolang-unfrozen-all-chunk20/checkpoints/040000/pretrained_model
+Result name:          Gal_split_nolang-unfrozen-all-chunk20
+Prompt:               Place the orange into plate
+Seed set:             pick_orange_reference_100_v1 (812885552604b60060a608a6139d78d0e589635470dd435a22e1e6811df52e96)
+Success Rate:         49/100 (49.00%)
+Avg oranges in plate: 2.13/3
+Mean steps (success): 2732.3
+3/3 oranges:          49/100 (49.0%)
+2/3 oranges:          25/100 (25.0%)
+1/3 oranges:          16/100 (16.0%)
+0/3 oranges:          10/100 (10.0%)
+Per-episode oranges:  [3, 3, 0, 3, 3, 0, 1, 3, 3, 0, 3, 2, 2, 3, 3, 3, 2, 3, 2, 0, 3, 0, 1, 2, 3, 3, 3, 3, 3, 0, 1, 3, 3, 3, 3, 3, 1, 1, 3, 3, 2, 2, 2, 3, 1, 3, 3, 1, 1, 3, 2, 1, 1, 3, 2, 1, 3, 3, 1, 3, 0, 1, 2, 3, 3, 3, 3, 3, 3, 0, 2, 2, 3, 1, 3, 3, 2, 2, 2, 2, 1, 2, 2, 3, 2, 2, 3, 2, 3, 3, 3, 3, 3, 1, 0, 3, 2, 2, 2, 0]
+========================================
